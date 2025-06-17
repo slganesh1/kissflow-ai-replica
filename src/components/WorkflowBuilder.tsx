@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,8 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Play, Save, Settings, Bot, Mail, FileText, Database, Zap, ArrowRight, Clock } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Plus, Play, Save, Settings, Bot, Mail, FileText, Database, Zap, ArrowRight, Clock, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
+import { AIWorkflowGenerator } from './AIWorkflowGenerator';
 
 const workflowTemplates = [
   {
@@ -256,45 +257,61 @@ export const WorkflowBuilder = () => {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {workflowTemplates.map((template) => (
-          <Card key={template.id} className="hover:shadow-lg transition-all duration-200 cursor-pointer group">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg group-hover:text-blue-600 transition-colors">
-                  {template.name}
-                </CardTitle>
-                <Badge variant="secondary">{template.category}</Badge>
-              </div>
-              <CardDescription>{template.description}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between text-sm text-gray-600">
-                  <span>{template.steps} steps</span>
-                  <span>{template.agents.length} AI agents</span>
-                </div>
-                
-                <div className="flex flex-wrap gap-1">
-                  {template.agents.map((agent, index) => (
-                    <Badge key={index} variant="outline" className="text-xs">
-                      <Bot className="h-3 w-3 mr-1" />
-                      {agent}
-                    </Badge>
-                  ))}
-                </div>
+      <Tabs defaultValue="ai-generator" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="ai-generator" className="flex items-center space-x-2">
+            <Sparkles className="h-4 w-4" />
+            <span>AI Generator</span>
+          </TabsTrigger>
+          <TabsTrigger value="templates">Templates</TabsTrigger>
+        </TabsList>
 
-                <Button 
-                  className="w-full group-hover:bg-blue-600 transition-colors"
-                  onClick={() => startFromTemplate(template)}
-                >
-                  Use This Template
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+        <TabsContent value="ai-generator">
+          <AIWorkflowGenerator />
+        </TabsContent>
+
+        <TabsContent value="templates">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {workflowTemplates.map((template) => (
+              <Card key={template.id} className="hover:shadow-lg transition-all duration-200 cursor-pointer group">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg group-hover:text-blue-600 transition-colors">
+                      {template.name}
+                    </CardTitle>
+                    <Badge variant="secondary">{template.category}</Badge>
+                  </div>
+                  <CardDescription>{template.description}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between text-sm text-gray-600">
+                      <span>{template.steps} steps</span>
+                      <span>{template.agents.length} AI agents</span>
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-1">
+                      {template.agents.map((agent, index) => (
+                        <Badge key={index} variant="outline" className="text-xs">
+                          <Bot className="h-3 w-3 mr-1" />
+                          {agent}
+                        </Badge>
+                      ))}
+                    </div>
+
+                    <Button 
+                      className="w-full group-hover:bg-blue-600 transition-colors"
+                      onClick={() => startFromTemplate(template)}
+                    >
+                      Use This Template
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
