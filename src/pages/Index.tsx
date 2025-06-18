@@ -6,6 +6,7 @@ import { WorkflowBuilder } from '@/components/WorkflowBuilder';
 import { AgentPanel } from '@/components/AgentPanel';
 import { ProcessMonitor } from '@/components/ProcessMonitor';
 import { AgentCoordinator } from '@/components/AgentCoordinator';
+import { ContextualAnalyzer } from '@/components/ContextualAnalyzer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const Index = () => {
@@ -24,7 +25,7 @@ const Index = () => {
         </div>
 
         <Tabs defaultValue="dashboard" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 mb-8">
+          <TabsList className="grid w-full grid-cols-6 mb-8">
             <TabsTrigger value="dashboard" className="text-sm font-medium">
               Dashboard
             </TabsTrigger>
@@ -36,6 +37,9 @@ const Index = () => {
             </TabsTrigger>
             <TabsTrigger value="coordination" className="text-sm font-medium">
               Agent Coordination
+            </TabsTrigger>
+            <TabsTrigger value="context" className="text-sm font-medium">
+              Contextual AI
             </TabsTrigger>
             <TabsTrigger value="monitor" className="text-sm font-medium">
               Process Monitor
@@ -56,6 +60,10 @@ const Index = () => {
 
           <TabsContent value="coordination">
             <AgentCoordinator />
+          </TabsContent>
+
+          <TabsContent value="context">
+            <ContextualAnalyzer />
           </TabsContent>
 
           <TabsContent value="monitor">
