@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Sparkles, ArrowRight, CheckCircle, AlertCircle, Users, DollarSign, FileText, Mail, Clock, XCircle, Play } from 'lucide-react';
+import { Sparkles, ArrowRight, CheckCircle, AlertCircle, Users, DollarSign, FileText, Mail, Clock, XCircle, Play, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface WorkflowStep {
@@ -17,7 +17,10 @@ interface WorkflowStep {
   bgColor: string;
   assignee?: string;
   condition?: string;
+  timeEstimate?: string;
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
   position: { x: number; y: number };
+  connectedTo?: string[];
 }
 
 interface GeneratedWorkflow {
@@ -26,6 +29,7 @@ interface GeneratedWorkflow {
   category: string;
   steps: WorkflowStep[];
   estimatedTime: string;
+  urgency: 'low' | 'medium' | 'high' | 'urgent';
 }
 
 const stepTypes = {
@@ -47,150 +51,222 @@ export const AIWorkflowGenerator = () => {
   const parseScenario = (input: string): GeneratedWorkflow => {
     const lowerInput = input.toLowerCase();
     
-    const isApprovalProcess = lowerInput.includes('approval');
-    const hasMoneyAmount = lowerInput.match(/\$?\d+[\d,]*|\d+[\d,]*\s*dollars?/);
+    // Enhanced scenario detection
+    const isApprovalProcess = lowerInput.includes('approval') || lowerInput.includes('approve');
+    const hasMoneyAmount = input.match(/\$[\d,]+|\$?\d+[\d,]*|\d+[\d,]*\s*dollars?/);
     const hasManager = lowerInput.includes('manager');
     const hasFinance = lowerInput.includes('finance');
-    const isExpense = lowerInput.includes('expense') || lowerInput.includes('cost');
-    const isMarketing = lowerInput.includes('marketing');
-    const hasForm = lowerInput.includes('form') || lowerInput.includes('request');
-    const hasNotification = lowerInput.includes('notification') || lowerInput.includes('notify');
+    const isExpense = lowerInput.includes('expense') || lowerInput.includes('cost') || lowerInput.includes('budget');
+    const isMarketing = lowerInput.includes('marketing') || lowerInput.includes('campaign') || lowerInput.includes('advertising');
+    const hasForm = lowerInput.includes('form') || lowerInput.includes('request') || lowerInput.includes('submit');
+    const hasNotification = lowerInput.includes('notification') || lowerInput.includes('notify') || lowerInput.includes('alert');
+    const isUrgent = lowerInput.includes('urgent') || lowerInput.includes('asap') || lowerInput.includes('immediately') || lowerInput.includes('rush');
+    const hasDeadline = lowerInput.includes('deadline') || lowerInput.includes('by next week') || lowerInput.includes('target');
+    const isProduct = lowerInput.includes('product') || lowerInput.includes('launch');
+    const isQ4 = lowerInput.includes('q4') || lowerInput.includes('holiday') || lowerInput.includes('fourth quarter');
 
     let workflowName = 'Custom Workflow';
     let category = 'General';
     let description = 'Auto-generated workflow based on your scenario';
+    let urgency: 'low' | 'medium' | 'high' | 'urgent' = 'medium';
 
-    if (isApprovalProcess && isExpense) {
-      workflowName = isMarketing ? 'Marketing Expense Approval' : 'Expense Approval Process';
+    if (isApprovalProcess && isMarketing && hasMoneyAmount) {
+      workflowName = `Marketing Campaign Approval - ${hasMoneyAmount[0]}`;
+      category = 'Marketing';
+      description = `Approval workflow for ${hasMoneyAmount[0]} marketing campaign${isProduct ? ' for product launch' : ''}${isQ4 ? ' for Q4/holiday season' : ''}`;
+      urgency = isUrgent ? 'urgent' : 'high';
+    } else if (isApprovalProcess && isExpense) {
+      workflowName = 'Expense Approval Process';
       category = 'Finance';
-      description = `Automated approval process for ${isMarketing ? 'marketing ' : ''}expenses${hasMoneyAmount ? ` over ${hasMoneyAmount[0]}` : ''}`;
+      description = `Automated approval process for ${isMarketing ? 'marketing ' : ''}expenses${hasMoneyAmount ? ` of ${hasMoneyAmount[0]}` : ''}`;
+      urgency = isUrgent ? 'urgent' : 'medium';
     }
 
     const steps: WorkflowStep[] = [];
     let yPosition = 0;
+    const stepConnections: { [key: string]: string[] } = {};
 
     // Start step
+    const startId = 'start-1';
     steps.push({
-      id: 'start-1',
-      name: 'Start',
+      id: startId,
+      name: 'Workflow Initiated',
       type: 'start',
-      description: 'Workflow begins',
+      description: `${isUrgent ? 'Urgent: ' : ''}${workflowName} process begins`,
       icon: stepTypes.start.icon,
       color: stepTypes.start.color,
       bgColor: stepTypes.start.bgColor,
+      priority: urgency,
       position: { x: 0, y: yPosition }
     });
     yPosition += 120;
 
-    // Form submission if mentioned
-    if (hasForm) {
-      steps.push({
-        id: 'form-1',
-        name: 'Submit Request Form',
-        type: 'form',
-        description: `User fills out ${isMarketing ? 'marketing ' : ''}expense request details`,
-        icon: stepTypes.form.icon,
-        color: stepTypes.form.color,
-        bgColor: stepTypes.form.bgColor,
-        position: { x: 0, y: yPosition }
-      });
-      yPosition += 120;
-    }
+    // Form submission
+    const formId = 'form-1';
+    steps.push({
+      id: formId,
+      name: `Submit ${isMarketing ? 'Marketing Campaign' : 'Expense'} Request`,
+      type: 'form',
+      description: `Complete detailed request form including ${hasMoneyAmount ? `budget of ${hasMoneyAmount[0]}` : 'cost breakdown'}${isProduct ? ', product launch details' : ''}${hasDeadline ? ', timeline requirements' : ''}`,
+      icon: stepTypes.form.icon,
+      color: stepTypes.form.color,
+      bgColor: stepTypes.form.bgColor,
+      timeEstimate: '15-30 minutes',
+      priority: urgency,
+      position: { x: 0, y: yPosition }
+    });
+    stepConnections[startId] = [formId];
+    yPosition += 120;
 
-    // Add notification step
-    if (hasNotification && hasManager) {
-      steps.push({
-        id: 'email-1',
-        name: 'Notify Manager',
-        type: 'email',
-        description: 'Send email notification to manager',
-        icon: stepTypes.email.icon,
-        color: stepTypes.email.color,
-        bgColor: stepTypes.email.bgColor,
-        position: { x: 0, y: yPosition }
-      });
-      yPosition += 120;
-    }
+    // Initial notification
+    const notifyId = 'email-1';
+    steps.push({
+      id: notifyId,
+      name: 'Notify Stakeholders',
+      type: 'email',
+      description: `Send automatic notification to ${hasManager ? 'direct manager' : 'supervisor'}${hasFinance ? ' and finance team' : ''}${isUrgent ? ' with urgent priority flag' : ''}`,
+      icon: stepTypes.email.icon,
+      color: stepTypes.email.color,
+      bgColor: stepTypes.email.bgColor,
+      timeEstimate: 'Immediate',
+      priority: urgency,
+      position: { x: 0, y: yPosition }
+    });
+    stepConnections[formId] = [notifyId];
+    yPosition += 120;
 
-    // Add decision if amount threshold is mentioned
+    // Amount-based decision
+    const decisionId = 'decision-1';
     if (hasMoneyAmount) {
+      const amount = hasMoneyAmount[0];
       steps.push({
-        id: 'decision-1',
-        name: 'Check Amount',
+        id: decisionId,
+        name: 'Budget Threshold Check',
         type: 'decision',
-        description: `Is amount over ${hasMoneyAmount[0]}?`,
+        description: `Evaluate if ${amount} exceeds approval thresholds${isMarketing ? ' for marketing spend' : ''}`,
         icon: stepTypes.decision.icon,
         color: stepTypes.decision.color,
         bgColor: stepTypes.decision.bgColor,
-        condition: `Amount > ${hasMoneyAmount[0]}`,
+        condition: `Amount ${amount} requires multi-level approval`,
+        timeEstimate: 'Automatic',
+        priority: urgency,
         position: { x: 0, y: yPosition }
       });
+      stepConnections[notifyId] = [decisionId];
       yPosition += 120;
     }
 
-    // Add manager approval if mentioned
-    if (hasManager) {
-      steps.push({
-        id: 'approval-1',
-        name: 'Manager Approval',
-        type: 'approval',
-        description: 'Manager reviews and approves',
-        icon: stepTypes.approval.icon,
-        color: stepTypes.approval.color,
-        bgColor: stepTypes.approval.bgColor,
-        assignee: 'Direct Manager',
-        position: { x: 0, y: yPosition }
-      });
-      yPosition += 120;
-    }
+    // Manager approval
+    const managerApprovalId = 'approval-1';
+    steps.push({
+      id: managerApprovalId,
+      name: 'Manager Review & Approval',
+      type: 'approval',
+      description: `Direct manager evaluates ${isMarketing ? 'campaign strategy, ROI projections,' : 'expense justification,'} and budget allocation${isQ4 ? ' for holiday season timing' : ''}`,
+      icon: stepTypes.approval.icon,
+      color: stepTypes.approval.color,
+      bgColor: stepTypes.approval.bgColor,
+      assignee: 'Direct Manager',
+      timeEstimate: isUrgent ? '4-8 hours' : '1-2 business days',
+      priority: urgency,
+      position: { x: 0, y: yPosition }
+    });
+    stepConnections[hasMoneyAmount ? decisionId : notifyId] = [managerApprovalId];
+    yPosition += 120;
 
-    // Add finance approval if mentioned
-    if (hasFinance) {
+    // Finance approval for high amounts
+    let financeApprovalId = '';
+    if (hasFinance || (hasMoneyAmount && parseInt(hasMoneyAmount[0].replace(/[$,]/g, '')) > 5000)) {
+      financeApprovalId = 'approval-2';
       steps.push({
-        id: 'approval-2',
-        name: 'Finance Approval',
+        id: financeApprovalId,
+        name: 'Finance Director Approval',
         type: 'approval',
-        description: 'Finance director final approval',
+        description: `Finance team reviews budget impact, cash flow, and financial compliance${isMarketing ? ' for marketing ROI' : ''}${isQ4 ? ' considering Q4 budget constraints' : ''}`,
         icon: stepTypes.approval.icon,
         color: stepTypes.approval.color,
         bgColor: stepTypes.approval.bgColor,
         assignee: 'Finance Director',
+        timeEstimate: isUrgent ? '8-12 hours' : '2-3 business days',
+        priority: urgency,
         position: { x: 0, y: yPosition }
       });
+      stepConnections[managerApprovalId] = [financeApprovalId];
       yPosition += 120;
     }
 
-    // Add final notification
+    // Execution task if urgent
+    let executionId = '';
+    if (isUrgent || hasDeadline) {
+      executionId = 'task-1';
+      steps.push({
+        id: executionId,
+        name: 'Begin Execution',
+        type: 'task',
+        description: `Initiate ${isMarketing ? 'campaign development and vendor coordination' : 'expense processing'}${hasDeadline ? ' to meet deadline requirements' : ''}`,
+        icon: stepTypes.task.icon,
+        color: stepTypes.task.color,
+        bgColor: stepTypes.task.bgColor,
+        assignee: isMarketing ? 'Marketing Team' : 'Requesting Department',
+        timeEstimate: isMarketing ? '3-5 days' : '1-2 days',
+        priority: urgency,
+        position: { x: 0, y: yPosition }
+      });
+      stepConnections[financeApprovalId || managerApprovalId] = [executionId];
+      yPosition += 120;
+    }
+
+    // Final notification
+    const finalNotifyId = 'email-2';
     steps.push({
-      id: 'email-2',
-      name: 'Send Final Notification',
+      id: finalNotifyId,
+      name: 'Send Decision Notification',
       type: 'email',
-      description: 'Notify requestor of decision',
+      description: `Notify all stakeholders of approval decision${isUrgent ? ' and immediate next steps' : ''}${isMarketing ? ', including creative and media teams' : ''}`,
       icon: stepTypes.email.icon,
       color: stepTypes.email.color,
       bgColor: stepTypes.email.bgColor,
+      timeEstimate: 'Immediate',
+      priority: urgency,
       position: { x: 0, y: yPosition }
     });
+    stepConnections[executionId || financeApprovalId || managerApprovalId] = [finalNotifyId];
     yPosition += 120;
 
     // End step
+    const endId = 'end-1';
     steps.push({
-      id: 'end-1',
-      name: 'End',
+      id: endId,
+      name: 'Workflow Complete',
       type: 'end',
-      description: 'Workflow completed',
+      description: `${workflowName} process completed${isUrgent ? ' with urgent timeline met' : ''}`,
       icon: stepTypes.end.icon,
       color: stepTypes.end.color,
       bgColor: stepTypes.end.bgColor,
       position: { x: 0, y: yPosition }
     });
+    stepConnections[finalNotifyId] = [endId];
+
+    // Add connections to steps
+    Object.entries(stepConnections).forEach(([stepId, connections]) => {
+      const step = steps.find(s => s.id === stepId);
+      if (step) {
+        step.connectedTo = connections;
+      }
+    });
+
+    // Calculate total time
+    const totalSteps = steps.length - 2; // exclude start and end
+    const baseTime = isUrgent ? 1 : 2;
+    const estimatedTime = `${totalSteps * baseTime}-${totalSteps * baseTime * 2} ${isUrgent ? 'hours' : 'days'}`;
 
     return {
       name: workflowName,
       description,
       category,
       steps,
-      estimatedTime: `${Math.max(1, steps.length - 2) * 2}-${Math.max(1, steps.length - 2) * 4} hours`
+      estimatedTime,
+      urgency
     };
   };
 
@@ -207,7 +283,7 @@ export const AIWorkflowGenerator = () => {
     try {
       const workflow = parseScenario(scenario);
       setGeneratedWorkflow(workflow);
-      toast.success('Visual workflow generated successfully!');
+      toast.success('Enhanced visual workflow generated successfully!');
     } catch (error) {
       toast.error('Failed to generate workflow. Please try again.');
     } finally {
@@ -230,7 +306,7 @@ export const AIWorkflowGenerator = () => {
             <span>AI Visual Workflow Generator</span>
           </CardTitle>
           <CardDescription>
-            Describe your business process and I'll create a visual workflow diagram automatically
+            Describe your business process and I'll create a detailed visual workflow diagram automatically
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -239,7 +315,7 @@ export const AIWorkflowGenerator = () => {
               Describe your workflow scenario:
             </label>
             <Textarea
-              placeholder="Example: Create an approval process for marketing expenses over $1000 with manager and finance director approval steps, including form submission and email notifications"
+              placeholder="Example: I need approval for a $15000 marketing campaign for our Q4 product launch. This is urgent as we need to start by next week to meet our holiday sales target"
               value={scenario}
               onChange={(e) => setScenario(e.target.value)}
               rows={4}
@@ -256,7 +332,7 @@ export const AIWorkflowGenerator = () => {
               {isGenerating ? (
                 <>
                   <Sparkles className="h-4 w-4 mr-2 animate-spin" />
-                  Generating Visual Workflow...
+                  Generating Enhanced Workflow...
                 </>
               ) : (
                 <>
@@ -299,7 +375,7 @@ export const AIWorkflowGenerator = () => {
             </CardContent>
           </Card>
 
-          {/* Visual Workflow Canvas */}
+          {/* Enhanced Visual Workflow Canvas */}
           <div className="lg:col-span-3">
             <Card>
               <CardHeader>
@@ -311,44 +387,82 @@ export const AIWorkflowGenerator = () => {
                   <div className="flex space-x-2">
                     <Badge variant="secondary">{generatedWorkflow.category}</Badge>
                     <Badge variant="outline">~{generatedWorkflow.estimatedTime}</Badge>
+                    <Badge 
+                      className={
+                        generatedWorkflow.urgency === 'urgent' ? 'bg-red-100 text-red-700' :
+                        generatedWorkflow.urgency === 'high' ? 'bg-orange-100 text-orange-700' :
+                        'bg-blue-100 text-blue-700'
+                      }
+                    >
+                      {generatedWorkflow.urgency.toUpperCase()}
+                    </Badge>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="bg-gray-50 rounded-lg p-6 min-h-[600px] relative">
+                <div className="bg-gray-50 rounded-lg p-6 min-h-[700px] relative">
                   <div className="flex flex-col items-center space-y-4">
                     {generatedWorkflow.steps.map((step, index) => (
                       <div key={step.id} className="flex flex-col items-center">
-                        {/* Workflow Step */}
-                        <div className={`relative p-4 rounded-lg border-2 min-w-[200px] ${step.bgColor} shadow-sm hover:shadow-md transition-all`}>
-                          <div className="flex items-center space-x-3 mb-2">
-                            <step.icon className={`h-5 w-5 ${step.color}`} />
-                            <h4 className="font-medium text-sm">{step.name}</h4>
+                        {/* Enhanced Workflow Step */}
+                        <div className={`relative p-4 rounded-lg border-2 min-w-[280px] max-w-[320px] ${step.bgColor} shadow-sm hover:shadow-md transition-all`}>
+                          <div className="flex items-center space-x-3 mb-3">
+                            <step.icon className={`h-6 w-6 ${step.color}`} />
+                            <h4 className="font-semibold text-sm">{step.name}</h4>
+                            {step.priority === 'urgent' && (
+                              <Badge className="text-xs bg-red-100 text-red-600">
+                                URGENT
+                              </Badge>
+                            )}
                           </div>
-                          <p className="text-xs text-gray-600 mb-2">{step.description}</p>
                           
-                          {step.assignee && (
-                            <Badge className="text-xs bg-blue-50 text-blue-700 mb-1">
-                              👤 {step.assignee}
-                            </Badge>
-                          )}
+                          <p className="text-xs text-gray-700 mb-3 leading-relaxed">{step.description}</p>
                           
-                          {step.condition && (
-                            <Badge className="text-xs bg-yellow-50 text-yellow-700">
-                              ⚡ {step.condition}
-                            </Badge>
-                          )}
+                          <div className="flex flex-wrap gap-2">
+                            {step.assignee && (
+                              <Badge className="text-xs bg-blue-50 text-blue-700">
+                                👤 {step.assignee}
+                              </Badge>
+                            )}
+                            
+                            {step.condition && (
+                              <Badge className="text-xs bg-yellow-50 text-yellow-700">
+                                ⚡ {step.condition}
+                              </Badge>
+                            )}
+                            
+                            {step.timeEstimate && (
+                              <Badge className="text-xs bg-purple-50 text-purple-700">
+                                ⏱️ {step.timeEstimate}
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                         
-                        {/* Connection Arrow */}
+                        {/* Enhanced Connection Arrow with Flow Lines */}
                         {index < generatedWorkflow.steps.length - 1 && (
-                          <div className="flex items-center justify-center py-2">
-                            <div className="w-0.5 h-6 bg-gray-300"></div>
-                            <ArrowRight className="h-4 w-4 text-gray-400 absolute bg-gray-50" />
+                          <div className="flex flex-col items-center py-3">
+                            <div className="w-0.5 h-4 bg-gray-400"></div>
+                            <div className="flex items-center justify-center">
+                              <ArrowRight className="h-5 w-5 text-gray-500 bg-gray-50 p-0.5 rounded border" />
+                            </div>
+                            <div className="w-0.5 h-4 bg-gray-400"></div>
                           </div>
                         )}
                       </div>
                     ))}
+                  </div>
+                  
+                  {/* Workflow Summary */}
+                  <div className="absolute top-4 right-4 bg-white p-3 rounded-lg shadow-md border">
+                    <div className="text-xs text-gray-600">
+                      <div><strong>{generatedWorkflow.steps.length}</strong> steps</div>
+                      <div><strong>{generatedWorkflow.estimatedTime}</strong> total time</div>
+                      <div className="flex items-center space-x-1">
+                        <Zap className="h-3 w-3" />
+                        <span>Auto-connected flow</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </CardContent>
