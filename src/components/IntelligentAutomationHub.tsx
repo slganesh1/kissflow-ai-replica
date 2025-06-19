@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Brain, Crystal, Zap, TrendingUp, Bot, Settings } from 'lucide-react';
+import { Brain, Gem, Zap, TrendingUp, Bot, Settings } from 'lucide-react';
 import { SmartDecisionEngine } from './SmartDecisionEngine';
 import { PredictiveWorkflowEngine } from './PredictiveWorkflowEngine';
 
@@ -30,7 +30,7 @@ export const IntelligentAutomationHub = () => {
               </div>
             </div>
             <div className="flex items-center space-x-3 p-3 bg-blue-50 rounded-lg">
-              <Crystal className="h-8 w-8 text-blue-600" />
+              <Gem className="h-8 w-8 text-blue-600" />
               <div>
                 <h3 className="font-semibold text-sm">Predictive Workflows</h3>
                 <p className="text-xs text-gray-600">Anticipate workflow needs</p>
@@ -54,7 +54,7 @@ export const IntelligentAutomationHub = () => {
             <span>Smart Decisions</span>
           </TabsTrigger>
           <TabsTrigger value="predictions" className="flex items-center space-x-2">
-            <Crystal className="h-4 w-4" />
+            <Gem className="h-4 w-4" />
             <span>Predictive Engine</span>
           </TabsTrigger>
           <TabsTrigger value="optimization" className="flex items-center space-x-2">

@@ -1,10 +1,9 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Crystal, TrendingUp, Calendar, Target, AlertCircle, Clock, Users } from 'lucide-react';
+import { Gem, TrendingUp, Calendar, Target, AlertCircle, Clock, Users } from 'lucide-react';
 
 interface Prediction {
   id: string;
@@ -119,7 +118,7 @@ export const PredictiveWorkflowEngine = () => {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
-            <Crystal className="h-5 w-5 text-blue-600" />
+            <Gem className="h-5 w-5 text-blue-600" />
             <span>Predictive Workflow Engine</span>
           </CardTitle>
           <CardDescription>
