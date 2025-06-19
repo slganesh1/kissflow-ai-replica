@@ -8,6 +8,7 @@ import { ProcessMonitor } from '@/components/ProcessMonitor';
 import { AgentCoordinator } from '@/components/AgentCoordinator';
 import { ContextualAnalyzer } from '@/components/ContextualAnalyzer';
 import { ContinuousOptimizer } from '@/components/ContinuousOptimizer';
+import { IntelligentAutomationHub } from '@/components/IntelligentAutomationHub';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const Index = () => {
@@ -26,12 +27,15 @@ const Index = () => {
         </div>
 
         <Tabs defaultValue="dashboard" className="w-full">
-          <TabsList className="grid w-full grid-cols-7 mb-8">
+          <TabsList className="grid w-full grid-cols-8 mb-8">
             <TabsTrigger value="dashboard" className="text-sm font-medium">
               Dashboard
             </TabsTrigger>
             <TabsTrigger value="builder" className="text-sm font-medium">
               Workflow Builder
+            </TabsTrigger>
+            <TabsTrigger value="intelligent" className="text-sm font-medium">
+              Intelligent Automation
             </TabsTrigger>
             <TabsTrigger value="agents" className="text-sm font-medium">
               AI Agents
@@ -56,6 +60,10 @@ const Index = () => {
 
           <TabsContent value="builder">
             <WorkflowBuilder />
+          </TabsContent>
+
+          <TabsContent value="intelligent">
+            <IntelligentAutomationHub />
           </TabsContent>
 
           <TabsContent value="agents">
