@@ -1,10 +1,9 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Sparkles, ArrowRight, CheckCircle, AlertCircle, Users, DollarSign, FileText, Mail, Clock, XCircle, Play, Zap } from 'lucide-react';
+import { Sparkles, ArrowRight, CheckCircle, AlertCircle, Users, DollarSign, FileText, Mail, Clock, XCircle, Play, Zap, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface WorkflowStep {
@@ -47,6 +46,8 @@ export const AIWorkflowGenerator = () => {
   const [scenario, setScenario] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedWorkflow, setGeneratedWorkflow] = useState<GeneratedWorkflow | null>(null);
+  const [isExecuting, setIsExecuting] = useState(false);
+  const [executionProgress, setExecutionProgress] = useState<{ [key: string]: 'pending' | 'executing' | 'completed' | 'failed' }>({});
 
   const parseScenario = (input: string): GeneratedWorkflow => {
     const lowerInput = input.toLowerCase();
@@ -283,6 +284,12 @@ export const AIWorkflowGenerator = () => {
     try {
       const workflow = parseScenario(scenario);
       setGeneratedWorkflow(workflow);
+      // Initialize execution progress
+      const progress = {};
+      workflow.steps.forEach(step => {
+        progress[step.id] = 'pending';
+      });
+      setExecutionProgress(progress);
       toast.success('Enhanced visual workflow generated successfully!');
     } catch (error) {
       toast.error('Failed to generate workflow. Please try again.');
@@ -291,9 +298,69 @@ export const AIWorkflowGenerator = () => {
     }
   };
 
+  const executeWorkflow = async () => {
+    if (!generatedWorkflow) return;
+    
+    setIsExecuting(true);
+    toast.success(`Starting execution of ${generatedWorkflow.name}`);
+    
+    // Execute steps sequentially
+    for (const step of generatedWorkflow.steps) {
+      setExecutionProgress(prev => ({
+        ...prev,
+        [step.id]: 'executing'
+      }));
+      
+      // Simulate step execution time based on step type
+      const executionTime = step.type === 'delay' ? 3000 : 
+                           step.type === 'approval' ? 2000 : 
+                           step.type === 'email' ? 500 : 1000;
+      
+      await new Promise(resolve => setTimeout(resolve, executionTime));
+      
+      setExecutionProgress(prev => ({
+        ...prev,
+        [step.id]: 'completed'
+      }));
+      
+      toast.success(`Completed: ${step.name}`);
+    }
+    
+    setIsExecuting(false);
+    toast.success(`Workflow "${generatedWorkflow.name}" executed successfully!`);
+  };
+
   const createWorkflow = () => {
     if (generatedWorkflow) {
       toast.success(`Created workflow: ${generatedWorkflow.name}`);
+    }
+  };
+
+  const getStepStatusIcon = (stepId: string) => {
+    const status = executionProgress[stepId];
+    switch (status) {
+      case 'executing':
+        return <Loader2 className="h-4 w-4 animate-spin text-blue-600" />;
+      case 'completed':
+        return <CheckCircle className="h-4 w-4 text-green-600" />;
+      case 'failed':
+        return <XCircle className="h-4 w-4 text-red-600" />;
+      default:
+        return null;
+    }
+  };
+
+  const getStepStatusColor = (stepId: string) => {
+    const status = executionProgress[stepId];
+    switch (status) {
+      case 'executing':
+        return 'border-blue-400 bg-blue-50';
+      case 'completed':
+        return 'border-green-400 bg-green-50';
+      case 'failed':
+        return 'border-red-400 bg-red-50';
+      default:
+        return '';
     }
   };
 
@@ -343,9 +410,28 @@ export const AIWorkflowGenerator = () => {
             </Button>
             
             {generatedWorkflow && (
-              <Button onClick={createWorkflow} variant="outline">
-                Create This Workflow
-              </Button>
+              <>
+                <Button 
+                  onClick={executeWorkflow}
+                  disabled={isExecuting}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {isExecuting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Executing...
+                    </>
+                  ) : (
+                    <>
+                      <Play className="h-4 w-4 mr-2" />
+                      Execute Workflow
+                    </>
+                  )}
+                </Button>
+                <Button onClick={createWorkflow} variant="outline">
+                  Save as Template
+                </Button>
+              </>
             )}
           </div>
         </CardContent>
@@ -357,10 +443,27 @@ export const AIWorkflowGenerator = () => {
           <Card>
             <CardHeader>
               <CardTitle className="text-lg flex items-center space-x-2">
-                <span>+ Add Workflow Steps</span>
+                <span>Workflow Controls</span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <h4 className="font-medium text-sm">Execution Status</h4>
+                <div className="space-y-1">
+                  {Object.entries(executionProgress).map(([stepId, status]) => {
+                    const step = generatedWorkflow.steps.find(s => s.id === stepId);
+                    return (
+                      <div key={stepId} className="flex items-center space-x-2 text-xs">
+                        {getStepStatusIcon(stepId)}
+                        <span className={status === 'completed' ? 'text-green-600' : status === 'executing' ? 'text-blue-600' : 'text-gray-600'}>
+                          {step?.name}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              
               {Object.entries(stepTypes).map(([type, config]) => (
                 <div
                   key={type}
@@ -396,6 +499,12 @@ export const AIWorkflowGenerator = () => {
                     >
                       {generatedWorkflow.urgency.toUpperCase()}
                     </Badge>
+                    {isExecuting && (
+                      <Badge className="bg-blue-100 text-blue-700">
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        EXECUTING
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </CardHeader>
@@ -404,16 +513,19 @@ export const AIWorkflowGenerator = () => {
                   <div className="flex flex-col items-center space-y-4">
                     {generatedWorkflow.steps.map((step, index) => (
                       <div key={step.id} className="flex flex-col items-center">
-                        {/* Enhanced Workflow Step */}
-                        <div className={`relative p-4 rounded-lg border-2 min-w-[280px] max-w-[320px] ${step.bgColor} shadow-sm hover:shadow-md transition-all`}>
+                        {/* Enhanced Workflow Step with Execution Status */}
+                        <div className={`relative p-4 rounded-lg border-2 min-w-[280px] max-w-[320px] ${step.bgColor} ${getStepStatusColor(step.id)} shadow-sm hover:shadow-md transition-all`}>
                           <div className="flex items-center space-x-3 mb-3">
                             <step.icon className={`h-6 w-6 ${step.color}`} />
-                            <h4 className="font-semibold text-sm">{step.name}</h4>
-                            {step.priority === 'urgent' && (
-                              <Badge className="text-xs bg-red-100 text-red-600">
-                                URGENT
-                              </Badge>
-                            )}
+                            <h4 className="font-semibold text-sm flex-1">{step.name}</h4>
+                            <div className="flex items-center space-x-2">
+                              {getStepStatusIcon(step.id)}
+                              {step.priority === 'urgent' && (
+                                <Badge className="text-xs bg-red-100 text-red-600">
+                                  URGENT
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                           
                           <p className="text-xs text-gray-700 mb-3 leading-relaxed">{step.description}</p>
@@ -462,6 +574,12 @@ export const AIWorkflowGenerator = () => {
                         <Zap className="h-3 w-3" />
                         <span>Auto-connected flow</span>
                       </div>
+                      {isExecuting && (
+                        <div className="flex items-center space-x-1 text-blue-600">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          <span>Executing...</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
