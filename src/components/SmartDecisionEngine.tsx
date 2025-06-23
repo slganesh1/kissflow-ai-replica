@@ -1,88 +1,19 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Brain, Zap, TrendingUp, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
-
-interface Decision {
-  id: string;
-  context: string;
-  options: string[];
-  recommendedAction: string;
-  confidence: number;
-  reasoning: string;
-  timestamp: Date;
-  status: 'pending' | 'approved' | 'executed';
-  impact: 'low' | 'medium' | 'high';
-}
-
-interface DecisionRule {
-  id: string;
-  name: string;
-  condition: string;
-  action: string;
-  priority: number;
-  enabled: boolean;
-}
+import { Brain, Zap, TrendingUp, AlertTriangle, CheckCircle } from 'lucide-react';
+import { useDecisions, useExecuteDecision } from '@/hooks/useDecisions';
+import { useDecisionRules } from '@/hooks/useDecisionRules';
 
 export const SmartDecisionEngine = () => {
-  const [decisions, setDecisions] = useState<Decision[]>([
-    {
-      id: '1',
-      context: 'High volume of expense requests detected',
-      options: ['Auto-approve under $500', 'Route to manager', 'Batch process'],
-      recommendedAction: 'Auto-approve under $500',
-      confidence: 0.87,
-      reasoning: 'Historical data shows 95% approval rate for expenses under $500 with current user',
-      timestamp: new Date(),
-      status: 'pending',
-      impact: 'medium'
-    },
-    {
-      id: '2',
-      context: 'Marketing campaign deadline approaching',
-      options: ['Expedite approval', 'Request extension', 'Proceed with reduced scope'],
-      recommendedAction: 'Expedite approval',
-      confidence: 0.92,
-      reasoning: 'Campaign aligns with Q4 strategy and budget is within limits',
-      timestamp: new Date(),
-      status: 'approved',
-      impact: 'high'
-    }
-  ]);
-
-  const [decisionRules] = useState<DecisionRule[]>([
-    {
-      id: '1',
-      name: 'Auto-approve low-value expenses',
-      condition: 'amount < $500 AND user.history.approval_rate > 0.9',
-      action: 'approve_automatically',
-      priority: 1,
-      enabled: true
-    },
-    {
-      id: '2',
-      name: 'Escalate urgent requests',
-      condition: 'priority = "urgent" AND amount > $1000',
-      action: 'escalate_to_director',
-      priority: 2,
-      enabled: true
-    },
-    {
-      id: '3',
-      name: 'Batch process similar requests',
-      condition: 'category = same AND count > 5',
-      action: 'batch_process',
-      priority: 3,
-      enabled: true
-    }
-  ]);
+  const { data: decisions = [], isLoading: decisionsLoading } = useDecisions();
+  const { data: decisionRules = [], isLoading: rulesLoading } = useDecisionRules();
+  const executeDecisionMutation = useExecuteDecision();
 
   const executeDecision = (decisionId: string) => {
-    setDecisions(prev => prev.map(d => 
-      d.id === decisionId ? { ...d, status: 'executed' } : d
-    ));
+    executeDecisionMutation.mutate(decisionId);
   };
 
   const getConfidenceColor = (confidence: number) => {
@@ -98,6 +29,24 @@ export const SmartDecisionEngine = () => {
       default: return <CheckCircle className="h-4 w-4 text-green-600" />;
     }
   };
+
+  if (decisionsLoading || rulesLoading) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Brain className="h-5 w-5 text-purple-600" />
+              <span>Smart Decision Engine</span>
+            </CardTitle>
+            <CardDescription>
+              Loading AI-powered autonomous decision making...
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -135,7 +84,7 @@ export const SmartDecisionEngine = () => {
                 
                 <div className="bg-blue-50 p-3 rounded-lg">
                   <p className="text-sm font-medium text-blue-900">Recommended Action:</p>
-                  <p className="text-sm text-blue-700">{decision.recommendedAction}</p>
+                  <p className="text-sm text-blue-700">{decision.recommended_action}</p>
                 </div>
                 
                 <div className="text-xs text-gray-600">
@@ -146,9 +95,9 @@ export const SmartDecisionEngine = () => {
                   <Button 
                     size="sm" 
                     onClick={() => executeDecision(decision.id)}
-                    disabled={decision.status === 'executed'}
+                    disabled={decision.status === 'executed' || executeDecisionMutation.isPending}
                   >
-                    Execute Decision
+                    {executeDecisionMutation.isPending ? 'Executing...' : 'Execute Decision'}
                   </Button>
                   <Button size="sm" variant="outline">
                     Override
@@ -201,8 +150,8 @@ export const SmartDecisionEngine = () => {
         <CardContent>
           <div className="grid grid-cols-4 gap-4">
             <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">24</div>
-              <div className="text-sm text-gray-600">Decisions Today</div>
+              <div className="text-2xl font-bold text-green-600">{decisions.length}</div>
+              <div className="text-sm text-gray-600">Total Decisions</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600">87%</div>

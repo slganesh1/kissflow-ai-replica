@@ -9,7 +9,189 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      decision_rules: {
+        Row: {
+          action: string
+          condition: string
+          created_at: string | null
+          enabled: boolean | null
+          id: string
+          name: string
+          priority: number
+          updated_at: string | null
+        }
+        Insert: {
+          action: string
+          condition: string
+          created_at?: string | null
+          enabled?: boolean | null
+          id?: string
+          name: string
+          priority: number
+          updated_at?: string | null
+        }
+        Update: {
+          action?: string
+          condition?: string
+          created_at?: string | null
+          enabled?: boolean | null
+          id?: string
+          name?: string
+          priority?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      decisions: {
+        Row: {
+          confidence: number
+          context: string
+          created_at: string | null
+          id: string
+          impact: Database["public"]["Enums"]["decision_impact"]
+          options: Json
+          reasoning: string
+          recommended_action: string
+          status: Database["public"]["Enums"]["decision_status"] | null
+          updated_at: string | null
+        }
+        Insert: {
+          confidence: number
+          context: string
+          created_at?: string | null
+          id?: string
+          impact: Database["public"]["Enums"]["decision_impact"]
+          options: Json
+          reasoning: string
+          recommended_action: string
+          status?: Database["public"]["Enums"]["decision_status"] | null
+          updated_at?: string | null
+        }
+        Update: {
+          confidence?: number
+          context?: string
+          created_at?: string | null
+          id?: string
+          impact?: Database["public"]["Enums"]["decision_impact"]
+          options?: Json
+          reasoning?: string
+          recommended_action?: string
+          status?: Database["public"]["Enums"]["decision_status"] | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      optimization_metrics: {
+        Row: {
+          change_percentage: number | null
+          created_at: string | null
+          current_value: number
+          id: string
+          measurement_date: string | null
+          metric_name: string
+          metric_type: string
+          previous_value: number | null
+        }
+        Insert: {
+          change_percentage?: number | null
+          created_at?: string | null
+          current_value: number
+          id?: string
+          measurement_date?: string | null
+          metric_name: string
+          metric_type: string
+          previous_value?: number | null
+        }
+        Update: {
+          change_percentage?: number | null
+          created_at?: string | null
+          current_value?: number
+          id?: string
+          measurement_date?: string | null
+          metric_name?: string
+          metric_type?: string
+          previous_value?: number | null
+        }
+        Relationships: []
+      }
+      predictions: {
+        Row: {
+          based_on: Json
+          created_at: string | null
+          description: string
+          id: string
+          impact: Database["public"]["Enums"]["decision_impact"]
+          probability: number
+          recommended_action: string
+          timeframe: string
+          title: string
+          type: Database["public"]["Enums"]["prediction_type"]
+          updated_at: string | null
+        }
+        Insert: {
+          based_on: Json
+          created_at?: string | null
+          description: string
+          id?: string
+          impact: Database["public"]["Enums"]["decision_impact"]
+          probability: number
+          recommended_action: string
+          timeframe: string
+          title: string
+          type: Database["public"]["Enums"]["prediction_type"]
+          updated_at?: string | null
+        }
+        Update: {
+          based_on?: Json
+          created_at?: string | null
+          description?: string
+          id?: string
+          impact?: Database["public"]["Enums"]["decision_impact"]
+          probability?: number
+          recommended_action?: string
+          timeframe?: string
+          title?: string
+          type?: Database["public"]["Enums"]["prediction_type"]
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      workflow_patterns: {
+        Row: {
+          confidence: number
+          created_at: string | null
+          frequency: string
+          id: string
+          name: string
+          next_predicted: string
+          suggested_preparation: string
+          triggers: Json
+          updated_at: string | null
+        }
+        Insert: {
+          confidence: number
+          created_at?: string | null
+          frequency: string
+          id?: string
+          name: string
+          next_predicted: string
+          suggested_preparation: string
+          triggers: Json
+          updated_at?: string | null
+        }
+        Update: {
+          confidence?: number
+          created_at?: string | null
+          frequency?: string
+          id?: string
+          name?: string
+          next_predicted?: string
+          suggested_preparation?: string
+          triggers?: Json
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -18,7 +200,13 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      decision_impact: "low" | "medium" | "high"
+      decision_status: "pending" | "approved" | "executed" | "rejected"
+      prediction_type:
+        | "workflow_demand"
+        | "resource_need"
+        | "bottleneck"
+        | "completion_time"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +321,15 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      decision_impact: ["low", "medium", "high"],
+      decision_status: ["pending", "approved", "executed", "rejected"],
+      prediction_type: [
+        "workflow_demand",
+        "resource_need",
+        "bottleneck",
+        "completion_time",
+      ],
+    },
   },
 } as const

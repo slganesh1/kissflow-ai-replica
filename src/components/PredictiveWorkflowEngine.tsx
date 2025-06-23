@@ -1,98 +1,16 @@
-import React, { useState } from 'react';
+
+import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Gem, TrendingUp, Calendar, Target, AlertCircle, Clock, Users } from 'lucide-react';
-
-interface Prediction {
-  id: string;
-  type: 'workflow_demand' | 'resource_need' | 'bottleneck' | 'completion_time';
-  title: string;
-  description: string;
-  probability: number;
-  timeframe: string;
-  impact: 'low' | 'medium' | 'high';
-  recommendedAction: string;
-  basedOn: string[];
-}
-
-interface WorkflowPattern {
-  id: string;
-  name: string;
-  frequency: string;
-  nextPredicted: Date;
-  confidence: number;
-  triggers: string[];
-  suggestedPreparation: string;
-}
+import { Gem, TrendingUp, Calendar, Target, AlertCircle, Clock } from 'lucide-react';
+import { usePredictions } from '@/hooks/usePredictions';
+import { useWorkflowPatterns } from '@/hooks/useWorkflowPatterns';
 
 export const PredictiveWorkflowEngine = () => {
-  const [predictions] = useState<Prediction[]>([
-    {
-      id: '1',
-      type: 'workflow_demand',
-      title: 'Expense Approval Surge Expected',
-      description: 'High volume of expense approvals predicted for next week due to quarter-end',
-      probability: 0.89,
-      timeframe: 'Next 5-7 days',
-      impact: 'high',
-      recommendedAction: 'Pre-allocate additional approval agents and setup auto-approval rules',
-      basedOn: ['Historical Q-end patterns', 'Current expense trends', 'Calendar events']
-    },
-    {
-      id: '2',
-      type: 'bottleneck',
-      title: 'Marketing Approval Bottleneck',
-      description: 'Marketing director likely to become workflow bottleneck with 5 campaigns pending',
-      probability: 0.76,
-      timeframe: 'Next 2-3 days',
-      impact: 'medium',
-      recommendedAction: 'Delegate approval authority or batch similar requests',
-      basedOn: ['Current workload', 'Approval velocity', 'Pending requests']
-    },
-    {
-      id: '3',
-      type: 'resource_need',
-      title: 'Additional Processing Power Required',
-      description: 'AI analysis workload expected to increase by 40% due to holiday campaigns',
-      probability: 0.82,
-      timeframe: 'Next 10 days',
-      impact: 'medium',
-      recommendedAction: 'Scale up processing resources and optimize AI agent allocation',
-      basedOn: ['Seasonal patterns', 'Campaign schedules', 'Resource utilization']
-    }
-  ]);
-
-  const [patterns] = useState<WorkflowPattern[]>([
-    {
-      id: '1',
-      name: 'Monthly Budget Review',
-      frequency: 'Every 1st Monday',
-      nextPredicted: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
-      confidence: 0.95,
-      triggers: ['Calendar event', 'Finance department activity'],
-      suggestedPreparation: 'Prepare budget reports and schedule finance team availability'
-    },
-    {
-      id: '2',
-      name: 'Product Launch Workflows',
-      frequency: 'Quarterly + adhoc',
-      nextPredicted: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
-      confidence: 0.73,
-      triggers: ['Product roadmap', 'Marketing calendar'],
-      suggestedPreparation: 'Setup cross-team coordination workflows and approval chains'
-    },
-    {
-      id: '3',
-      name: 'Compliance Check Cycles',
-      frequency: 'Every 2 weeks',
-      nextPredicted: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-      confidence: 0.91,
-      triggers: ['Regulatory calendar', 'Audit schedules'],
-      suggestedPreparation: 'Prepare compliance documentation and assign review agents'
-    }
-  ]);
+  const { data: predictions = [], isLoading: predictionsLoading } = usePredictions();
+  const { data: patterns = [], isLoading: patternsLoading } = useWorkflowPatterns();
 
   const getProbabilityColor = (probability: number) => {
     if (probability >= 0.8) return 'text-red-600 bg-red-100';
@@ -108,10 +26,29 @@ export const PredictiveWorkflowEngine = () => {
     }
   };
 
-  const formatTimeUntil = (date: Date) => {
+  const formatTimeUntil = (dateString: string) => {
+    const date = new Date(dateString);
     const days = Math.ceil((date.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
     return `${days} day${days !== 1 ? 's' : ''}`;
   };
+
+  if (predictionsLoading || patternsLoading) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Gem className="h-5 w-5 text-blue-600" />
+              <span>Predictive Workflow Engine</span>
+            </CardTitle>
+            <CardDescription>
+              Loading AI-powered predictions...
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -151,7 +88,7 @@ export const PredictiveWorkflowEngine = () => {
                 
                 <div className="bg-yellow-50 p-3 rounded-lg">
                   <p className="text-sm font-medium text-yellow-900">Recommended Action:</p>
-                  <p className="text-sm text-yellow-700">{prediction.recommendedAction}</p>
+                  <p className="text-sm text-yellow-700">{prediction.recommended_action}</p>
                 </div>
                 
                 <div className="flex items-center justify-between text-xs text-gray-500">
@@ -159,7 +96,7 @@ export const PredictiveWorkflowEngine = () => {
                     <Clock className="h-3 w-3" />
                     <span>{prediction.timeframe}</span>
                   </div>
-                  <div>Based on: {prediction.basedOn.join(', ')}</div>
+                  <div>Based on: {prediction.based_on.join(', ')}</div>
                 </div>
                 
                 <div className="flex space-x-2">
@@ -187,7 +124,7 @@ export const PredictiveWorkflowEngine = () => {
                 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs">
-                    <span>Next predicted: {formatTimeUntil(pattern.nextPredicted)}</span>
+                    <span>Next predicted: {formatTimeUntil(pattern.next_predicted)}</span>
                     <span>{Math.round(pattern.confidence * 100)}% confidence</span>
                   </div>
                   <Progress value={pattern.confidence * 100} className="h-2" />
@@ -198,7 +135,7 @@ export const PredictiveWorkflowEngine = () => {
                 </div>
                 
                 <div className="bg-blue-50 p-2 rounded text-xs">
-                  <strong>Preparation:</strong> {pattern.suggestedPreparation}
+                  <strong>Preparation:</strong> {pattern.suggested_preparation}
                 </div>
                 
                 <Button size="sm" variant="outline" className="w-full">
@@ -219,7 +156,7 @@ export const PredictiveWorkflowEngine = () => {
         <CardContent>
           <div className="grid grid-cols-4 gap-4">
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">12</div>
+              <div className="text-2xl font-bold text-blue-600">{predictions.length}</div>
               <div className="text-sm text-gray-600">Active Predictions</div>
             </div>
             <div className="text-center">
