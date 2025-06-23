@@ -12,7 +12,12 @@ export const SmartDecisionEngine = () => {
   const { data: decisionRules = [], isLoading: rulesLoading } = useDecisionRules();
   const executeDecisionMutation = useExecuteDecision();
 
+  // Debug logging
+  console.log('All decisions:', decisions);
+  console.log('Filtered decisions (not executed):', decisions.filter(d => d.status !== 'executed'));
+
   const executeDecision = (decisionId: string) => {
+    console.log('Executing decision:', decisionId);
     executeDecisionMutation.mutate(decisionId);
   };
 
@@ -48,6 +53,9 @@ export const SmartDecisionEngine = () => {
     );
   }
 
+  const pendingDecisions = decisions.filter(d => d.status !== 'executed');
+  console.log('Pending decisions count:', pendingDecisions.length);
+
   return (
     <div className="space-y-6">
       <Card>
@@ -66,45 +74,61 @@ export const SmartDecisionEngine = () => {
         {/* Active Decisions */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Pending Decisions</CardTitle>
+            <CardTitle className="text-lg">Pending Decisions ({pendingDecisions.length})</CardTitle>
             <CardDescription>AI recommendations awaiting execution</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {decisions.filter(d => d.status !== 'executed').map((decision) => (
-              <div key={decision.id} className="border rounded-lg p-4 space-y-3">
-                <div className="flex items-start justify-between">
-                  <h4 className="font-medium text-sm">{decision.context}</h4>
-                  <div className="flex items-center space-x-2">
-                    {getImpactIcon(decision.impact)}
-                    <Badge className={getConfidenceColor(decision.confidence)}>
-                      {Math.round(decision.confidence * 100)}% confident
-                    </Badge>
-                  </div>
-                </div>
-                
-                <div className="bg-blue-50 p-3 rounded-lg">
-                  <p className="text-sm font-medium text-blue-900">Recommended Action:</p>
-                  <p className="text-sm text-blue-700">{decision.recommended_action}</p>
-                </div>
-                
-                <div className="text-xs text-gray-600">
-                  <strong>Reasoning:</strong> {decision.reasoning}
-                </div>
-                
-                <div className="flex space-x-2">
-                  <Button 
-                    size="sm" 
-                    onClick={() => executeDecision(decision.id)}
-                    disabled={decision.status === 'executed' || executeDecisionMutation.isPending}
-                  >
-                    {executeDecisionMutation.isPending ? 'Executing...' : 'Execute Decision'}
-                  </Button>
-                  <Button size="sm" variant="outline">
-                    Override
-                  </Button>
-                </div>
+            {pendingDecisions.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <Brain className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No pending decisions found</p>
+                <p className="text-sm">All decisions have been processed</p>
               </div>
-            ))}
+            ) : (
+              pendingDecisions.map((decision) => {
+                console.log('Rendering decision:', decision.id, 'Status:', decision.status);
+                return (
+                  <div key={decision.id} className="border rounded-lg p-4 space-y-3">
+                    <div className="flex items-start justify-between">
+                      <h4 className="font-medium text-sm">{decision.context}</h4>
+                      <div className="flex items-center space-x-2">
+                        {getImpactIcon(decision.impact)}
+                        <Badge className={getConfidenceColor(decision.confidence)}>
+                          {Math.round(decision.confidence * 100)}% confident
+                        </Badge>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-blue-50 p-3 rounded-lg">
+                      <p className="text-sm font-medium text-blue-900">Recommended Action:</p>
+                      <p className="text-sm text-blue-700">{decision.recommended_action}</p>
+                    </div>
+                    
+                    <div className="text-xs text-gray-600">
+                      <strong>Reasoning:</strong> {decision.reasoning}
+                    </div>
+                    
+                    <div className="text-xs text-gray-500">
+                      <strong>Status:</strong> {decision.status} | <strong>ID:</strong> {decision.id}
+                    </div>
+                    
+                    <div className="flex space-x-2">
+                      <Button 
+                        size="sm" 
+                        onClick={() => executeDecision(decision.id)}
+                        disabled={decision.status === 'executed' || executeDecisionMutation.isPending}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        {executeDecisionMutation.isPending ? 'Executing...' : 'Execute Decision'}
+                      </Button>
+                      <Button size="sm" variant="outline">
+                        Override
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </CardContent>
         </Card>
 
