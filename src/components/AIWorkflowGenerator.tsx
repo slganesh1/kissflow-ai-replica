@@ -3,8 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Sparkles, ArrowRight, CheckCircle, AlertCircle, Users, DollarSign, FileText, Mail, Clock, XCircle, Play, Zap, Loader2 } from 'lucide-react';
+import { Sparkles, ArrowRight, CheckCircle, AlertCircle, Users, DollarSign, FileText, Mail, Clock, XCircle, Play, Zap, Loader2, FormInput } from 'lucide-react';
 import { toast } from 'sonner';
+import { WorkflowInputForm } from './WorkflowInputForm';
 
 interface WorkflowStep {
   id: string;
@@ -48,6 +49,8 @@ export const AIWorkflowGenerator = () => {
   const [generatedWorkflow, setGeneratedWorkflow] = useState<GeneratedWorkflow | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
   const [executionProgress, setExecutionProgress] = useState<{ [key: string]: 'pending' | 'executing' | 'completed' | 'failed' }>({});
+  const [showInputForm, setShowInputForm] = useState(false);
+  const [workflowData, setWorkflowData] = useState<Record<string, any> | null>(null);
 
   const parseScenario = (input: string): GeneratedWorkflow => {
     const lowerInput = input.toLowerCase();
@@ -298,20 +301,32 @@ export const AIWorkflowGenerator = () => {
     }
   };
 
+  const startWorkflowWithInput = () => {
+    if (!generatedWorkflow) return;
+    setShowInputForm(true);
+  };
+
+  const handleWorkflowSubmission = (data: Record<string, any>) => {
+    setWorkflowData(data);
+    setShowInputForm(false);
+    toast.success('Input received! Ready to execute workflow with real data.');
+    console.log('Workflow Data:', data);
+  };
+
   const executeWorkflow = async () => {
     if (!generatedWorkflow) return;
     
     setIsExecuting(true);
-    toast.success(`Starting execution of ${generatedWorkflow.name}`);
+    toast.success(`Starting execution of ${generatedWorkflow.name}${workflowData ? ' with submitted data' : ''}`);
     
-    // Execute steps sequentially
+    // Execute steps sequentially with real data context
     for (const step of generatedWorkflow.steps) {
       setExecutionProgress(prev => ({
         ...prev,
         [step.id]: 'executing'
       }));
       
-      // Simulate step execution time based on step type
+      // Simulate step execution with real data
       const executionTime = step.type === 'delay' ? 3000 : 
                            step.type === 'approval' ? 2000 : 
                            step.type === 'email' ? 500 : 1000;
@@ -323,16 +338,29 @@ export const AIWorkflowGenerator = () => {
         [step.id]: 'completed'
       }));
       
-      toast.success(`Completed: ${step.name}`);
+      // Show contextual completion messages
+      let completionMessage = `Completed: ${step.name}`;
+      if (workflowData) {
+        if (step.type === 'form' && workflowData.title) {
+          completionMessage += ` for "${workflowData.title}"`;
+        } else if (step.type === 'email' && workflowData.submitter_id) {
+          completionMessage += ` - notification sent`;
+        } else if (step.type === 'approval' && workflowData.amount) {
+          completionMessage += ` for $${workflowData.amount}`;
+        }
+      }
+      
+      toast.success(completionMessage);
     }
     
     setIsExecuting(false);
-    toast.success(`Workflow "${generatedWorkflow.name}" executed successfully!`);
+    const finalMessage = `Workflow "${generatedWorkflow.name}" executed successfully!${workflowData ? ` Request processed for: ${workflowData.title || workflowData.campaign_name || 'submission'}` : ''}`;
+    toast.success(finalMessage);
   };
 
   const createWorkflow = () => {
     if (generatedWorkflow) {
-      toast.success(`Created workflow: ${generatedWorkflow.name}`);
+      toast.success(`Created workflow template: ${generatedWorkflow.name}`);
     }
   };
 
@@ -363,6 +391,17 @@ export const AIWorkflowGenerator = () => {
         return '';
     }
   };
+
+  if (showInputForm && generatedWorkflow) {
+    return (
+      <WorkflowInputForm
+        workflowName={generatedWorkflow.name}
+        workflowType={generatedWorkflow.category}
+        onSubmit={handleWorkflowSubmission}
+        onCancel={() => setShowInputForm(false)}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -412,6 +451,15 @@ export const AIWorkflowGenerator = () => {
             {generatedWorkflow && (
               <>
                 <Button 
+                  onClick={startWorkflowWithInput}
+                  disabled={isExecuting}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <FormInput className="h-4 w-4 mr-2" />
+                  Submit Real Request
+                </Button>
+                
+                <Button 
                   onClick={executeWorkflow}
                   disabled={isExecuting}
                   className="bg-green-600 hover:bg-green-700"
@@ -434,6 +482,18 @@ export const AIWorkflowGenerator = () => {
               </>
             )}
           </div>
+
+          {workflowData && (
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <h4 className="font-medium text-blue-900 mb-2">Ready to Execute with Real Data:</h4>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div><strong>Title:</strong> {workflowData.title || workflowData.campaign_name || workflowData.expense_title}</div>
+                {workflowData.amount && <div><strong>Amount:</strong> ${workflowData.amount}</div>}
+                {workflowData.budget_amount && <div><strong>Budget:</strong> ${workflowData.budget_amount}</div>}
+                <div><strong>Status:</strong> <Badge variant="secondary">{workflowData.status}</Badge></div>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
