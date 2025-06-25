@@ -156,6 +156,89 @@ export type Database = {
         }
         Relationships: []
       }
+      workflow_approvals: {
+        Row: {
+          approved_at: string | null
+          approver_id: string | null
+          approver_role: string
+          created_at: string | null
+          id: string
+          rejection_reason: string | null
+          status: Database["public"]["Enums"]["approval_status"] | null
+          step_id: string
+          step_name: string
+          updated_at: string | null
+          workflow_id: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approver_id?: string | null
+          approver_role: string
+          created_at?: string | null
+          id?: string
+          rejection_reason?: string | null
+          status?: Database["public"]["Enums"]["approval_status"] | null
+          step_id: string
+          step_name: string
+          updated_at?: string | null
+          workflow_id?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          approver_id?: string | null
+          approver_role?: string
+          created_at?: string | null
+          id?: string
+          rejection_reason?: string | null
+          status?: Database["public"]["Enums"]["approval_status"] | null
+          step_id?: string
+          step_name?: string
+          updated_at?: string | null
+          workflow_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_approvals_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_executions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_executions: {
+        Row: {
+          created_at: string | null
+          id: string
+          request_data: Json
+          status: Database["public"]["Enums"]["workflow_status"] | null
+          submitter_name: string
+          updated_at: string | null
+          workflow_name: string
+          workflow_type: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          request_data: Json
+          status?: Database["public"]["Enums"]["workflow_status"] | null
+          submitter_name: string
+          updated_at?: string | null
+          workflow_name: string
+          workflow_type: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          request_data?: Json
+          status?: Database["public"]["Enums"]["workflow_status"] | null
+          submitter_name?: string
+          updated_at?: string | null
+          workflow_name?: string
+          workflow_type?: string
+        }
+        Relationships: []
+      }
       workflow_patterns: {
         Row: {
           confidence: number
@@ -200,6 +283,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      approval_status: "pending" | "approved" | "rejected"
       decision_impact: "low" | "medium" | "high"
       decision_status: "pending" | "approved" | "executed" | "rejected"
       prediction_type:
@@ -207,6 +291,12 @@ export type Database = {
         | "resource_need"
         | "bottleneck"
         | "completion_time"
+      workflow_status:
+        | "pending"
+        | "in_progress"
+        | "completed"
+        | "failed"
+        | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -322,6 +412,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      approval_status: ["pending", "approved", "rejected"],
       decision_impact: ["low", "medium", "high"],
       decision_status: ["pending", "approved", "executed", "rejected"],
       prediction_type: [
@@ -329,6 +420,13 @@ export const Constants = {
         "resource_need",
         "bottleneck",
         "completion_time",
+      ],
+      workflow_status: [
+        "pending",
+        "in_progress",
+        "completed",
+        "failed",
+        "cancelled",
       ],
     },
   },
