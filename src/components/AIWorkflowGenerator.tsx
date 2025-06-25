@@ -319,38 +319,114 @@ export const AIWorkflowGenerator = () => {
     setIsExecuting(true);
     toast.success(`Starting execution of ${generatedWorkflow.name}${workflowData ? ' with submitted data' : ''}`);
     
-    // Execute steps sequentially with real data context
+    // Create workflow execution record
+    let workflowExecutionId = null;
+    
+    if (workflowData) {
+      try {
+        const { data: execution, error: executionError } = await supabase
+          .from('workflow_executions')
+          .insert({
+            workflow_name: generatedWorkflow.name,
+            workflow_type: generatedWorkflow.category,
+            request_data: workflowData,
+            submitter_name: 'Current User', // Replace with actual user name
+            status: 'in_progress'
+          })
+          .select()
+          .single();
+
+        if (executionError) {
+          console.error('Error creating workflow execution:', executionError);
+          throw executionError;
+        }
+
+        workflowExecutionId = execution.id;
+        console.log('Created workflow execution:', workflowExecutionId);
+      } catch (error) {
+        toast.error('Failed to create workflow execution record');
+        setIsExecuting(false);
+        return;
+      }
+    }
+    
+    // Execute steps sequentially with manual approval handling
     for (const step of generatedWorkflow.steps) {
       setExecutionProgress(prev => ({
         ...prev,
         [step.id]: 'executing'
       }));
       
-      // Simulate step execution with real data
-      const executionTime = step.type === 'delay' ? 3000 : 
-                           step.type === 'approval' ? 2000 : 
-                           step.type === 'email' ? 500 : 1000;
-      
-      await new Promise(resolve => setTimeout(resolve, executionTime));
-      
-      setExecutionProgress(prev => ({
-        ...prev,
-        [step.id]: 'completed'
-      }));
-      
-      // Show contextual completion messages
-      let completionMessage = `Completed: ${step.name}`;
-      if (workflowData) {
-        if (step.type === 'form' && workflowData.title) {
-          completionMessage += ` for "${workflowData.title}"`;
-        } else if (step.type === 'email' && workflowData.submitter_id) {
-          completionMessage += ` - notification sent`;
-        } else if (step.type === 'approval' && workflowData.amount) {
-          completionMessage += ` for $${workflowData.amount}`;
+      // Handle approval steps differently
+      if (step.type === 'approval' && workflowExecutionId) {
+        try {
+          // Create approval record in database
+          const { error: approvalError } = await supabase
+            .from('workflow_approvals')
+            .insert({
+              workflow_id: workflowExecutionId,
+              step_id: step.id,
+              step_name: step.name,
+              approver_role: step.assignee?.toLowerCase() || 'manager',
+              status: 'pending'
+            });
+
+          if (approvalError) {
+            console.error('Error creating approval record:', approvalError);
+          }
+
+          // Mark as waiting for approval
+          setExecutionProgress(prev => ({
+            ...prev,
+            [step.id]: 'pending'
+          }));
+          
+          toast.info(`${step.name} - Waiting for manual approval from ${step.assignee}`);
+          
+          // In a real scenario, this would wait for actual approval
+          // For demo, we'll simulate a delay
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          
+          setExecutionProgress(prev => ({
+            ...prev,
+            [step.id]: 'completed'
+          }));
+          
+          toast.success(`${step.name} - Approved (simulated)`);
+        } catch (error) {
+          console.error('Error handling approval step:', error);
+          setExecutionProgress(prev => ({
+            ...prev,
+            [step.id]: 'failed'
+          }));
+          toast.error(`${step.name} - Approval process failed`);
         }
+      } else {
+        // Regular step execution
+        const executionTime = step.type === 'delay' ? 3000 : 
+                             step.type === 'email' ? 500 : 1000;
+        
+        await new Promise(resolve => setTimeout(resolve, executionTime));
+        
+        setExecutionProgress(prev => ({
+          ...prev,
+          [step.id]: 'completed'
+        }));
+        
+        // Show contextual completion messages
+        let completionMessage = `Completed: ${step.name}`;
+        if (workflowData) {
+          if (step.type === 'form' && workflowData.title) {
+            completionMessage += ` for "${workflowData.title}"`;
+          } else if (step.type === 'email' && workflowData.submitter_id) {
+            completionMessage += ` - notification sent`;
+          } else if (step.type === 'task' && workflowData.amount) {
+            completionMessage += ` for $${workflowData.amount}`;
+          }
+        }
+        
+        toast.success(completionMessage);
       }
-      
-      toast.success(completionMessage);
     }
     
     setIsExecuting(false);
@@ -373,6 +449,8 @@ export const AIWorkflowGenerator = () => {
         return <CheckCircle className="h-4 w-4 text-green-600" />;
       case 'failed':
         return <XCircle className="h-4 w-4 text-red-600" />;
+      case 'pending':
+        return <Clock className="h-4 w-4 text-yellow-600" />;
       default:
         return null;
     }
@@ -387,6 +465,8 @@ export const AIWorkflowGenerator = () => {
         return 'border-green-400 bg-green-50';
       case 'failed':
         return 'border-red-400 bg-red-50';
+      case 'pending':
+        return 'border-yellow-400 bg-yellow-50';
       default:
         return '';
     }
