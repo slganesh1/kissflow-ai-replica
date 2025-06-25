@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Sparkles, ArrowRight, CheckCircle, AlertCircle, Users, DollarSign, FileText, Mail, Clock, XCircle, Play, Zap, Loader2, FormInput } from 'lucide-react';
 import { toast } from 'sonner';
 import { WorkflowInputForm } from './WorkflowInputForm';
+import { supabase } from '@/integrations/supabase/client';
 
 interface WorkflowStep {
   id: string;
