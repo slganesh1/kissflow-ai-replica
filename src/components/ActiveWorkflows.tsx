@@ -23,19 +23,22 @@ interface WorkflowApproval {
   step_name: string;
   status: string;
   approver_role: string;
+  approver_id: string | null;
+  approved_at: string | null;
+  rejection_reason: string | null;
 }
 
 export const ActiveWorkflows = () => {
   const [workflows, setWorkflows] = useState<WorkflowExecution[]>([]);
   const [approvals, setApprovals] = useState<{ [key: string]: WorkflowApproval[] }>({});
   const [loading, setLoading] = useState(true);
-  const [showCompleted, setShowCompleted] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(true); // Changed default to true to show all workflows
 
   const fetchWorkflows = async () => {
     try {
-      console.log('Fetching workflows...');
+      console.log('Fetching workflows for ActiveWorkflows component...');
       
-      // Fetch workflows based on filter - show all if showCompleted is true, otherwise exclude completed and cancelled
+      // Fetch all workflows or filter based on showCompleted
       const query = supabase
         .from('workflow_executions')
         .select('*')
@@ -67,6 +70,8 @@ export const ActiveWorkflows = () => {
         if (approvalError) {
           console.error('Error fetching approvals:', approvalError);
         } else {
+          console.log('Fetched approvals:', approvalData);
+          
           // Group approvals by workflow_id
           const groupedApprovals = (approvalData || []).reduce((acc, approval) => {
             if (!acc[approval.workflow_id]) {
@@ -76,6 +81,7 @@ export const ActiveWorkflows = () => {
             return acc;
           }, {} as { [key: string]: WorkflowApproval[] });
           
+          console.log('Grouped approvals:', groupedApprovals);
           setApprovals(groupedApprovals);
         }
       }
@@ -92,7 +98,7 @@ export const ActiveWorkflows = () => {
     
     // Set up real-time subscription for workflow changes
     const channel = supabase
-      .channel('workflow_changes')
+      .channel('active_workflow_changes')
       .on(
         'postgres_changes',
         {
@@ -101,7 +107,7 @@ export const ActiveWorkflows = () => {
           table: 'workflow_executions'
         },
         (payload) => {
-          console.log('Workflow change detected:', payload);
+          console.log('Workflow change detected in ActiveWorkflows:', payload);
           fetchWorkflows();
         }
       )
@@ -113,7 +119,7 @@ export const ActiveWorkflows = () => {
           table: 'workflow_approvals'
         },
         (payload) => {
-          console.log('Approval change detected:', payload);
+          console.log('Approval change detected in ActiveWorkflows:', payload);
           fetchWorkflows();
         }
       )
@@ -149,14 +155,19 @@ export const ActiveWorkflows = () => {
   const getWorkflowSummary = (workflow: WorkflowExecution) => {
     const workflowApprovals = approvals[workflow.id] || [];
     const pendingApprovals = workflowApprovals.filter(a => a.status === 'pending');
-    const completedApprovals = workflowApprovals.filter(a => a.status === 'approved');
+    const approvedApprovals = workflowApprovals.filter(a => a.status === 'approved');
+    const rejectedApprovals = workflowApprovals.filter(a => a.status === 'rejected');
     
-    if (workflow.status === 'pending' && pendingApprovals.length > 0) {
-      return `Waiting for ${pendingApprovals.length} approval(s)`;
+    if (workflow.status === 'completed') {
+      return `All approvals completed (${approvedApprovals.length} approved)`;
+    } else if (workflow.status === 'failed' && rejectedApprovals.length > 0) {
+      return `Workflow rejected at: ${rejectedApprovals[0].step_name}`;
+    } else if (workflow.status === 'pending' && pendingApprovals.length > 0) {
+      return `Waiting for ${pendingApprovals.length} approval(s): ${pendingApprovals.map(a => a.step_name).join(', ')}`;
+    } else if (workflow.status === 'in_progress') {
+      return `In progress - ${approvedApprovals.length} approved, ${pendingApprovals.length} pending`;
     } else if (workflow.status === 'pending' && workflowApprovals.length === 0) {
       return 'Workflow created, awaiting processing';
-    } else if (completedApprovals.length > 0) {
-      return `${completedApprovals.length} approval(s) completed`;
     } else {
       return `Status: ${workflow.status.replace('_', ' ')}`;
     }
@@ -196,8 +207,8 @@ export const ActiveWorkflows = () => {
             >
               {showCompleted ? 'Hide Completed' : 'Show All'}
             </Button>
-            <Button variant="outline" size="sm" onClick={handleRefresh}>
-              <RefreshCw className="h-4 w-4 mr-1" />
+            <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading}>
+              <RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
           </div>
@@ -232,7 +243,7 @@ export const ActiveWorkflows = () => {
                   <p><strong>Submitter:</strong> {workflow.submitter_name}</p>
                   <p><strong>Created:</strong> {new Date(workflow.created_at).toLocaleDateString()} at {new Date(workflow.created_at).toLocaleTimeString()}</p>
                   {workflow.updated_at && workflow.updated_at !== workflow.created_at && (
-                    <p><strong>Last Updated:</strong> {new Date(workflow.updated_at).toLocaleTimeString()}</p>
+                    <p><strong>Last Updated:</strong> {new Date(workflow.updated_at).toLocaleDateString()} at {new Date(workflow.updated_at).toLocaleTimeString()}</p>
                   )}
                   <p><strong>Status:</strong> {getWorkflowSummary(workflow)}</p>
                 </div>
@@ -244,6 +255,37 @@ export const ActiveWorkflows = () => {
                     {workflow.request_data.amount && <div>Amount: ${workflow.request_data.amount}</div>}
                     {workflow.request_data.campaign_name && <div>Campaign: {workflow.request_data.campaign_name}</div>}
                     {workflow.request_data.business_purpose && <div>Purpose: {workflow.request_data.business_purpose}</div>}
+                  </div>
+                )}
+
+                {/* Show detailed approval status */}
+                {approvals[workflow.id] && approvals[workflow.id].length > 0 && (
+                  <div className="mb-3">
+                    <p className="text-sm font-medium text-gray-700 mb-2">Approval Steps:</p>
+                    <div className="space-y-1">
+                      {approvals[workflow.id].map((approval) => (
+                        <div key={approval.id} className="flex items-center justify-between text-xs bg-gray-50 p-2 rounded">
+                          <span>{approval.step_name}</span>
+                          <div className="flex items-center space-x-2">
+                            <Badge 
+                              variant="outline" 
+                              className={
+                                approval.status === 'approved' ? 'bg-green-100 text-green-700 border-green-300' :
+                                approval.status === 'rejected' ? 'bg-red-100 text-red-700 border-red-300' :
+                                'bg-yellow-100 text-yellow-700 border-yellow-300'
+                              }
+                            >
+                              {approval.status}
+                            </Badge>
+                            {approval.approved_at && (
+                              <span className="text-gray-500">
+                                {new Date(approval.approved_at).toLocaleDateString()}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
 
