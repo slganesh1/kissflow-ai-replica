@@ -17,7 +17,7 @@ interface GeneratedWorkflow {
   name: string;
   type: string;
   description: string;
-  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  status: 'pending' | 'in_progress' | 'completed' | 'failed' | 'cancelled';
   steps: Array<{
     id: string;
     name: string;
@@ -82,23 +82,29 @@ export const AIWorkflowGenerator = () => {
       }
 
       // Transform workflows to include approval steps
-      const transformedWorkflows = workflows?.map(workflow => ({
-        id: workflow.id,
-        name: workflow.workflow_name,
-        type: workflow.workflow_type,
-        description: workflow.request_data?.business_purpose || 'No description',
-        status: workflow.status,
-        submitter_name: workflow.submitter_name,
-        created_at: workflow.created_at,
-        request_data: workflow.request_data,
-        steps: (approvalsByWorkflow[workflow.id] || []).map(approval => ({
-          id: approval.step_id,
-          name: approval.step_name,
-          type: approval.approver_role,
-          description: `${approval.step_name} (${approval.approver_role})`,
-          status: approval.status
-        }))
-      })) || [];
+      const transformedWorkflows = workflows?.map(workflow => {
+        // Safely access request_data properties
+        const requestData = workflow.request_data as any;
+        const description = requestData?.business_purpose || requestData?.description || 'No description';
+        
+        return {
+          id: workflow.id,
+          name: workflow.workflow_name,
+          type: workflow.workflow_type,
+          description,
+          status: workflow.status as 'pending' | 'in_progress' | 'completed' | 'failed' | 'cancelled',
+          submitter_name: workflow.submitter_name,
+          created_at: workflow.created_at,
+          request_data: workflow.request_data,
+          steps: (approvalsByWorkflow[workflow.id] || []).map(approval => ({
+            id: approval.step_id,
+            name: approval.step_name,
+            type: approval.approver_role,
+            description: `${approval.step_name} (${approval.approver_role})`,
+            status: approval.status as 'pending' | 'approved' | 'rejected'
+          }))
+        };
+      }) || [];
 
       console.log('Transformed workflows with steps:', transformedWorkflows);
       setActiveWorkflows(transformedWorkflows);
@@ -166,26 +172,26 @@ export const AIWorkflowGenerator = () => {
         
         if (hasHighValue) {
           steps = [
-            { id: 'manager-approval', name: 'Manager Approval', type: 'approval', description: 'Manager review and approval', status: 'pending' },
-            { id: 'finance-director-approval', name: 'Finance Director Approval', type: 'approval', description: 'Finance director final approval', status: 'pending' }
+            { id: 'manager-approval', name: 'Manager Approval', type: 'approval', description: 'Manager review and approval', status: 'pending' as const },
+            { id: 'finance-director-approval', name: 'Finance Director Approval', type: 'approval', description: 'Finance director final approval', status: 'pending' as const }
           ];
         } else {
           steps = [
-            { id: 'manager-approval', name: 'Manager Approval', type: 'approval', description: 'Manager review and approval', status: 'pending' }
+            { id: 'manager-approval', name: 'Manager Approval', type: 'approval', description: 'Manager review and approval', status: 'pending' as const }
           ];
         }
       } else if (lowerPrompt.includes('campaign') || lowerPrompt.includes('marketing')) {
         workflowType = 'campaign_approval';
         workflowName = 'AI Generated Campaign Approval';
         steps = [
-          { id: 'content-review', name: 'Content Review', type: 'review', description: 'Review campaign content and messaging', status: 'pending' },
-          { id: 'manager-approval', name: 'Manager Approval', type: 'approval', description: 'Final campaign approval', status: 'pending' }
+          { id: 'content-review', name: 'Content Review', type: 'review', description: 'Review campaign content and messaging', status: 'pending' as const },
+          { id: 'manager-approval', name: 'Manager Approval', type: 'approval', description: 'Final campaign approval', status: 'pending' as const }
         ];
       } else {
         workflowName = `AI Generated: ${prompt.substring(0, 50)}${prompt.length > 50 ? '...' : ''}`;
         steps = [
-          { id: 'review-step', name: 'Review Step', type: 'review', description: 'Review and validate request', status: 'pending' },
-          { id: 'approval-step', name: 'Approval Step', type: 'approval', description: 'Final approval required', status: 'pending' }
+          { id: 'review-step', name: 'Review Step', type: 'review', description: 'Review and validate request', status: 'pending' as const },
+          { id: 'approval-step', name: 'Approval Step', type: 'approval', description: 'Final approval required', status: 'pending' as const }
         ];
       }
 
@@ -241,6 +247,7 @@ export const AIWorkflowGenerator = () => {
       case 'in_progress': return 'bg-blue-100 text-blue-800 border-blue-300';
       case 'completed': return 'bg-green-100 text-green-800 border-green-300';
       case 'failed': return 'bg-red-100 text-red-800 border-red-300';
+      case 'cancelled': return 'bg-gray-100 text-gray-800 border-gray-300';
       default: return 'bg-gray-100 text-gray-800 border-gray-300';
     }
   };
@@ -251,6 +258,7 @@ export const AIWorkflowGenerator = () => {
       case 'in_progress': return <AlertCircle className="h-4 w-4" />;
       case 'completed': return <CheckCircle className="h-4 w-4" />;
       case 'failed': return <XCircle className="h-4 w-4" />;
+      case 'cancelled': return <XCircle className="h-4 w-4" />;
       default: return <Clock className="h-4 w-4" />;
     }
   };
