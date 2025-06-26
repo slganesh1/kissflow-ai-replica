@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -48,17 +47,17 @@ export const WorkflowInputForm: React.FC<WorkflowInputFormProps> = ({
         return;
       }
 
-      // Create the workflow execution record with pending status
+      // Create the workflow execution record with pending status - NEVER auto-complete
       const { data: workflow, error: workflowError } = await supabase
         .from('workflow_executions')
         .insert({
           workflow_name: formData.workflowName,
           workflow_type: formData.workflowType,
           submitter_name: formData.submitterName,
-          status: 'pending', // Keep as pending until approved
+          status: 'pending', // MUST stay pending until ALL approvals are complete
           request_data: {
             title: formData.title,
-            amount: formData.amount,
+            amount: parseFloat(formData.amount) || 0,
             business_purpose: formData.businessPurpose,
             category: formData.category,
             urgency: formData.urgency,
@@ -76,28 +75,57 @@ export const WorkflowInputForm: React.FC<WorkflowInputFormProps> = ({
 
       console.log('Workflow created successfully:', workflow);
 
-      // Create approval record for manager approval - this is crucial
-      const { data: approval, error: approvalError } = await supabase
-        .from('workflow_approvals')
-        .insert({
+      // Determine approval steps based on amount and workflow type
+      const amount = parseFloat(formData.amount) || 0;
+      const approvalSteps = [];
+
+      if (formData.workflowType === 'expense_approval' && amount > 1000) {
+        // Marketing expenses over $1000 require both manager and finance director approval
+        approvalSteps.push(
+          {
+            workflow_id: workflow.id,
+            step_id: 'manager-approval',
+            step_name: 'Manager Approval',
+            approver_role: 'manager',
+            status: 'pending'
+          },
+          {
+            workflow_id: workflow.id,
+            step_id: 'finance-director-approval', 
+            step_name: 'Finance Director Approval',
+            approver_role: 'finance_director',
+            status: 'pending'
+          }
+        );
+      } else {
+        // Other workflows just need manager approval
+        approvalSteps.push({
           workflow_id: workflow.id,
           step_id: 'manager-approval',
-          step_name: 'Manager Approval',
+          step_name: 'Manager Approval', 
           approver_role: 'manager',
           status: 'pending'
-        })
-        .select()
-        .single();
+        });
+      }
+
+      // Create all approval records
+      const { data: approvals, error: approvalError } = await supabase
+        .from('workflow_approvals')
+        .insert(approvalSteps)
+        .select();
 
       if (approvalError) {
-        console.error('Error creating approval record:', approvalError);
-        toast.error('Failed to create approval record: ' + approvalError.message);
+        console.error('Error creating approval records:', approvalError);
+        toast.error('Failed to create approval records: ' + approvalError.message);
         return;
       }
 
-      console.log('Approval record created successfully:', approval);
+      console.log('Approval records created successfully:', approvals);
 
-      toast.success(`Workflow "${formData.workflowName}" submitted successfully and is awaiting approval!`);
+      const approvalCount = approvals?.length || 0;
+      toast.success(
+        `Workflow "${formData.workflowName}" submitted successfully! Requires ${approvalCount} approval(s).`
+      );
       
       // Reset form
       setFormData({
@@ -165,7 +193,7 @@ export const WorkflowInputForm: React.FC<WorkflowInputFormProps> = ({
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="expense_approval">Expense Approval</SelectItem>
+                  <SelectItem value="expense_approval">Marketing Expense Approval</SelectItem>
                   <SelectItem value="budget_request">Budget Request</SelectItem>
                   <SelectItem value="purchase_order">Purchase Order</SelectItem>
                   <SelectItem value="campaign_approval">Campaign Approval</SelectItem>
@@ -208,7 +236,13 @@ export const WorkflowInputForm: React.FC<WorkflowInputFormProps> = ({
                 placeholder="0.00"
                 step="0.01"
                 min="0"
+                required
               />
+              {parseFloat(formData.amount) > 1000 && (
+                <p className="text-sm text-orange-600 mt-1">
+                  ⚠️ Amounts over $1,000 require both Manager and Finance Director approval
+                </p>
+              )}
             </div>
             
             <div>
