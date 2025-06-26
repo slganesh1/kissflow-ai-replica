@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,9 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Play, Save, Settings, Bot, Mail, FileText, Database, Zap, ArrowRight, Clock, Sparkles } from 'lucide-react';
+import { Plus, Play, Save, Settings, Bot, Mail, FileText, Database, Zap, ArrowRight, Clock, Sparkles, Activity } from 'lucide-react';
 import { toast } from 'sonner';
 import { AIWorkflowGenerator } from './AIWorkflowGenerator';
+import { ActiveWorkflows } from './ActiveWorkflows';
 
 const workflowTemplates = [
   {
@@ -258,12 +260,16 @@ export const WorkflowBuilder = () => {
       </div>
 
       <Tabs defaultValue="ai-generator" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="ai-generator" className="flex items-center space-x-2">
             <Sparkles className="h-4 w-4" />
             <span>AI Generator</span>
           </TabsTrigger>
           <TabsTrigger value="templates">Templates</TabsTrigger>
+          <TabsTrigger value="active" className="flex items-center space-x-2">
+            <Activity className="h-4 w-4" />
+            <span>Active Workflows</span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="ai-generator">
@@ -310,6 +316,10 @@ export const WorkflowBuilder = () => {
               </Card>
             ))}
           </div>
+        </TabsContent>
+
+        <TabsContent value="active">
+          <ActiveWorkflows />
         </TabsContent>
       </Tabs>
     </div>
