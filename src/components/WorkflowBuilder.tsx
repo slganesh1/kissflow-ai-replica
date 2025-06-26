@@ -8,10 +8,13 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Play, Save, Settings, Bot, Mail, FileText, Database, Zap, ArrowRight, Clock, Sparkles, Activity } from 'lucide-react';
+import { Plus, Play, Save, Settings, Bot, Mail, FileText, Database, Zap, ArrowRight, Clock, Sparkles, Activity, Users, Brain, TrendingUp, BarChart3 } from 'lucide-react';
 import { toast } from 'sonner';
 import { AIWorkflowGenerator } from './AIWorkflowGenerator';
 import { ActiveWorkflows } from './ActiveWorkflows';
+import { AgentPanel } from './AgentPanel';
+import { AgentCoordinator } from './AgentCoordinator';
+import { ContinuousOptimizer } from './ContinuousOptimizer';
 
 const workflowTemplates = [
   {
@@ -260,7 +263,7 @@ export const WorkflowBuilder = () => {
       </div>
 
       <Tabs defaultValue="ai-generator" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="ai-generator" className="flex items-center space-x-2">
             <Sparkles className="h-4 w-4" />
             <span>AI Generator</span>
@@ -268,7 +271,19 @@ export const WorkflowBuilder = () => {
           <TabsTrigger value="templates">Templates</TabsTrigger>
           <TabsTrigger value="active" className="flex items-center space-x-2">
             <Activity className="h-4 w-4" />
-            <span>Active Workflows</span>
+            <span>Active</span>
+          </TabsTrigger>
+          <TabsTrigger value="agents" className="flex items-center space-x-2">
+            <Bot className="h-4 w-4" />
+            <span>Agents</span>
+          </TabsTrigger>
+          <TabsTrigger value="coordination" className="flex items-center space-x-2">
+            <Users className="h-4 w-4" />
+            <span>Coordination</span>
+          </TabsTrigger>
+          <TabsTrigger value="optimization" className="flex items-center space-x-2">
+            <TrendingUp className="h-4 w-4" />
+            <span>Optimization</span>
           </TabsTrigger>
         </TabsList>
 
@@ -320,6 +335,18 @@ export const WorkflowBuilder = () => {
 
         <TabsContent value="active">
           <ActiveWorkflows />
+        </TabsContent>
+
+        <TabsContent value="agents">
+          <AgentPanel />
+        </TabsContent>
+
+        <TabsContent value="coordination">
+          <AgentCoordinator />
+        </TabsContent>
+
+        <TabsContent value="optimization">
+          <ContinuousOptimizer />
         </TabsContent>
       </Tabs>
     </div>
