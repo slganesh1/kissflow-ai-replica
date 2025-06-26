@@ -106,144 +106,120 @@ export const WorkflowBuilder = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Actions Palette */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Available Actions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {availableActions.map((action, index) => (
-                  <div
-                    key={index}
-                    className={`p-3 rounded-lg cursor-pointer hover:shadow-md transition-all ${action.color} border-2 border-dashed border-transparent hover:border-gray-300`}
-                    draggable
-                  >
-                    <div className="flex items-center space-x-2">
-                      <action.icon className="h-4 w-4" />
-                      <span className="text-sm font-medium">{action.name}</span>
-                    </div>
-                    <Badge variant="secondary" className="mt-1 text-xs">
-                      {action.category}
-                    </Badge>
+        {/* Focus on the current workflow diagram - Full width */}
+        <div className="w-full">
+          <WorkflowCanvas 
+            selectedTemplate={selectedTemplate}
+            workflowName={workflowName}
+            workflowType={workflowType}
+            formData={{ 
+              workflowName,
+              workflowType,
+              triggerType,
+              assignedAgent
+            }}
+          />
+        </div>
+
+        {/* Properties Panel - Smaller and below the diagram */}
+        <Card className="max-w-2xl mx-auto">
+          <CardHeader>
+            <CardTitle className="text-lg">Workflow Configuration</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="workflow-name">Workflow Name</Label>
+              <Input
+                id="workflow-name"
+                value={workflowName}
+                onChange={(e) => setWorkflowName(e.target.value)}
+                placeholder="Enter workflow name"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="workflow-type">Workflow Type</Label>
+              <Select value={workflowType} onValueChange={setWorkflowType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="expense_approval">Expense Approval</SelectItem>
+                  <SelectItem value="campaign_approval">Campaign Approval</SelectItem>
+                  <SelectItem value="customer_management">Customer Management</SelectItem>
+                  <SelectItem value="data_processing">Data Processing</SelectItem>
+                  <SelectItem value="finance">Finance</SelectItem>
+                  <SelectItem value="customer_support">Customer Support</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="trigger-type">Trigger Type</Label>
+              <Select value={triggerType} onValueChange={setTriggerType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select trigger" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="manual">Manual</SelectItem>
+                  <SelectItem value="schedule">Scheduled</SelectItem>
+                  <SelectItem value="webhook">Webhook</SelectItem>
+                  <SelectItem value="email">Email</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="ai-agent">Assign AI Agent</Label>
+              <Select value={assignedAgent} onValueChange={setAssignedAgent}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select agent" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="docbot">DocumentAI</SelectItem>
+                  <SelectItem value="databot">DataBot</SelectItem>
+                  <SelectItem value="supportbot">SupportBot</SelectItem>
+                  <SelectItem value="financeai">FinanceAI</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="md:col-span-2">
+              <Label htmlFor="workflow-description">Description</Label>
+              <Textarea
+                id="workflow-description"
+                value={workflowDescription}
+                onChange={(e) => setWorkflowDescription(e.target.value)}
+                placeholder="Describe your workflow"
+                rows={3}
+              />
+            </div>
+
+            {selectedTemplate && (
+              <div className="md:col-span-2 pt-4 border-t">
+                <h4 className="font-medium mb-2">Template Info</h4>
+                <div className="grid grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <strong>Steps:</strong> {selectedTemplate.steps}
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Workflow Canvas */}
-          <div className="lg:col-span-2">
-            <WorkflowCanvas 
-              selectedTemplate={selectedTemplate}
-              workflowName={workflowName}
-              workflowType={workflowType}
-              formData={{ 
-                workflowName,
-                workflowType,
-                triggerType,
-                assignedAgent
-              }}
-            />
-          </div>
-
-          {/* Properties Panel */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Properties</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="workflow-name">Workflow Name</Label>
-                <Input
-                  id="workflow-name"
-                  value={workflowName}
-                  onChange={(e) => setWorkflowName(e.target.value)}
-                  placeholder="Enter workflow name"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="workflow-description">Description</Label>
-                <Textarea
-                  id="workflow-description"
-                  value={workflowDescription}
-                  onChange={(e) => setWorkflowDescription(e.target.value)}
-                  placeholder="Describe your workflow"
-                  rows={3}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="workflow-type">Workflow Type</Label>
-                <Select value={workflowType} onValueChange={setWorkflowType}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="expense_approval">Expense Approval</SelectItem>
-                    <SelectItem value="campaign_approval">Campaign Approval</SelectItem>
-                    <SelectItem value="customer_management">Customer Management</SelectItem>
-                    <SelectItem value="data_processing">Data Processing</SelectItem>
-                    <SelectItem value="finance">Finance</SelectItem>
-                    <SelectItem value="customer_support">Customer Support</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="trigger-type">Trigger Type</Label>
-                <Select value={triggerType} onValueChange={setTriggerType}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select trigger" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="manual">Manual</SelectItem>
-                    <SelectItem value="schedule">Scheduled</SelectItem>
-                    <SelectItem value="webhook">Webhook</SelectItem>
-                    <SelectItem value="email">Email</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="ai-agent">Assign AI Agent</Label>
-                <Select value={assignedAgent} onValueChange={setAssignedAgent}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select agent" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="docbot">DocumentAI</SelectItem>
-                    <SelectItem value="databot">DataBot</SelectItem>
-                    <SelectItem value="supportbot">SupportBot</SelectItem>
-                    <SelectItem value="financeai">FinanceAI</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {selectedTemplate && (
-                <div className="pt-4 border-t">
-                  <h4 className="font-medium mb-2">Template Info</h4>
-                  <div className="space-y-2 text-sm">
-                    <p><strong>Steps:</strong> {selectedTemplate.steps}</p>
-                    <p><strong>Category:</strong> {selectedTemplate.category}</p>
-                    <div>
-                      <strong>AI Agents:</strong>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {selectedTemplate.agents.map((agent, index) => (
-                          <Badge key={index} variant="outline" className="text-xs">
-                            {agent}
-                          </Badge>
-                        ))}
-                      </div>
+                  <div>
+                    <strong>Category:</strong> {selectedTemplate.category}
+                  </div>
+                  <div>
+                    <strong>AI Agents:</strong>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {selectedTemplate.agents.map((agent, index) => (
+                        <Badge key={index} variant="outline" className="text-xs">
+                          {agent}
+                        </Badge>
+                      ))}
                     </div>
                   </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     );
   }

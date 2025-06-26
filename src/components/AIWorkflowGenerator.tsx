@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -338,15 +337,17 @@ export const AIWorkflowGenerator = () => {
   if (showForm && generatedWorkflow) {
     return (
       <div className="space-y-6">
-        {/* Always show the workflow canvas */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <WorkflowCanvas 
-            selectedTemplate={null}
-            workflowName={generatedWorkflow.name}
-            workflowType={generatedWorkflow.type}
-            formData={generatedWorkflow.request_data}
-            generatedWorkflow={generatedWorkflow}
-          />
+        {/* Full width workflow canvas */}
+        <WorkflowCanvas 
+          selectedTemplate={null}
+          workflowName={generatedWorkflow.name}
+          workflowType={generatedWorkflow.type}
+          formData={generatedWorkflow.request_data}
+          generatedWorkflow={generatedWorkflow}
+        />
+        
+        {/* Form below the diagram */}
+        <div className="max-w-2xl mx-auto">
           <WorkflowInputForm
             workflowName={generatedWorkflow.name}
             workflowType={generatedWorkflow.type}
@@ -408,9 +409,10 @@ export const AIWorkflowGenerator = () => {
         </CardContent>
       </Card>
 
-      {/* Always show workflow canvas when workflow is generated */}
+      {/* Show workflow canvas immediately when workflow is generated */}
       {generatedWorkflow && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-6">
+          {/* Full width workflow canvas */}
           <WorkflowCanvas 
             selectedTemplate={null}
             workflowName={generatedWorkflow.name}
@@ -419,7 +421,8 @@ export const AIWorkflowGenerator = () => {
             generatedWorkflow={generatedWorkflow}
           />
           
-          <Card className="border-purple-200 bg-purple-50">
+          {/* Generated workflow info card */}
+          <Card className="border-purple-200 bg-purple-50 max-w-2xl mx-auto">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
@@ -459,7 +462,7 @@ export const AIWorkflowGenerator = () => {
                 </div>
               </div>
 
-              <div className="flex space-x-3 pt-4">
+              <div className="flex space-x-3">
                 <Button 
                   onClick={() => setShowForm(true)}
                   className="flex-1 bg-purple-600 hover:bg-purple-700"
@@ -478,7 +481,7 @@ export const AIWorkflowGenerator = () => {
           </Card>
         </div>
       )}
-
+    
       {/* Active Workflows Section */}
       <Card>
         <CardHeader>
