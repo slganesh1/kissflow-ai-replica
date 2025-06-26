@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -83,9 +82,9 @@ export const AIWorkflowGenerator = () => {
 
       // Transform workflows to include approval steps
       const transformedWorkflows = workflows?.map(workflow => {
-        // Safely access request_data properties
+        // Safely access request_data properties with proper type casting
         const requestData = workflow.request_data as any;
-        const description = requestData?.business_purpose || requestData?.description || 'No description';
+        const description = requestData?.business_purpose || requestData?.description || requestData?.justification || 'No description';
         
         return {
           id: workflow.id,
@@ -224,7 +223,78 @@ export const AIWorkflowGenerator = () => {
 
   const handleWorkflowSubmit = async (data: Record<string, any>) => {
     try {
-      console.log('Submitting AI generated workflow:', data);
+      console.log('Submitting AI generated workflow with data:', data);
+      
+      // Create the workflow with proper status (pending until all approvals)
+      const { data: workflow, error: workflowError } = await supabase
+        .from('workflow_executions')
+        .insert({
+          workflow_name: data.workflowName,
+          workflow_type: data.workflowType,
+          submitter_name: data.submitterName,
+          status: 'pending', // CRITICAL: Stay pending until all approvals
+          request_data: {
+            title: data.title,
+            amount: parseFloat(data.amount) || 0,
+            business_purpose: data.businessPurpose,
+            category: data.category,
+            urgency: data.urgency,
+            generated_by_ai: true,
+            created_at: new Date().toISOString()
+          }
+        })
+        .select()
+        .single();
+
+      if (workflowError) {
+        console.error('Error creating AI workflow:', workflowError);
+        toast.error('Failed to create workflow: ' + workflowError.message);
+        return;
+      }
+
+      // Create approval steps based on workflow type and amount
+      const amount = parseFloat(data.amount) || 0;
+      const approvalSteps = [];
+
+      if (data.workflowType === 'expense_approval' && amount > 1000) {
+        approvalSteps.push(
+          {
+            workflow_id: workflow.id,
+            step_id: 'manager-approval',
+            step_name: 'Manager Approval',
+            approver_role: 'manager',
+            status: 'pending'
+          },
+          {
+            workflow_id: workflow.id,
+            step_id: 'finance-director-approval',
+            step_name: 'Finance Director Approval',
+            approver_role: 'finance_director',
+            status: 'pending'
+          }
+        );
+      } else {
+        approvalSteps.push({
+          workflow_id: workflow.id,
+          step_id: 'manager-approval',
+          step_name: 'Manager Approval',
+          approver_role: 'manager',
+          status: 'pending'
+        });
+      }
+
+      // Create approval records
+      const { error: approvalError } = await supabase
+        .from('workflow_approvals')
+        .insert(approvalSteps);
+
+      if (approvalError) {
+        console.error('Error creating approval records:', approvalError);
+        toast.error('Failed to create approval records');
+        return;
+      }
+
+      console.log('AI workflow created successfully with approvals');
       
       // Reset the form and generated workflow
       setGeneratedWorkflow(null);
@@ -236,7 +306,7 @@ export const AIWorkflowGenerator = () => {
       // Refresh the active workflows list
       await fetchActiveWorkflows();
     } catch (error) {
-      console.error('Error submitting workflow:', error);
+      console.error('Error submitting AI workflow:', error);
       toast.error('Failed to submit workflow');
     }
   };

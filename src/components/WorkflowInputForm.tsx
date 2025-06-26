@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -47,14 +48,14 @@ export const WorkflowInputForm: React.FC<WorkflowInputFormProps> = ({
         return;
       }
 
-      // Create the workflow execution record with pending status - NEVER auto-complete
+      // Create the workflow execution record with pending status - MUST stay pending until ALL approvals
       const { data: workflow, error: workflowError } = await supabase
         .from('workflow_executions')
         .insert({
           workflow_name: formData.workflowName,
           workflow_type: formData.workflowType,
           submitter_name: formData.submitterName,
-          status: 'pending', // MUST stay pending until ALL approvals are complete
+          status: 'pending', // CRITICAL: Must stay pending until ALL approvals complete
           request_data: {
             title: formData.title,
             amount: parseFloat(formData.amount) || 0,
@@ -80,7 +81,7 @@ export const WorkflowInputForm: React.FC<WorkflowInputFormProps> = ({
       const approvalSteps = [];
 
       if (formData.workflowType === 'expense_approval' && amount > 1000) {
-        // Marketing expenses over $1000 require both manager and finance director approval
+        // High-value expenses require both manager and finance director approval
         approvalSteps.push(
           {
             workflow_id: workflow.id,
@@ -108,7 +109,7 @@ export const WorkflowInputForm: React.FC<WorkflowInputFormProps> = ({
         });
       }
 
-      // Create all approval records
+      // Create ALL approval records - workflow stays pending until all are approved
       const { data: approvals, error: approvalError } = await supabase
         .from('workflow_approvals')
         .insert(approvalSteps)
@@ -121,6 +122,7 @@ export const WorkflowInputForm: React.FC<WorkflowInputFormProps> = ({
       }
 
       console.log('Approval records created successfully:', approvals);
+      console.log(`Workflow ${workflow.id} created with ${approvals?.length || 0} pending approvals`);
 
       const approvalCount = approvals?.length || 0;
       toast.success(
