@@ -9,10 +9,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
-export const WorkflowInputForm = () => {
+interface WorkflowInputFormProps {
+  workflowName?: string;
+  workflowType?: string;
+  onSubmit?: (data: Record<string, any>) => void;
+  onCancel?: () => void;
+}
+
+export const WorkflowInputForm: React.FC<WorkflowInputFormProps> = ({
+  workflowName: initialWorkflowName = '',
+  workflowType: initialWorkflowType = '',
+  onSubmit: onExternalSubmit,
+  onCancel
+}) => {
   const [formData, setFormData] = useState({
-    workflowName: '',
-    workflowType: '',
+    workflowName: initialWorkflowName,
+    workflowType: initialWorkflowType,
     submitterName: '',
     title: '',
     amount: '',
@@ -28,6 +40,13 @@ export const WorkflowInputForm = () => {
 
     try {
       console.log('Submitting workflow with data:', formData);
+
+      // If there's an external submit handler (from AI Generator), use it
+      if (onExternalSubmit) {
+        onExternalSubmit(formData);
+        setLoading(false);
+        return;
+      }
 
       // Create the workflow execution record
       const { data: workflow, error: workflowError } = await supabase
@@ -108,8 +127,17 @@ export const WorkflowInputForm = () => {
   return (
     <Card className="max-w-2xl mx-auto">
       <CardHeader>
-        <CardTitle>Submit New Workflow</CardTitle>
-        <CardDescription>Create a new workflow request that requires approval</CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Submit New Workflow</CardTitle>
+            <CardDescription>Create a new workflow request that requires approval</CardDescription>
+          </div>
+          {onCancel && (
+            <Button variant="outline" onClick={onCancel}>
+              Cancel
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
