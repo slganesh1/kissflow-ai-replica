@@ -17,7 +17,7 @@ export const Navigation = () => {
             <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-r from-pink-500 to-yellow-500 rounded-full animate-pulse"></div>
           </div>
           <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-            FlowAI
+            TechzFlowAI
           </span>
         </div>
         
