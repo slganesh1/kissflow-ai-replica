@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +11,7 @@ import { Plus, Play, Save, Settings, Bot, Mail, FileText, Database, Zap, ArrowRi
 import { toast } from 'sonner';
 import { AIWorkflowGenerator } from './AIWorkflowGenerator';
 import { ActiveWorkflows } from './ActiveWorkflows';
+import { WorkflowCanvas } from './WorkflowCanvas';
 
 const workflowTemplates = [
   {
@@ -61,12 +61,16 @@ export const WorkflowBuilder = () => {
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [workflowName, setWorkflowName] = useState('');
   const [workflowDescription, setWorkflowDescription] = useState('');
+  const [workflowType, setWorkflowType] = useState('');
+  const [triggerType, setTriggerType] = useState('');
+  const [assignedAgent, setAssignedAgent] = useState('');
   const [isBuilding, setIsBuilding] = useState(false);
 
   const startFromTemplate = (template) => {
     setSelectedTemplate(template);
     setWorkflowName(template.name);
     setWorkflowDescription(template.description);
+    setWorkflowType(template.category.toLowerCase().replace(' ', '_'));
     setIsBuilding(true);
     toast.success(`Started building workflow: ${template.name}`);
   };
@@ -131,56 +135,17 @@ export const WorkflowBuilder = () => {
 
           {/* Workflow Canvas */}
           <div className="lg:col-span-2">
-            <Card className="h-[600px]">
-              <CardHeader>
-                <CardTitle className="text-lg">Workflow Canvas</CardTitle>
-                <CardDescription>Drag and drop actions to build your workflow</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-full bg-gray-50 rounded-lg p-4 border-2 border-dashed border-gray-300">
-                  <div className="flex flex-col items-center justify-center h-full text-gray-500">
-                    {selectedTemplate ? (
-                      <div className="space-y-6 w-full">
-                        {/* Sample workflow steps based on template */}
-                        <div className="flex items-center justify-center">
-                          <div className="bg-blue-100 p-4 rounded-lg border-2 border-blue-300">
-                            <FileText className="h-6 w-6 text-blue-600 mx-auto mb-2" />
-                            <p className="text-sm font-medium text-center">Start Trigger</p>
-                          </div>
-                        </div>
-                        
-                        <div className="flex justify-center">
-                          <ArrowRight className="h-6 w-6 text-gray-400" />
-                        </div>
-
-                        <div className="flex items-center justify-center">
-                          <div className="bg-green-100 p-4 rounded-lg border-2 border-green-300">
-                            <Bot className="h-6 w-6 text-green-600 mx-auto mb-2" />
-                            <p className="text-sm font-medium text-center">AI Processing</p>
-                          </div>
-                        </div>
-
-                        <div className="flex justify-center">
-                          <ArrowRight className="h-6 w-6 text-gray-400" />
-                        </div>
-
-                        <div className="flex items-center justify-center">
-                          <div className="bg-purple-100 p-4 rounded-lg border-2 border-purple-300">
-                            <Mail className="h-6 w-6 text-purple-600 mx-auto mb-2" />
-                            <p className="text-sm font-medium text-center">Send Notification</p>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <Plus className="h-12 w-12 mb-4" />
-                        <p>Drag actions here to build your workflow</p>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <WorkflowCanvas 
+              selectedTemplate={selectedTemplate}
+              workflowName={workflowName}
+              workflowType={workflowType}
+              formData={{ 
+                workflowName,
+                workflowType,
+                triggerType,
+                assignedAgent
+              }}
+            />
           </div>
 
           {/* Properties Panel */}
@@ -211,8 +176,25 @@ export const WorkflowBuilder = () => {
               </div>
 
               <div>
+                <Label htmlFor="workflow-type">Workflow Type</Label>
+                <Select value={workflowType} onValueChange={setWorkflowType}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="expense_approval">Expense Approval</SelectItem>
+                    <SelectItem value="campaign_approval">Campaign Approval</SelectItem>
+                    <SelectItem value="customer_management">Customer Management</SelectItem>
+                    <SelectItem value="data_processing">Data Processing</SelectItem>
+                    <SelectItem value="finance">Finance</SelectItem>
+                    <SelectItem value="customer_support">Customer Support</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
                 <Label htmlFor="trigger-type">Trigger Type</Label>
-                <Select>
+                <Select value={triggerType} onValueChange={setTriggerType}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select trigger" />
                   </SelectTrigger>
@@ -227,7 +209,7 @@ export const WorkflowBuilder = () => {
 
               <div>
                 <Label htmlFor="ai-agent">Assign AI Agent</Label>
-                <Select>
+                <Select value={assignedAgent} onValueChange={setAssignedAgent}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select agent" />
                   </SelectTrigger>
@@ -239,6 +221,26 @@ export const WorkflowBuilder = () => {
                   </SelectContent>
                 </Select>
               </div>
+
+              {selectedTemplate && (
+                <div className="pt-4 border-t">
+                  <h4 className="font-medium mb-2">Template Info</h4>
+                  <div className="space-y-2 text-sm">
+                    <p><strong>Steps:</strong> {selectedTemplate.steps}</p>
+                    <p><strong>Category:</strong> {selectedTemplate.category}</p>
+                    <div>
+                      <strong>AI Agents:</strong>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {selectedTemplate.agents.map((agent, index) => (
+                          <Badge key={index} variant="outline" className="text-xs">
+                            {agent}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
