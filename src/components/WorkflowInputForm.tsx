@@ -48,14 +48,14 @@ export const WorkflowInputForm: React.FC<WorkflowInputFormProps> = ({
         return;
       }
 
-      // Create the workflow execution record
+      // Create the workflow execution record with pending status
       const { data: workflow, error: workflowError } = await supabase
         .from('workflow_executions')
         .insert({
           workflow_name: formData.workflowName,
           workflow_type: formData.workflowType,
           submitter_name: formData.submitterName,
-          status: 'pending',
+          status: 'pending', // Keep as pending until approved
           request_data: {
             title: formData.title,
             amount: formData.amount,
@@ -70,14 +70,14 @@ export const WorkflowInputForm: React.FC<WorkflowInputFormProps> = ({
 
       if (workflowError) {
         console.error('Error creating workflow:', workflowError);
-        toast.error('Failed to create workflow');
+        toast.error('Failed to create workflow: ' + workflowError.message);
         return;
       }
 
-      console.log('Workflow created:', workflow);
+      console.log('Workflow created successfully:', workflow);
 
-      // Create approval record for manager approval
-      const { error: approvalError } = await supabase
+      // Create approval record for manager approval - this is crucial
+      const { data: approval, error: approvalError } = await supabase
         .from('workflow_approvals')
         .insert({
           workflow_id: workflow.id,
@@ -85,17 +85,19 @@ export const WorkflowInputForm: React.FC<WorkflowInputFormProps> = ({
           step_name: 'Manager Approval',
           approver_role: 'manager',
           status: 'pending'
-        });
+        })
+        .select()
+        .single();
 
       if (approvalError) {
         console.error('Error creating approval record:', approvalError);
-        toast.error('Failed to create approval record');
+        toast.error('Failed to create approval record: ' + approvalError.message);
         return;
       }
 
-      console.log('Approval record created successfully');
+      console.log('Approval record created successfully:', approval);
 
-      toast.success('Workflow submitted successfully!');
+      toast.success(`Workflow "${formData.workflowName}" submitted successfully and is awaiting approval!`);
       
       // Reset form
       setFormData({
@@ -111,7 +113,7 @@ export const WorkflowInputForm: React.FC<WorkflowInputFormProps> = ({
 
     } catch (error) {
       console.error('Error in workflow submission:', error);
-      toast.error('Failed to submit workflow');
+      toast.error('Failed to submit workflow: ' + (error as Error).message);
     } finally {
       setLoading(false);
     }
