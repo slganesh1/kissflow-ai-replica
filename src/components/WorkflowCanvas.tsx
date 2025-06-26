@@ -38,7 +38,48 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
   const generateWorkflowSteps = (): WorkflowStep[] => {
     const steps: WorkflowStep[] = [];
 
-    // Start step with detailed information
+    // If we have a generated workflow, use its steps with enhanced details
+    if (generatedWorkflow && generatedWorkflow.steps) {
+      generatedWorkflow.steps.forEach((step: any, index: number) => {
+        const stepDetails = {
+          assignee: step.type === 'approval' ? 'Manager' : 
+                   step.type === 'review' ? 'Reviewer' :
+                   step.type === 'ai-processing' ? 'AI Agent' : 'System',
+          duration: step.type === 'approval' ? '24-48 hours' :
+                   step.type === 'review' ? '2-4 hours' :
+                   step.type === 'ai-processing' ? '5-10 minutes' : '1-2 hours',
+          priority: generatedWorkflow.request_data?.urgency || 'Medium',
+          conditions: step.type === 'approval' ? 
+            ['Manager approval required', 'Budget verification'] : 
+            ['Standard workflow conditions']
+        };
+
+        steps.push({
+          id: step.id,
+          name: step.name,
+          type: step.type,
+          description: step.description,
+          icon: step.type === 'approval' ? User : 
+                step.type === 'review' ? CheckCircle :
+                step.type === 'ai-processing' ? Bot : 
+                step.type === 'trigger' ? FileText :
+                step.type === 'notification' ? Mail :
+                step.type === 'end' ? CheckCircle : Zap,
+          color: step.status === 'completed' ? 'bg-green-100 border-green-300 text-green-700' :
+                 step.status === 'active' ? 'bg-blue-100 border-blue-300 text-blue-700' :
+                 step.status === 'approved' ? 'bg-green-100 border-green-300 text-green-700' :
+                 step.status === 'rejected' ? 'bg-red-100 border-red-300 text-red-700' :
+                 step.status === 'pending' ? 'bg-yellow-100 border-yellow-300 text-yellow-700' :
+                 'bg-gray-100 border-gray-300 text-gray-700',
+          status: step.status,
+          details: stepDetails
+        });
+      });
+
+      return steps;
+    }
+
+    // Start step for templates and manual workflows
     steps.push({
       id: 'start',
       name: 'Workflow Initiated',
@@ -54,40 +95,8 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
       }
     });
 
-    // If we have a generated workflow, use its steps with enhanced details
-    if (generatedWorkflow) {
-      generatedWorkflow.steps.forEach((step: any, index: number) => {
-        const stepDetails = {
-          assignee: step.type === 'approval' ? 'Manager' : 
-                   step.type === 'review' ? 'Reviewer' :
-                   step.type === 'ai-processing' ? 'AI Agent' : 'System',
-          duration: step.type === 'approval' ? '24-48 hours' :
-                   step.type === 'review' ? '2-4 hours' :
-                   step.type === 'ai-processing' ? '5-10 minutes' : '1-2 hours',
-          priority: generatedWorkflow.request_data?.urgency || 'Medium',
-          conditions: step.type === 'approval' && generatedWorkflow.request_data?.amount > 1000 ? 
-            ['Amount > $1000', 'Requires senior approval'] : 
-            ['Standard workflow conditions']
-        };
-
-        steps.push({
-          id: step.id,
-          name: step.name,
-          type: step.type,
-          description: step.description,
-          icon: step.type === 'approval' ? User : 
-                step.type === 'review' ? CheckCircle :
-                step.type === 'ai-processing' ? Bot : Zap,
-          color: step.status === 'approved' ? 'bg-green-100 border-green-300 text-green-700' :
-                 step.status === 'rejected' ? 'bg-red-100 border-red-300 text-red-700' :
-                 step.status === 'pending' ? 'bg-yellow-100 border-yellow-300 text-yellow-700' :
-                 'bg-gray-100 border-gray-300 text-gray-700',
-          status: step.status,
-          details: stepDetails
-        });
-      });
-    } else if (selectedTemplate) {
-      // Generate detailed steps based on template
+    // Template-specific detailed steps
+    if (selectedTemplate) {
       switch (selectedTemplate.name) {
         case 'Customer Onboarding':
           steps.push(
@@ -133,26 +142,12 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
                 assignee: 'Account System',
                 duration: '2-5 minutes',
                 priority: 'Medium',
-                conditions: ['Unique account number', 'Service configuration', 'Access credentials']
-              }
-            },
-            {
-              id: 'welcome-sequence',
-              name: 'Welcome Communication',
-              type: 'notification',
-              description: 'Send welcome email and account setup instructions',
-              icon: Mail,
-              color: 'bg-orange-100 border-orange-300 text-orange-700',
-              status: 'pending',
-              details: {
-                assignee: 'NotificationBot',
-                duration: '1-2 minutes',
-                priority: 'Low',
-                conditions: ['Email template', 'Account details', 'Next steps guide']
+                conditions: ['Unique account number', 'Service configuration']
               }
             }
           );
           break;
+
         case 'Invoice Processing':
           steps.push(
             {
@@ -167,12 +162,12 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
                 assignee: 'OCR-Agent',
                 duration: '3-5 minutes',
                 priority: 'High',
-                conditions: ['Clear document scan', 'Supported format', 'Text recognition']
+                conditions: ['Clear document scan', 'Supported format']
               }
             },
             {
               id: 'data-validation',
-              name: 'Data Validation & Enrichment',
+              name: 'Data Validation',
               type: 'validation',
               description: 'Validate extracted data and enrich with vendor information',
               icon: CheckCircle,
@@ -182,22 +177,7 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
                 assignee: 'ValidationBot',
                 duration: '5-10 minutes',
                 priority: 'High',
-                conditions: ['Vendor database match', 'Amount validation', 'Date verification']
-              }
-            },
-            {
-              id: 'approval-routing',
-              name: 'Approval Routing',
-              type: 'routing',
-              description: 'Route to appropriate approver based on amount and department',
-              icon: ArrowRight,
-              color: 'bg-blue-100 border-blue-300 text-blue-700',
-              status: 'pending',
-              details: {
-                assignee: 'RoutingBot',
-                duration: '1-2 minutes',
-                priority: 'Medium',
-                conditions: ['Amount threshold', 'Department rules', 'Approver availability']
+                conditions: ['Vendor database match', 'Amount validation']
               }
             },
             {
@@ -212,13 +192,13 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
                 assignee: 'Department Manager',
                 duration: '24-48 hours',
                 priority: 'Medium',
-                conditions: ['Budget availability', 'Vendor verification', 'Purchase order match']
+                conditions: ['Budget availability', 'Vendor verification']
               }
             }
           );
           break;
+
         default:
-          // Enhanced generic template steps
           steps.push(
             {
               id: 'ai-analysis',
@@ -232,7 +212,7 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
                 assignee: 'AI Processing Agent',
                 duration: '10-15 minutes',
                 priority: 'High',
-                conditions: ['Content analysis', 'Risk assessment', 'Route determination']
+                conditions: ['Content analysis', 'Risk assessment']
               }
             },
             {
@@ -247,13 +227,13 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
                 assignee: 'Assigned Manager',
                 duration: '2-24 hours',
                 priority: 'Medium',
-                conditions: ['AI recommendation review', 'Policy compliance', 'Final authorization']
+                conditions: ['AI recommendation review', 'Policy compliance']
               }
             }
           );
       }
     } else if (workflowType) {
-      // Generate detailed steps based on workflow type
+      // Workflow type specific steps
       switch (workflowType) {
         case 'expense_approval':
           steps.push(
@@ -269,22 +249,7 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
                 assignee: 'Expense Bot',
                 duration: '5-10 minutes',
                 priority: 'High',
-                conditions: ['Receipt quality', 'Amount verification', 'Category validation']
-              }
-            },
-            {
-              id: 'policy-check',
-              name: 'Policy Compliance Check',
-              type: 'review',
-              description: 'Automated policy compliance verification',
-              icon: AlertCircle,
-              color: 'bg-yellow-100 border-yellow-300 text-yellow-700',
-              status: 'pending',
-              details: {
-                assignee: 'Policy Engine',
-                duration: '2-5 minutes',
-                priority: 'High',
-                conditions: ['Spending limits', 'Category rules', 'Approval thresholds']
+                conditions: ['Receipt quality', 'Amount verification']
               }
             },
             {
@@ -299,81 +264,13 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
                 assignee: 'Direct Manager',
                 duration: '24-48 hours',
                 priority: 'Medium',
-                conditions: ['Budget availability', 'Business justification', 'Receipt validity']
+                conditions: ['Budget availability', 'Business justification']
               }
             }
           );
+          break;
 
-          // Add finance director approval for high amounts
-          if (formData?.amount && parseFloat(formData.amount) > 1000) {
-            steps.push({
-              id: 'finance-approval',
-              name: 'Finance Director Approval',
-              type: 'approval',
-              description: 'Senior finance approval required for high-value expenses',
-              icon: DollarSign,
-              color: 'bg-red-100 border-red-300 text-red-700',
-              status: 'pending',
-              details: {
-                assignee: 'Finance Director',
-                duration: '48-72 hours',
-                priority: 'High',
-                conditions: ['High amount threshold', 'Budget impact', 'Strategic alignment']
-              }
-            });
-          }
-          break;
-        case 'campaign_approval':
-          steps.push(
-            {
-              id: 'content-analysis',
-              name: 'Content Analysis',
-              type: 'ai-processing',
-              description: 'AI analyzes campaign content for compliance and effectiveness',
-              icon: Bot,
-              color: 'bg-green-100 border-green-300 text-green-700',
-              status: 'active',
-              details: {
-                assignee: 'Content AI',
-                duration: '10-15 minutes',
-                priority: 'High',
-                conditions: ['Brand compliance', 'Message clarity', 'Target audience fit']
-              }
-            },
-            {
-              id: 'legal-review',
-              name: 'Legal & Compliance Review',
-              type: 'review',
-              description: 'Legal team reviews campaign for regulatory compliance',
-              icon: CheckCircle,
-              color: 'bg-yellow-100 border-yellow-300 text-yellow-700',
-              status: 'pending',
-              details: {
-                assignee: 'Legal Team',
-                duration: '24-48 hours',
-                priority: 'High',
-                conditions: ['Regulatory compliance', 'Disclaimer requirements', 'Risk assessment']
-              }
-            },
-            {
-              id: 'marketing-approval',
-              name: 'Marketing Director Approval',
-              type: 'approval',
-              description: 'Final approval from marketing leadership',
-              icon: User,
-              color: 'bg-red-100 border-red-300 text-red-700',
-              status: 'pending',
-              details: {
-                assignee: 'Marketing Director',
-                duration: '12-24 hours',
-                priority: 'Medium',
-                conditions: ['Strategic alignment', 'Budget approval', 'Launch readiness']
-              }
-            }
-          );
-          break;
         default:
-          // Enhanced generic workflow steps
           steps.push(
             {
               id: 'processing',
@@ -387,7 +284,7 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
                 assignee: 'Processing Engine',
                 duration: '15-30 minutes',
                 priority: 'Medium',
-                conditions: ['Data validation', 'Rule evaluation', 'Path determination']
+                conditions: ['Data validation', 'Rule evaluation']
               }
             },
             {
@@ -402,48 +299,27 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
                 assignee: 'Designated Approver',
                 duration: '4-24 hours',
                 priority: 'Medium',
-                conditions: ['Authorization level', 'Business rules', 'Final verification']
+                conditions: ['Authorization level', 'Business rules']
               }
             }
           );
       }
-    } else {
-      // Default placeholder step
-      steps.push({
-        id: 'placeholder',
-        name: 'Add Workflow Steps',
-        type: 'placeholder',
-        description: 'Configure your workflow by selecting a template or adding custom steps',
-        icon: Plus,
-        color: 'bg-gray-100 border-gray-300 text-gray-500',
-        status: 'pending',
-        details: {
-          assignee: 'User',
-          duration: 'Configuration needed',
-          priority: 'Action Required'
-        }
-      });
     }
 
-    // Enhanced end step
-    if (steps.length > 1 && steps[0].type !== 'placeholder') {
-      const allStepsCompleted = generatedWorkflow ? 
-        generatedWorkflow.status === 'completed' : false;
-      
+    // End step
+    if (steps.length > 1) {
       steps.push({
         id: 'complete',
         name: 'Workflow Complete',
         type: 'end',
-        description: 'Workflow execution completed successfully with all approvals',
+        description: 'Workflow execution completed successfully',
         icon: CheckCircle,
-        color: allStepsCompleted ? 
-          'bg-green-100 border-green-300 text-green-700' : 
-          'bg-gray-100 border-gray-300 text-gray-500',
-        status: allStepsCompleted ? 'completed' : 'pending',
+        color: 'bg-green-100 border-green-300 text-green-700',
+        status: 'pending',
         details: {
           assignee: 'System',
           duration: 'Instant',
-          priority: allStepsCompleted ? 'Completed' : 'Pending'
+          priority: 'Completed'
         }
       });
     }
@@ -484,9 +360,9 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
   };
 
   return (
-    <Card className="h-[600px]">
+    <Card className="h-[700px]">
       <CardHeader>
-        <CardTitle className="text-lg flex items-center space-x-2">
+        <CardTitle className="text-xl flex items-center space-x-2">
           <span>Workflow Diagram</span>
           {generatedWorkflow && (
             <Badge className="ml-2" variant="outline">
@@ -494,13 +370,13 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
             </Badge>
           )}
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="text-base">
           {workflowName || selectedTemplate?.name || 'Visual representation of your workflow process'}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="h-full bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-6 border-2 border-dashed border-gray-300 overflow-y-auto">
-          {steps.length === 0 || (steps.length === 1 && steps[0].type === 'placeholder') ? (
+          {steps.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-gray-500">
               <Plus className="h-12 w-12 mb-4" />
               <p className="text-lg font-medium mb-2">Build Your Workflow</p>
@@ -509,27 +385,27 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
               </p>
             </div>
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-8">
               {steps.map((step, index) => (
                 <div key={step.id} className="flex flex-col items-center">
-                  {/* Step Card */}
-                  <div className={`p-6 rounded-xl border-2 shadow-lg ${step.color} min-w-[320px] max-w-[400px] transition-all hover:shadow-xl hover:scale-105`}>
+                  {/* Enhanced Step Card */}
+                  <div className={`p-6 rounded-xl border-2 shadow-lg ${step.color} min-w-[400px] max-w-[500px] transition-all hover:shadow-xl hover:scale-102`}>
                     {/* Header */}
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center space-x-3">
-                        <div className="p-2 bg-white/20 rounded-lg">
-                          <step.icon className="h-6 w-6" />
+                        <div className="p-3 bg-white/30 rounded-lg">
+                          <step.icon className="h-7 w-7" />
                         </div>
                         <div>
-                          <h4 className="font-semibold text-lg">{step.name}</h4>
-                          <p className="text-sm opacity-75 capitalize">{step.type.replace('_', ' ')}</p>
+                          <h4 className="font-bold text-xl">{step.name}</h4>
+                          <p className="text-sm opacity-80 capitalize font-medium">{step.type.replace('_', ' ').replace('-', ' ')}</p>
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
                         {getStatusIcon(step.status)}
                         <Badge 
                           variant="outline" 
-                          className={`${getStatusBadgeColor(step.status)} text-xs font-medium`}
+                          className={`${getStatusBadgeColor(step.status)} text-xs font-bold`}
                         >
                           {step.status?.toUpperCase()}
                         </Badge>
@@ -537,26 +413,26 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
                     </div>
 
                     {/* Description */}
-                    <p className="text-sm mb-4 leading-relaxed">{step.description}</p>
+                    <p className="text-sm mb-5 leading-relaxed font-medium">{step.description}</p>
 
                     {/* Details Grid */}
                     {step.details && (
-                      <div className="grid grid-cols-2 gap-3 text-xs">
-                        <div className="bg-white/20 rounded-lg p-3">
-                          <p className="opacity-75 mb-1">Assignee</p>
-                          <p className="font-medium">{step.details.assignee}</p>
+                      <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+                        <div className="bg-white/25 rounded-lg p-3">
+                          <p className="opacity-75 mb-1 font-medium">Assignee</p>
+                          <p className="font-bold">{step.details.assignee}</p>
                         </div>
-                        <div className="bg-white/20 rounded-lg p-3">
-                          <p className="opacity-75 mb-1">Duration</p>
-                          <p className="font-medium">{step.details.duration}</p>
+                        <div className="bg-white/25 rounded-lg p-3">
+                          <p className="opacity-75 mb-1 font-medium">Duration</p>
+                          <p className="font-bold">{step.details.duration}</p>
                         </div>
-                        <div className="bg-white/20 rounded-lg p-3">
-                          <p className="opacity-75 mb-1">Priority</p>
-                          <p className="font-medium">{step.details.priority}</p>
+                        <div className="bg-white/25 rounded-lg p-3">
+                          <p className="opacity-75 mb-1 font-medium">Priority</p>
+                          <p className="font-bold">{step.details.priority}</p>
                         </div>
-                        <div className="bg-white/20 rounded-lg p-3">
-                          <p className="opacity-75 mb-1">Step #{index + 1}</p>
-                          <p className="font-medium">{step.type}</p>
+                        <div className="bg-white/25 rounded-lg p-3">
+                          <p className="opacity-75 mb-1 font-medium">Step #{index + 1}</p>
+                          <p className="font-bold capitalize">{step.type.replace('_', ' ')}</p>
                         </div>
                       </div>
                     )}
@@ -564,13 +440,13 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
                     {/* Conditions */}
                     {step.details?.conditions && step.details.conditions.length > 0 && (
                       <div className="mt-4">
-                        <p className="text-xs opacity-75 mb-2">Conditions & Requirements:</p>
-                        <div className="flex flex-wrap gap-1">
+                        <p className="text-sm opacity-75 mb-2 font-medium">Conditions & Requirements:</p>
+                        <div className="flex flex-wrap gap-2">
                           {step.details.conditions.map((condition, idx) => (
                             <Badge 
                               key={idx} 
                               variant="secondary" 
-                              className="text-xs bg-black/10 text-current border-black/20"
+                              className="text-xs bg-black/15 text-current border-black/25 font-medium"
                             >
                               {condition}
                             </Badge>
@@ -580,34 +456,38 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
                     )}
                   </div>
                   
-                  {/* Flow Arrow */}
+                  {/* Enhanced Flow Arrow */}
                   {index < steps.length - 1 && (
-                    <div className="flex justify-center py-4">
+                    <div className="flex justify-center py-6">
                       <div className="flex flex-col items-center">
-                        <ArrowDown className="h-8 w-8 text-gray-400 animate-bounce" />
-                        <div className="w-0.5 h-4 bg-gray-300 mt-1"></div>
+                        <ArrowDown className="h-10 w-10 text-gray-500 animate-bounce" />
+                        <div className="w-1 h-6 bg-gray-400 mt-2 rounded"></div>
                       </div>
                     </div>
                   )}
                 </div>
               ))}
 
-              {/* Workflow Summary */}
+              {/* Enhanced Workflow Summary */}
               {steps.length > 2 && (
-                <div className="mt-8 p-4 bg-white/50 rounded-lg border border-gray-200">
-                  <h5 className="font-medium text-gray-800 mb-2">Workflow Summary</h5>
-                  <div className="grid grid-cols-3 gap-4 text-sm text-gray-600">
-                    <div>
+                <div className="mt-8 p-6 bg-white/70 rounded-xl border-2 border-gray-200 shadow-lg">
+                  <h5 className="font-bold text-lg text-gray-800 mb-4">Workflow Summary</h5>
+                  <div className="grid grid-cols-4 gap-6 text-sm text-gray-700">
+                    <div className="text-center">
+                      <p className="font-bold text-2xl text-blue-600">{steps.length}</p>
                       <p className="font-medium">Total Steps</p>
-                      <p>{steps.length}</p>
                     </div>
-                    <div>
-                      <p className="font-medium">Est. Duration</p>
-                      <p>2-5 business days</p>
+                    <div className="text-center">
+                      <p className="font-bold text-2xl text-green-600">2-5</p>
+                      <p className="font-medium">Business Days</p>
                     </div>
-                    <div>
+                    <div className="text-center">
+                      <p className="font-bold text-2xl text-orange-600">{steps.filter(s => s.type === 'approval').length}</p>
                       <p className="font-medium">Approval Points</p>
-                      <p>{steps.filter(s => s.type === 'approval').length}</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="font-bold text-2xl text-purple-600">{steps.filter(s => s.type === 'ai-processing').length}</p>
+                      <p className="font-medium">AI Steps</p>
                     </div>
                   </div>
                 </div>

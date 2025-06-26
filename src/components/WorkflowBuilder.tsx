@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Play, Save, Settings, Bot, Mail, FileText, Database, Zap, ArrowRight, Clock, Sparkles, Activity } from 'lucide-react';
+import { Plus, Play, Save, Bot, Sparkles, Activity } from 'lucide-react';
 import { toast } from 'sonner';
 import { AIWorkflowGenerator } from './AIWorkflowGenerator';
 import { ActiveWorkflows } from './ActiveWorkflows';
@@ -49,15 +49,6 @@ const workflowTemplates = [
   }
 ];
 
-const availableActions = [
-  { icon: Mail, name: 'Send Email', color: 'bg-blue-100 text-blue-600', category: 'Communication' },
-  { icon: FileText, name: 'Process Document', color: 'bg-green-100 text-green-600', category: 'Document' },
-  { icon: Database, name: 'Database Query', color: 'bg-purple-100 text-purple-600', category: 'Data' },
-  { icon: Bot, name: 'AI Analysis', color: 'bg-orange-100 text-orange-600', category: 'AI' },
-  { icon: Zap, name: 'API Call', color: 'bg-yellow-100 text-yellow-600', category: 'Integration' },
-  { icon: Clock, name: 'Wait/Delay', color: 'bg-gray-100 text-gray-600', category: 'Control' },
-];
-
 export const WorkflowBuilder = () => {
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [workflowName, setWorkflowName] = useState('');
@@ -74,7 +65,7 @@ export const WorkflowBuilder = () => {
     setWorkflowDescription(template.description);
     setWorkflowType(template.category.toLowerCase().replace(' ', '_'));
     setIsBuilding(true);
-    setCurrentWorkflow(null); // Clear any previous workflow
+    setCurrentWorkflow(null);
     toast.success(`Started building workflow: ${template.name}`);
   };
 
@@ -86,12 +77,12 @@ export const WorkflowBuilder = () => {
     toast.success('Workflow saved successfully!');
   };
 
-  // Handler for when a new workflow is generated from AI
   const handleWorkflowGenerated = (generatedWorkflow) => {
     setCurrentWorkflow(generatedWorkflow);
     setWorkflowName(generatedWorkflow.workflow_name || 'AI Generated Workflow');
     setWorkflowType(generatedWorkflow.workflow_type || 'ai_generated');
     setIsBuilding(true);
+    setSelectedTemplate(null);
   };
 
   if (isBuilding) {
@@ -99,10 +90,10 @@ export const WorkflowBuilder = () => {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold">Workflow Builder</h2>
-            <p className="text-gray-600">Building: {workflowName}</p>
+            <h2 className="text-3xl font-bold">Workflow Builder</h2>
+            <p className="text-gray-600 text-lg">Building: {workflowName}</p>
           </div>
-          <div className="flex space-x-2">
+          <div className="flex space-x-3">
             <Button variant="outline" onClick={() => {
               setIsBuilding(false);
               setCurrentWorkflow(null);
@@ -121,7 +112,7 @@ export const WorkflowBuilder = () => {
           </div>
         </div>
 
-        {/* Only show current workflow diagram - no old workflows */}
+        {/* Current Workflow Diagram Only */}
         <div className="w-full">
           <WorkflowCanvas 
             selectedTemplate={selectedTemplate}
@@ -137,26 +128,28 @@ export const WorkflowBuilder = () => {
           />
         </div>
 
-        {/* Properties Panel */}
-        <Card className="max-w-2xl mx-auto">
+        {/* Configuration Panel */}
+        <Card className="max-w-4xl mx-auto">
           <CardHeader>
-            <CardTitle className="text-lg">Workflow Configuration</CardTitle>
+            <CardTitle className="text-xl">Workflow Configuration</CardTitle>
+            <CardDescription>Configure your workflow settings and properties</CardDescription>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <Label htmlFor="workflow-name">Workflow Name</Label>
+              <Label htmlFor="workflow-name" className="text-base font-medium">Workflow Name</Label>
               <Input
                 id="workflow-name"
                 value={workflowName}
                 onChange={(e) => setWorkflowName(e.target.value)}
                 placeholder="Enter workflow name"
+                className="mt-2"
               />
             </div>
             
             <div>
-              <Label htmlFor="workflow-type">Workflow Type</Label>
+              <Label htmlFor="workflow-type" className="text-base font-medium">Workflow Type</Label>
               <Select value={workflowType} onValueChange={setWorkflowType}>
-                <SelectTrigger>
+                <SelectTrigger className="mt-2">
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -171,9 +164,9 @@ export const WorkflowBuilder = () => {
             </div>
 
             <div>
-              <Label htmlFor="trigger-type">Trigger Type</Label>
+              <Label htmlFor="trigger-type" className="text-base font-medium">Trigger Type</Label>
               <Select value={triggerType} onValueChange={setTriggerType}>
-                <SelectTrigger>
+                <SelectTrigger className="mt-2">
                   <SelectValue placeholder="Select trigger" />
                 </SelectTrigger>
                 <SelectContent>
@@ -186,9 +179,9 @@ export const WorkflowBuilder = () => {
             </div>
 
             <div>
-              <Label htmlFor="ai-agent">Assign AI Agent</Label>
+              <Label htmlFor="ai-agent" className="text-base font-medium">Assign AI Agent</Label>
               <Select value={assignedAgent} onValueChange={setAssignedAgent}>
-                <SelectTrigger>
+                <SelectTrigger className="mt-2">
                   <SelectValue placeholder="Select agent" />
                 </SelectTrigger>
                 <SelectContent>
@@ -201,37 +194,56 @@ export const WorkflowBuilder = () => {
             </div>
 
             <div className="md:col-span-2">
-              <Label htmlFor="workflow-description">Description</Label>
+              <Label htmlFor="workflow-description" className="text-base font-medium">Description</Label>
               <Textarea
                 id="workflow-description"
                 value={workflowDescription}
                 onChange={(e) => setWorkflowDescription(e.target.value)}
                 placeholder="Describe your workflow"
-                rows={3}
+                rows={4}
+                className="mt-2"
               />
             </div>
 
-            {selectedTemplate && (
+            {(selectedTemplate || currentWorkflow) && (
               <div className="md:col-span-2 pt-4 border-t">
-                <h4 className="font-medium mb-2">Template Info</h4>
-                <div className="grid grid-cols-3 gap-4 text-sm">
-                  <div>
-                    <strong>Steps:</strong> {selectedTemplate.steps}
-                  </div>
-                  <div>
-                    <strong>Category:</strong> {selectedTemplate.category}
-                  </div>
-                  <div>
-                    <strong>AI Agents:</strong>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {selectedTemplate.agents.map((agent, index) => (
-                        <Badge key={index} variant="outline" className="text-xs">
-                          {agent}
-                        </Badge>
-                      ))}
+                <h4 className="font-semibold mb-3 text-lg">
+                  {selectedTemplate ? 'Template Information' : 'AI Generated Workflow'}
+                </h4>
+                {selectedTemplate && (
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <strong>Steps:</strong> {selectedTemplate.steps}
+                    </div>
+                    <div>
+                      <strong>Category:</strong> {selectedTemplate.category}
+                    </div>
+                    <div>
+                      <strong>AI Agents:</strong>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {selectedTemplate.agents.map((agent, index) => (
+                          <Badge key={index} variant="outline" className="text-xs">
+                            <Bot className="h-3 w-3 mr-1" />
+                            {agent}
+                          </Badge>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
+                {currentWorkflow && (
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <strong>Status:</strong> {currentWorkflow.status}
+                    </div>
+                    <div>
+                      <strong>Steps:</strong> {currentWorkflow.steps?.length || 0}
+                    </div>
+                    <div>
+                      <strong>Generated:</strong> AI-Powered
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </CardContent>
@@ -244,33 +256,33 @@ export const WorkflowBuilder = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Workflow Builder</h2>
-          <p className="text-gray-600">Create intelligent workflows with AI-powered automation</p>
+          <h2 className="text-3xl font-bold">Workflow Builder</h2>
+          <p className="text-gray-600 text-lg">Create intelligent workflows with AI-powered automation</p>
         </div>
-        <Button onClick={() => setIsBuilding(true)}>
-          <Plus className="h-4 w-4 mr-2" />
+        <Button onClick={() => setIsBuilding(true)} size="lg">
+          <Plus className="h-5 w-5 mr-2" />
           Create New Workflow
         </Button>
       </div>
 
       <Tabs defaultValue="ai-generator" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="ai-generator" className="flex items-center space-x-2">
-            <Sparkles className="h-4 w-4" />
+        <TabsList className="grid w-full grid-cols-3 h-12">
+          <TabsTrigger value="ai-generator" className="flex items-center space-x-2 text-base">
+            <Sparkles className="h-5 w-5" />
             <span>AI Generator</span>
           </TabsTrigger>
-          <TabsTrigger value="templates">Templates</TabsTrigger>
-          <TabsTrigger value="active" className="flex items-center space-x-2">
-            <Activity className="h-4 w-4" />
+          <TabsTrigger value="templates" className="text-base">Templates</TabsTrigger>
+          <TabsTrigger value="active" className="flex items-center space-x-2 text-base">
+            <Activity className="h-5 w-5" />
             <span>Active Workflows</span>
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="ai-generator">
+        <TabsContent value="ai-generator" className="mt-6">
           <AIWorkflowGenerator onWorkflowGenerated={handleWorkflowGenerated} />
         </TabsContent>
 
-        <TabsContent value="templates">
+        <TabsContent value="templates" className="mt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {workflowTemplates.map((template) => (
               <Card key={template.id} className="hover:shadow-lg transition-all duration-200 cursor-pointer group">
@@ -312,7 +324,7 @@ export const WorkflowBuilder = () => {
           </div>
         </TabsContent>
 
-        <TabsContent value="active">
+        <TabsContent value="active" className="mt-6">
           <ActiveWorkflows />
         </TabsContent>
       </Tabs>
