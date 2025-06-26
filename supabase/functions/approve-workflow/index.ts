@@ -30,14 +30,14 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('Processing approval:', { workflowId, stepId, decision, approverId });
 
-    // Update the approval record
+    // Update the approval record with correct column names
     const { data: approval, error: updateError } = await supabase
       .from('workflow_approvals')
       .update({
         status: decision,
-        approved_by: approverId,
+        approver_id: approverId,
         approved_at: new Date().toISOString(),
-        comments: comments || null
+        rejection_reason: decision === 'rejected' ? comments || null : null
       })
       .eq('workflow_id', workflowId)
       .eq('step_id', stepId)
@@ -52,12 +52,11 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Update workflow execution status
+    // Only update workflow status, don't mark as completed automatically
     if (decision === 'approved') {
       const { error: workflowError } = await supabase
         .from('workflow_executions')
         .update({
-          current_step: stepId,
           status: 'in_progress',
           updated_at: new Date().toISOString()
         })
@@ -71,7 +70,7 @@ const handler = async (req: Request): Promise<Response> => {
       const { error: workflowError } = await supabase
         .from('workflow_executions')
         .update({
-          status: 'rejected',
+          status: 'failed',
           updated_at: new Date().toISOString()
         })
         .eq('id', workflowId);
