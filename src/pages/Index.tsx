@@ -9,6 +9,7 @@ import { AgentCoordinator } from '@/components/AgentCoordinator';
 import { ContextualAnalyzer } from '@/components/ContextualAnalyzer';
 import { ContinuousOptimizer } from '@/components/ContinuousOptimizer';
 import { IntelligentAutomationHub } from '@/components/IntelligentAutomationHub';
+import { ManualApprovalInterface } from '@/components/ManualApprovalInterface';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const Index = () => {
@@ -27,7 +28,7 @@ const Index = () => {
         </div>
 
         <Tabs defaultValue="dashboard" className="w-full">
-          <TabsList className="grid w-full grid-cols-8 mb-8">
+          <TabsList className="grid w-full grid-cols-9 mb-8">
             <TabsTrigger value="dashboard" className="text-sm font-medium">
               Dashboard
             </TabsTrigger>
@@ -51,6 +52,9 @@ const Index = () => {
             </TabsTrigger>
             <TabsTrigger value="monitor" className="text-sm font-medium">
               Process Monitor
+            </TabsTrigger>
+            <TabsTrigger value="approvals" className="text-sm font-medium">
+              Approvals
             </TabsTrigger>
           </TabsList>
 
@@ -84,6 +88,10 @@ const Index = () => {
 
           <TabsContent value="monitor">
             <ProcessMonitor />
+          </TabsContent>
+
+          <TabsContent value="approvals">
+            <ManualApprovalInterface />
           </TabsContent>
         </Tabs>
       </main>
