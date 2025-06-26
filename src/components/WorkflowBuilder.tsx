@@ -23,7 +23,8 @@ const workflowTemplates = [
     description: 'Automate new customer registration and setup process',
     steps: 4,
     agents: ['DocumentAI', 'NotificationBot'],
-    category: 'Customer Management'
+    category: 'Customer Management',
+    color: 'from-blue-400 to-cyan-400'
   },
   {
     id: 2,
@@ -31,7 +32,8 @@ const workflowTemplates = [
     description: 'Extract, validate, and process invoices automatically',
     steps: 6,
     agents: ['OCR-Agent', 'ValidationBot', 'ApprovalAI'],
-    category: 'Finance'
+    category: 'Finance',
+    color: 'from-green-400 to-emerald-400'
   },
   {
     id: 3,
@@ -39,7 +41,8 @@ const workflowTemplates = [
     description: 'Intelligent routing of support tickets to appropriate teams',
     steps: 3,
     agents: ['ClassifierAI', 'RoutingBot'],
-    category: 'Customer Support'
+    category: 'Customer Support',
+    color: 'from-purple-400 to-violet-400'
   },
   {
     id: 4,
@@ -47,17 +50,18 @@ const workflowTemplates = [
     description: 'ETL process with quality checks and anomaly detection',
     steps: 5,
     agents: ['DataBot', 'QualityAI', 'AlertAgent'],
-    category: 'Data Processing'
+    category: 'Data Processing',
+    color: 'from-orange-400 to-red-400'
   }
 ];
 
 const availableActions = [
-  { icon: Mail, name: 'Send Email', color: 'bg-blue-100 text-blue-600', category: 'Communication' },
-  { icon: FileText, name: 'Process Document', color: 'bg-green-100 text-green-600', category: 'Document' },
-  { icon: Database, name: 'Database Query', color: 'bg-purple-100 text-purple-600', category: 'Data' },
-  { icon: Bot, name: 'AI Analysis', color: 'bg-orange-100 text-orange-600', category: 'AI' },
-  { icon: Zap, name: 'API Call', color: 'bg-yellow-100 text-yellow-600', category: 'Integration' },
-  { icon: Clock, name: 'Wait/Delay', color: 'bg-gray-100 text-gray-600', category: 'Control' },
+  { icon: Mail, name: 'Send Email', color: 'bg-gradient-to-r from-blue-400 to-blue-600', category: 'Communication' },
+  { icon: FileText, name: 'Process Document', color: 'bg-gradient-to-r from-green-400 to-green-600', category: 'Document' },
+  { icon: Database, name: 'Database Query', color: 'bg-gradient-to-r from-purple-400 to-purple-600', category: 'Data' },
+  { icon: Bot, name: 'AI Analysis', color: 'bg-gradient-to-r from-orange-400 to-orange-600', category: 'AI' },
+  { icon: Zap, name: 'API Call', color: 'bg-gradient-to-r from-yellow-400 to-yellow-600', category: 'Integration' },
+  { icon: Clock, name: 'Wait/Delay', color: 'bg-gradient-to-r from-gray-400 to-gray-600', category: 'Control' },
 ];
 
 export const WorkflowBuilder = () => {
@@ -89,20 +93,20 @@ export const WorkflowBuilder = () => {
   if (isBuilding) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between p-6 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl text-white shadow-lg">
           <div>
-            <h2 className="text-2xl font-bold">Workflow Builder</h2>
-            <p className="text-gray-600">Building: {workflowName}</p>
+            <h2 className="text-2xl font-bold">🚀 Workflow Builder</h2>
+            <p className="text-indigo-100">Building: {workflowName}</p>
           </div>
           <div className="flex space-x-2">
-            <Button variant="outline" onClick={() => setIsBuilding(false)}>
-              Back to Templates
+            <Button variant="outline" onClick={() => setIsBuilding(false)} className="bg-white/20 border-white/30 text-white hover:bg-white/30">
+              ← Back to Templates
             </Button>
-            <Button onClick={saveWorkflow}>
+            <Button onClick={saveWorkflow} className="bg-white/20 border-white/30 text-white hover:bg-white/30">
               <Save className="h-4 w-4 mr-2" />
               Save Workflow
             </Button>
-            <Button className="bg-green-600 hover:bg-green-700">
+            <Button className="bg-gradient-to-r from-green-400 to-green-600 hover:from-green-500 hover:to-green-700 shadow-lg">
               <Play className="h-4 w-4 mr-2" />
               Test Run
             </Button>
@@ -111,23 +115,23 @@ export const WorkflowBuilder = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Actions Palette */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Available Actions</CardTitle>
+          <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-gray-50">
+            <CardHeader className="bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-t-lg">
+              <CardTitle className="text-lg">🎨 Available Actions</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
+            <CardContent className="p-4">
+              <div className="space-y-3">
                 {availableActions.map((action, index) => (
                   <div
                     key={index}
-                    className={`p-3 rounded-lg cursor-pointer hover:shadow-md transition-all ${action.color} border-2 border-dashed border-transparent hover:border-gray-300`}
+                    className={`p-4 rounded-xl cursor-pointer hover:shadow-lg transition-all duration-300 transform hover:scale-105 ${action.color} text-white border-2 border-transparent hover:border-white/50`}
                     draggable
                   >
-                    <div className="flex items-center space-x-2">
-                      <action.icon className="h-4 w-4" />
-                      <span className="text-sm font-medium">{action.name}</span>
+                    <div className="flex items-center space-x-3">
+                      <action.icon className="h-5 w-5" />
+                      <span className="font-medium">{action.name}</span>
                     </div>
-                    <Badge variant="secondary" className="mt-1 text-xs">
+                    <Badge variant="secondary" className="mt-2 bg-white/20 text-white border-0">
                       {action.category}
                     </Badge>
                   </div>
@@ -138,50 +142,50 @@ export const WorkflowBuilder = () => {
 
           {/* Workflow Canvas */}
           <div className="lg:col-span-2">
-            <Card className="h-[600px]">
-              <CardHeader>
-                <CardTitle className="text-lg">Workflow Canvas</CardTitle>
-                <CardDescription>Drag and drop actions to build your workflow</CardDescription>
+            <Card className="h-[600px] shadow-lg border-0 bg-gradient-to-br from-white to-indigo-50">
+              <CardHeader className="bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-t-lg">
+                <CardTitle className="text-lg">🎯 Workflow Canvas</CardTitle>
+                <CardDescription className="text-purple-100">Drag and drop actions to build your workflow</CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="h-full bg-gray-50 rounded-lg p-4 border-2 border-dashed border-gray-300">
-                  <div className="flex flex-col items-center justify-center h-full text-gray-500">
+              <CardContent className="p-6">
+                <div className="h-full bg-gradient-to-br from-gray-50 to-indigo-100 rounded-xl p-6 border-2 border-dashed border-indigo-300">
+                  <div className="flex flex-col items-center justify-center h-full text-gray-600">
                     {selectedTemplate ? (
                       <div className="space-y-6 w-full">
                         {/* Sample workflow steps based on template */}
                         <div className="flex items-center justify-center">
-                          <div className="bg-blue-100 p-4 rounded-lg border-2 border-blue-300">
-                            <FileText className="h-6 w-6 text-blue-600 mx-auto mb-2" />
-                            <p className="text-sm font-medium text-center">Start Trigger</p>
+                          <div className="bg-gradient-to-r from-blue-400 to-blue-600 p-6 rounded-xl border-2 border-blue-300 text-white shadow-lg">
+                            <FileText className="h-8 w-8 mx-auto mb-2" />
+                            <p className="font-medium text-center">Start Trigger</p>
                           </div>
                         </div>
                         
                         <div className="flex justify-center">
-                          <ArrowRight className="h-6 w-6 text-gray-400" />
+                          <ArrowRight className="h-8 w-8 text-indigo-400" />
                         </div>
 
                         <div className="flex items-center justify-center">
-                          <div className="bg-green-100 p-4 rounded-lg border-2 border-green-300">
-                            <Bot className="h-6 w-6 text-green-600 mx-auto mb-2" />
-                            <p className="text-sm font-medium text-center">AI Processing</p>
+                          <div className="bg-gradient-to-r from-green-400 to-green-600 p-6 rounded-xl border-2 border-green-300 text-white shadow-lg">
+                            <Bot className="h-8 w-8 mx-auto mb-2" />
+                            <p className="font-medium text-center">AI Processing</p>
                           </div>
                         </div>
 
                         <div className="flex justify-center">
-                          <ArrowRight className="h-6 w-6 text-gray-400" />
+                          <ArrowRight className="h-8 w-8 text-indigo-400" />
                         </div>
 
                         <div className="flex items-center justify-center">
-                          <div className="bg-purple-100 p-4 rounded-lg border-2 border-purple-300">
-                            <Mail className="h-6 w-6 text-purple-600 mx-auto mb-2" />
-                            <p className="text-sm font-medium text-center">Send Notification</p>
+                          <div className="bg-gradient-to-r from-purple-400 to-purple-600 p-6 rounded-xl border-2 border-purple-300 text-white shadow-lg">
+                            <Mail className="h-8 w-8 mx-auto mb-2" />
+                            <p className="font-medium text-center">Send Notification</p>
                           </div>
                         </div>
                       </div>
                     ) : (
                       <>
-                        <Plus className="h-12 w-12 mb-4" />
-                        <p>Drag actions here to build your workflow</p>
+                        <Plus className="h-16 w-16 mb-4 text-indigo-400" />
+                        <p className="text-lg font-medium">Drag actions here to build your workflow</p>
                       </>
                     )}
                   </div>
@@ -191,11 +195,11 @@ export const WorkflowBuilder = () => {
           </div>
 
           {/* Properties Panel */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Properties</CardTitle>
+          <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-orange-50">
+            <CardHeader className="bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-t-lg">
+              <CardTitle className="text-lg">⚙️ Properties</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 p-4">
               <div>
                 <Label htmlFor="workflow-name">Workflow Name</Label>
                 <Input
@@ -255,41 +259,41 @@ export const WorkflowBuilder = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between p-6 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-xl text-white shadow-lg">
         <div>
-          <h2 className="text-2xl font-bold">Workflow Builder</h2>
-          <p className="text-gray-600">Create intelligent workflows with AI-powered automation</p>
+          <h2 className="text-2xl font-bold">🎨 Workflow Builder</h2>
+          <p className="text-cyan-100">Create intelligent workflows with AI-powered automation</p>
         </div>
-        <Button onClick={() => setIsBuilding(true)}>
+        <Button onClick={() => setIsBuilding(true)} className="bg-white/20 border-white/30 text-white hover:bg-white/30 shadow-lg">
           <Plus className="h-4 w-4 mr-2" />
           Create New Workflow
         </Button>
       </div>
 
       <Tabs defaultValue="ai-generator" className="w-full">
-        <TabsList className="grid w-full grid-cols-7">
-          <TabsTrigger value="ai-generator" className="flex items-center space-x-2">
+        <TabsList className="grid w-full grid-cols-7 bg-white/60 backdrop-blur-sm border border-white/20 shadow-lg rounded-xl p-1">
+          <TabsTrigger value="ai-generator" className="flex items-center space-x-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-pink-500 data-[state=active]:to-violet-500 data-[state=active]:text-white rounded-lg transition-all duration-300">
             <Sparkles className="h-4 w-4" />
             <span>AI Generator</span>
           </TabsTrigger>
-          <TabsTrigger value="templates">Templates</TabsTrigger>
-          <TabsTrigger value="active" className="flex items-center space-x-2">
+          <TabsTrigger value="templates" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-500 data-[state=active]:text-white rounded-lg transition-all duration-300">Templates</TabsTrigger>
+          <TabsTrigger value="active" className="flex items-center space-x-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-emerald-500 data-[state=active]:text-white rounded-lg transition-all duration-300">
             <Activity className="h-4 w-4" />
             <span>Active</span>
           </TabsTrigger>
-          <TabsTrigger value="agents" className="flex items-center space-x-2">
+          <TabsTrigger value="agents" className="flex items-center space-x-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white rounded-lg transition-all duration-300">
             <Bot className="h-4 w-4" />
             <span>Agents</span>
           </TabsTrigger>
-          <TabsTrigger value="coordination" className="flex items-center space-x-2">
+          <TabsTrigger value="coordination" className="flex items-center space-x-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-red-500 data-[state=active]:text-white rounded-lg transition-all duration-300">
             <Users className="h-4 w-4" />
             <span>Coordination</span>
           </TabsTrigger>
-          <TabsTrigger value="optimization" className="flex items-center space-x-2">
+          <TabsTrigger value="optimization" className="flex items-center space-x-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-blue-500 data-[state=active]:text-white rounded-lg transition-all duration-300">
             <TrendingUp className="h-4 w-4" />
             <span>Optimization</span>
           </TabsTrigger>
-          <TabsTrigger value="approvers" className="flex items-center space-x-2">
+          <TabsTrigger value="approvers" className="flex items-center space-x-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-500 data-[state=active]:text-white rounded-lg transition-all duration-300">
             <UserCheck className="h-4 w-4" />
             <span>Approvers</span>
           </TabsTrigger>
@@ -307,26 +311,33 @@ export const WorkflowBuilder = () => {
         <TabsContent value="templates">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {workflowTemplates.map((template) => (
-              <Card key={template.id} className="hover:shadow-lg transition-all duration-200 cursor-pointer group">
-                <CardHeader>
+              <Card key={template.id} className="hover:shadow-xl transition-all duration-300 cursor-pointer group transform hover:scale-105 border-0 overflow-hidden">
+                <div className={`h-2 bg-gradient-to-r ${template.color}`}></div>
+                <CardHeader className="bg-gradient-to-br from-white to-gray-50">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg group-hover:text-blue-600 transition-colors">
+                    <CardTitle className="text-lg group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 group-hover:bg-clip-text transition-all duration-300">
                       {template.name}
                     </CardTitle>
-                    <Badge variant="secondary">{template.category}</Badge>
+                    <Badge className={`bg-gradient-to-r ${template.color} text-white border-0`}>{template.category}</Badge>
                   </div>
                   <CardDescription>{template.description}</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="bg-gradient-to-br from-gray-50 to-white">
                   <div className="space-y-4">
                     <div className="flex items-center justify-between text-sm text-gray-600">
-                      <span>{template.steps} steps</span>
-                      <span>{template.agents.length} AI agents</span>
+                      <span className="flex items-center space-x-1">
+                        <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                        <span>{template.steps} steps</span>
+                      </span>
+                      <span className="flex items-center space-x-1">
+                        <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
+                        <span>{template.agents.length} AI agents</span>
+                      </span>
                     </div>
                     
-                    <div className="flex flex-wrap gap-1">
+                    <div className="flex flex-wrap gap-2">
                       {template.agents.map((agent, index) => (
-                        <Badge key={index} variant="outline" className="text-xs">
+                        <Badge key={index} variant="outline" className="text-xs bg-gradient-to-r from-gray-100 to-gray-200 border-gray-300">
                           <Bot className="h-3 w-3 mr-1" />
                           {agent}
                         </Badge>
@@ -334,10 +345,10 @@ export const WorkflowBuilder = () => {
                     </div>
 
                     <Button 
-                      className="w-full group-hover:bg-blue-600 transition-colors"
+                      className={`w-full bg-gradient-to-r ${template.color} hover:shadow-lg transition-all duration-300 text-white border-0`}
                       onClick={() => startFromTemplate(template)}
                     >
-                      Use This Template
+                      ✨ Use This Template
                     </Button>
                   </div>
                 </CardContent>
