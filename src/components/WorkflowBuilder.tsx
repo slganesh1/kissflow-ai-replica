@@ -7,13 +7,14 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Play, Save, Settings, Bot, Mail, FileText, Database, Zap, ArrowRight, Clock, Sparkles, Activity, Users, Brain, TrendingUp, BarChart3 } from 'lucide-react';
+import { Plus, Play, Save, Settings, Bot, Mail, FileText, Database, Zap, ArrowRight, Clock, Sparkles, Activity, Users, Brain, TrendingUp, BarChart3, UserCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { AIWorkflowGenerator } from './AIWorkflowGenerator';
 import { ActiveWorkflows } from './ActiveWorkflows';
 import { AgentPanel } from './AgentPanel';
 import { AgentCoordinator } from './AgentCoordinator';
 import { ContinuousOptimizer } from './ContinuousOptimizer';
+import { ApproverHierarchy } from './ApproverHierarchy';
 
 const workflowTemplates = [
   {
@@ -266,7 +267,7 @@ export const WorkflowBuilder = () => {
       </div>
 
       <Tabs defaultValue="ai-generator" className="w-full">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="ai-generator" className="flex items-center space-x-2">
             <Sparkles className="h-4 w-4" />
             <span>AI Generator</span>
@@ -287,6 +288,10 @@ export const WorkflowBuilder = () => {
           <TabsTrigger value="optimization" className="flex items-center space-x-2">
             <TrendingUp className="h-4 w-4" />
             <span>Optimization</span>
+          </TabsTrigger>
+          <TabsTrigger value="approvers" className="flex items-center space-x-2">
+            <UserCheck className="h-4 w-4" />
+            <span>Approvers</span>
           </TabsTrigger>
         </TabsList>
 
@@ -355,6 +360,10 @@ export const WorkflowBuilder = () => {
 
         <TabsContent value="optimization">
           <ContinuousOptimizer />
+        </TabsContent>
+
+        <TabsContent value="approvers">
+          <ApproverHierarchy />
         </TabsContent>
       </Tabs>
     </div>

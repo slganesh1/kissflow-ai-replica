@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -63,6 +64,15 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
   const [executionProgress, setExecutionProgress] = useState<{ [key: string]: 'pending' | 'executing' | 'completed' | 'failed' }>({});
   const [showInputForm, setShowInputForm] = useState(false);
 
+  const getApproverHierarchy = (workflowType: string) => {
+    try {
+      const hierarchies = JSON.parse(localStorage.getItem('approver_hierarchies') || '[]');
+      return hierarchies.find((h: any) => h.workflowType === workflowType) || null;
+    } catch {
+      return null;
+    }
+  };
+
   const parseScenario = (input: string): GeneratedWorkflow => {
     const lowerInput = input.toLowerCase();
     
@@ -73,6 +83,7 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
     const hasFinance = lowerInput.includes('finance');
     const isExpense = lowerInput.includes('expense') || lowerInput.includes('cost') || lowerInput.includes('budget');
     const isMarketing = lowerInput.includes('marketing') || lowerInput.includes('campaign') || lowerInput.includes('advertising');
+    const isHR = lowerInput.includes('hr') || lowerInput.includes('human resource') || lowerInput.includes('hiring');
     const hasForm = lowerInput.includes('form') || lowerInput.includes('request') || lowerInput.includes('submit');
     const hasNotification = lowerInput.includes('notification') || lowerInput.includes('notify') || lowerInput.includes('alert');
     const isUrgent = lowerInput.includes('urgent') || lowerInput.includes('asap') || lowerInput.includes('immediately') || lowerInput.includes('rush');
@@ -84,18 +95,30 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
     let category = 'General';
     let description = 'Auto-generated workflow based on your scenario';
     let urgency: 'low' | 'medium' | 'high' | 'urgent' = 'medium';
+    let workflowType = 'general';
 
-    if (isApprovalProcess && isMarketing && hasMoneyAmount) {
+    // Determine workflow type and get appropriate hierarchy
+    if (isHR) {
+      workflowType = 'hr_approval';
+      workflowName = 'HR Process Workflow';
+      category = 'Human Resources';
+      description = 'HR workflow with configured approval hierarchy';
+    } else if (isApprovalProcess && isMarketing && hasMoneyAmount) {
+      workflowType = 'marketing_approval';
       workflowName = `Marketing Campaign Approval - ${hasMoneyAmount[0]}`;
       category = 'Marketing';
       description = `Approval workflow for ${hasMoneyAmount[0]} marketing campaign${isProduct ? ' for product launch' : ''}${isQ4 ? ' for Q4/holiday season' : ''}`;
       urgency = isUrgent ? 'urgent' : 'high';
     } else if (isApprovalProcess && isExpense) {
+      workflowType = 'expense_approval';
       workflowName = 'Expense Approval Process';
       category = 'Finance';
       description = `Automated approval process for ${isMarketing ? 'marketing ' : ''}expenses${hasMoneyAmount ? ` of ${hasMoneyAmount[0]}` : ''}`;
       urgency = isUrgent ? 'urgent' : 'medium';
     }
+
+    // Get the configured hierarchy for this workflow type
+    const hierarchy = getApproverHierarchy(workflowType);
 
     const steps: WorkflowStep[] = [];
     let yPosition = 0;
@@ -120,7 +143,7 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
     const formId = 'form-1';
     steps.push({
       id: formId,
-      name: `Submit ${isMarketing ? 'Marketing Campaign' : 'Expense'} Request`,
+      name: `Submit ${isMarketing ? 'Marketing Campaign' : isHR ? 'HR' : 'Expense'} Request`,
       type: 'form',
       description: `Complete detailed request form including ${hasMoneyAmount ? `budget of ${hasMoneyAmount[0]}` : 'cost breakdown'}${isProduct ? ', product launch details' : ''}${hasDeadline ? ', timeline requirements' : ''}`,
       icon: stepTypes.form.icon,
@@ -139,7 +162,7 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
       id: notifyId,
       name: 'Notify Stakeholders',
       type: 'email',
-      description: `Send automatic notification to ${hasManager ? 'direct manager' : 'supervisor'}${hasFinance ? ' and finance team' : ''}${isUrgent ? ' with urgent priority flag' : ''}`,
+      description: `Send automatic notification to approvers${isUrgent ? ' with urgent priority flag' : ''}${hierarchy ? ' based on configured hierarchy' : ''}`,
       icon: stepTypes.email.icon,
       color: stepTypes.email.color,
       bgColor: stepTypes.email.bgColor,
@@ -150,84 +173,49 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
     stepConnections[formId] = [notifyId];
     yPosition += 120;
 
-    // Amount-based decision
-    const decisionId = 'decision-1';
-    if (hasMoneyAmount) {
-      const amount = hasMoneyAmount[0];
-      steps.push({
-        id: decisionId,
-        name: 'Budget Threshold Check',
-        type: 'decision',
-        description: `Evaluate if ${amount} exceeds approval thresholds${isMarketing ? ' for marketing spend' : ''}`,
-        icon: stepTypes.decision.icon,
-        color: stepTypes.decision.color,
-        bgColor: stepTypes.decision.bgColor,
-        condition: `Amount ${amount} requires multi-level approval`,
-        timeEstimate: 'Automatic',
-        priority: urgency,
-        position: { x: 0, y: yPosition }
-      });
-      stepConnections[notifyId] = [decisionId];
-      yPosition += 120;
-    }
+    let lastStepId = notifyId;
 
-    // Manager approval
-    const managerApprovalId = 'approval-1';
-    steps.push({
-      id: managerApprovalId,
-      name: 'Manager Review & Approval',
-      type: 'approval',
-      description: `Direct manager evaluates ${isMarketing ? 'campaign strategy, ROI projections,' : 'expense justification,'} and budget allocation${isQ4 ? ' for holiday season timing' : ''}`,
-      icon: stepTypes.approval.icon,
-      color: stepTypes.approval.color,
-      bgColor: stepTypes.approval.bgColor,
-      assignee: 'Direct Manager',
-      timeEstimate: isUrgent ? '4-8 hours' : '1-2 business days',
-      priority: urgency,
-      position: { x: 0, y: yPosition }
-    });
-    stepConnections[hasMoneyAmount ? decisionId : notifyId] = [managerApprovalId];
-    yPosition += 120;
-
-    // Finance approval for high amounts
-    let financeApprovalId = '';
-    if (hasFinance || (hasMoneyAmount && parseInt(hasMoneyAmount[0].replace(/[$,]/g, '')) > 5000)) {
-      financeApprovalId = 'approval-2';
+    // Create approval steps based on configured hierarchy
+    if (hierarchy && hierarchy.levels.length > 0) {
+      const sortedLevels = hierarchy.levels.sort((a, b) => a.order - b.order);
+      
+      for (const level of sortedLevels) {
+        const approvalId = `approval-${level.order}`;
+        steps.push({
+          id: approvalId,
+          name: `${level.title} Approval`,
+          type: 'approval',
+          description: `${level.title} reviews and approves the request${isMarketing ? ' including campaign strategy and ROI' : ''}${isHR ? ' including policy compliance' : ''}`,
+          icon: stepTypes.approval.icon,
+          color: stepTypes.approval.color,
+          bgColor: stepTypes.approval.bgColor,
+          assignee: level.title,
+          timeEstimate: isUrgent ? '4-8 hours' : '1-2 business days',
+          priority: urgency,
+          position: { x: 0, y: yPosition }
+        });
+        stepConnections[lastStepId] = [approvalId];
+        lastStepId = approvalId;
+        yPosition += 120;
+      }
+    } else {
+      // Fallback to default approval if no hierarchy configured
+      const managerApprovalId = 'approval-1';
       steps.push({
-        id: financeApprovalId,
-        name: 'Finance Director Approval',
+        id: managerApprovalId,
+        name: 'Manager Review & Approval',
         type: 'approval',
-        description: `Finance team reviews budget impact, cash flow, and financial compliance${isMarketing ? ' for marketing ROI' : ''}${isQ4 ? ' considering Q4 budget constraints' : ''}`,
+        description: `Direct manager evaluates ${isMarketing ? 'campaign strategy, ROI projections,' : isHR ? 'policy compliance,' : 'expense justification,'} and budget allocation`,
         icon: stepTypes.approval.icon,
         color: stepTypes.approval.color,
         bgColor: stepTypes.approval.bgColor,
-        assignee: 'Finance Director',
-        timeEstimate: isUrgent ? '8-12 hours' : '2-3 business days',
+        assignee: 'Direct Manager',
+        timeEstimate: isUrgent ? '4-8 hours' : '1-2 business days',
         priority: urgency,
         position: { x: 0, y: yPosition }
       });
-      stepConnections[managerApprovalId] = [financeApprovalId];
-      yPosition += 120;
-    }
-
-    // Execution task if urgent
-    let executionId = '';
-    if (isUrgent || hasDeadline) {
-      executionId = 'task-1';
-      steps.push({
-        id: executionId,
-        name: 'Begin Execution',
-        type: 'task',
-        description: `Initiate ${isMarketing ? 'campaign development and vendor coordination' : 'expense processing'}${hasDeadline ? ' to meet deadline requirements' : ''}`,
-        icon: stepTypes.task.icon,
-        color: stepTypes.task.color,
-        bgColor: stepTypes.task.bgColor,
-        assignee: isMarketing ? 'Marketing Team' : 'Requesting Department',
-        timeEstimate: isMarketing ? '3-5 days' : '1-2 days',
-        priority: urgency,
-        position: { x: 0, y: yPosition }
-      });
-      stepConnections[financeApprovalId || managerApprovalId] = [executionId];
+      stepConnections[lastStepId] = [managerApprovalId];
+      lastStepId = managerApprovalId;
       yPosition += 120;
     }
 
@@ -237,7 +225,7 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
       id: finalNotifyId,
       name: 'Send Decision Notification',
       type: 'email',
-      description: `Notify all stakeholders of approval decision${isUrgent ? ' and immediate next steps' : ''}${isMarketing ? ', including creative and media teams' : ''}`,
+      description: `Notify all stakeholders of approval decision${isUrgent ? ' and immediate next steps' : ''}${hierarchy ? ' based on hierarchy outcome' : ''}`,
       icon: stepTypes.email.icon,
       color: stepTypes.email.color,
       bgColor: stepTypes.email.bgColor,
@@ -245,7 +233,7 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
       priority: urgency,
       position: { x: 0, y: yPosition }
     });
-    stepConnections[executionId || financeApprovalId || managerApprovalId] = [finalNotifyId];
+    stepConnections[lastStepId] = [finalNotifyId];
     yPosition += 120;
 
     // End step
@@ -254,7 +242,7 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
       id: endId,
       name: 'Workflow Complete',
       type: 'end',
-      description: `${workflowName} process completed${isUrgent ? ' with urgent timeline met' : ''}`,
+      description: `${workflowName} process completed${isUrgent ? ' with urgent timeline met' : ''}${hierarchy ? ' following configured approval hierarchy' : ''}`,
       icon: stepTypes.end.icon,
       color: stepTypes.end.color,
       bgColor: stepTypes.end.bgColor,
@@ -304,7 +292,19 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
         progress[step.id] = 'pending';
       });
       setExecutionProgress(progress);
-      toast.success('Enhanced visual workflow generated successfully!');
+      
+      // Check if hierarchy was used
+      const lowerInput = scenario.toLowerCase();
+      const workflowType = lowerInput.includes('hr') ? 'hr_approval' : 
+                          lowerInput.includes('marketing') ? 'marketing_approval' : 'expense_approval';
+      const hierarchy = getApproverHierarchy(workflowType);
+      
+      if (hierarchy) {
+        toast.success(`Enhanced visual workflow generated using ${hierarchy.name} hierarchy!`);
+      } else {
+        toast.success('Enhanced visual workflow generated with default approval structure!');
+        toast.info('Tip: Configure custom approval hierarchies in the Approvers tab');
+      }
     } catch (error) {
       toast.error('Failed to generate workflow. Please try again.');
     } finally {
