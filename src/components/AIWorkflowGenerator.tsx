@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Sparkles, Wand2, ArrowRight, CheckCircle, Clock, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { WorkflowInputForm } from './WorkflowInputForm';
+import { WorkflowCanvas } from './WorkflowCanvas';
 import { supabase } from '@/integrations/supabase/client';
 
 interface GeneratedWorkflow {
@@ -335,15 +337,27 @@ export const AIWorkflowGenerator = () => {
 
   if (showForm && generatedWorkflow) {
     return (
-      <WorkflowInputForm
-        workflowName={generatedWorkflow.name}
-        workflowType={generatedWorkflow.type}
-        onSubmit={handleWorkflowSubmit}
-        onCancel={() => {
-          setShowForm(false);
-          setGeneratedWorkflow(null);
-        }}
-      />
+      <div className="space-y-6">
+        {/* Always show the workflow canvas */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <WorkflowCanvas 
+            selectedTemplate={null}
+            workflowName={generatedWorkflow.name}
+            workflowType={generatedWorkflow.type}
+            formData={generatedWorkflow.request_data}
+            generatedWorkflow={generatedWorkflow}
+          />
+          <WorkflowInputForm
+            workflowName={generatedWorkflow.name}
+            workflowType={generatedWorkflow.type}
+            onSubmit={handleWorkflowSubmit}
+            onCancel={() => {
+              setShowForm(false);
+              setGeneratedWorkflow(null);
+            }}
+          />
+        </div>
+      </div>
     );
   }
 
@@ -394,64 +408,75 @@ export const AIWorkflowGenerator = () => {
         </CardContent>
       </Card>
 
+      {/* Always show workflow canvas when workflow is generated */}
       {generatedWorkflow && (
-        <Card className="border-purple-200 bg-purple-50">
-          <CardHeader>
-            <div className="flex items-center justify-between">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <WorkflowCanvas 
+            selectedTemplate={null}
+            workflowName={generatedWorkflow.name}
+            workflowType={generatedWorkflow.type}
+            formData={generatedWorkflow.request_data}
+            generatedWorkflow={generatedWorkflow}
+          />
+          
+          <Card className="border-purple-200 bg-purple-50">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-purple-800">Generated Workflow</CardTitle>
+                  <CardDescription className="text-purple-600">
+                    Review and customize your AI-generated workflow
+                  </CardDescription>
+                </div>
+                <Badge className="bg-purple-100 text-purple-700 border-purple-300">
+                  AI Generated
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
               <div>
-                <CardTitle className="text-purple-800">Generated Workflow</CardTitle>
-                <CardDescription className="text-purple-600">
-                  Review and customize your AI-generated workflow
-                </CardDescription>
+                <h4 className="font-semibold text-purple-800">{generatedWorkflow.name}</h4>
+                <p className="text-sm text-purple-700 mt-1">{generatedWorkflow.description}</p>
               </div>
-              <Badge className="bg-purple-100 text-purple-700 border-purple-300">
-                AI Generated
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <h4 className="font-semibold text-purple-800">{generatedWorkflow.name}</h4>
-              <p className="text-sm text-purple-700 mt-1">{generatedWorkflow.description}</p>
-            </div>
 
-            <div className="space-y-3">
-              <h5 className="font-medium text-purple-800">Workflow Steps:</h5>
-              <div className="space-y-2">
-                {generatedWorkflow.steps.map((step, index) => (
-                  <div key={step.id} className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-purple-200">
-                    <div className="flex-shrink-0 w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                      <span className="text-sm font-medium text-purple-700">{index + 1}</span>
+              <div className="space-y-3">
+                <h5 className="font-medium text-purple-800">Workflow Steps:</h5>
+                <div className="space-y-2">
+                  {generatedWorkflow.steps.map((step, index) => (
+                    <div key={step.id} className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-purple-200">
+                      <div className="flex-shrink-0 w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                        <span className="text-sm font-medium text-purple-700">{index + 1}</span>
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900">{step.name}</p>
+                        <p className="text-sm text-gray-600">{step.description}</p>
+                      </div>
+                      <Badge variant="outline" className="text-orange-600 border-orange-300">
+                        {step.status}
+                      </Badge>
                     </div>
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900">{step.name}</p>
-                      <p className="text-sm text-gray-600">{step.description}</p>
-                    </div>
-                    <Badge variant="outline" className="text-orange-600 border-orange-300">
-                      Pending
-                    </Badge>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
 
-            <div className="flex space-x-3 pt-4">
-              <Button 
-                onClick={() => setShowForm(true)}
-                className="flex-1 bg-purple-600 hover:bg-purple-700"
-              >
-                <ArrowRight className="h-4 w-4 mr-2" />
-                Customize & Submit
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => setGeneratedWorkflow(null)}
-              >
-                Discard
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+              <div className="flex space-x-3 pt-4">
+                <Button 
+                  onClick={() => setShowForm(true)}
+                  className="flex-1 bg-purple-600 hover:bg-purple-700"
+                >
+                  <ArrowRight className="h-4 w-4 mr-2" />
+                  Customize & Submit
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setGeneratedWorkflow(null)}
+                >
+                  Discard
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* Active Workflows Section */}
@@ -479,55 +504,66 @@ export const AIWorkflowGenerator = () => {
           ) : (
             <div className="space-y-4">
               {activeWorkflows.map((workflow) => (
-                <div key={workflow.id} className="border rounded-lg p-4 hover:shadow-sm transition-shadow">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-semibold">{workflow.name}</h4>
-                    <Badge className={getStatusColor(workflow.status)} variant="outline">
-                      <div className="flex items-center space-x-1">
-                        {getStatusIcon(workflow.status)}
-                        <span className="capitalize">{workflow.status.replace('_', ' ')}</span>
+                <div key={workflow.id} className="space-y-4">
+                  <div className="border rounded-lg p-4 hover:shadow-sm transition-shadow">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-semibold">{workflow.name}</h4>
+                      <Badge className={getStatusColor(workflow.status)} variant="outline">
+                        <div className="flex items-center space-x-1">
+                          {getStatusIcon(workflow.status)}
+                          <span className="capitalize">{workflow.status.replace('_', ' ')}</span>
+                        </div>
+                      </Badge>
+                    </div>
+                    
+                    <div className="text-sm text-gray-600 mb-3">
+                      <p><strong>Type:</strong> {workflow.type}</p>
+                      <p><strong>Submitter:</strong> {workflow.submitter_name}</p>
+                      <p><strong>Created:</strong> {new Date(workflow.created_at).toLocaleDateString()} at {new Date(workflow.created_at).toLocaleTimeString()}</p>
+                      <p><strong>Description:</strong> {workflow.description}</p>
+                    </div>
+
+                    {workflow.steps.length > 0 && (
+                      <div className="mb-3">
+                        <p className="text-sm font-medium text-gray-700 mb-2">Approval Steps:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {workflow.steps.map((step) => (
+                            <Badge 
+                              key={step.id} 
+                              variant="outline" 
+                              className={
+                                step.status === 'approved' ? 'bg-green-100 text-green-700 border-green-300' :
+                                step.status === 'rejected' ? 'bg-red-100 text-red-700 border-red-300' :
+                                'bg-yellow-100 text-yellow-700 border-yellow-300'
+                              }
+                            >
+                              {step.name}: {step.status}
+                            </Badge>
+                          ))}
+                        </div>
                       </div>
-                    </Badge>
+                    )}
+
+                    <div className="flex items-center justify-between">
+                      <Badge variant="secondary" className="text-xs">
+                        ID: {workflow.id.substring(0, 8)}...
+                      </Badge>
+                      {workflow.request_data?.amount && (
+                        <Badge variant="outline" className="text-sm">
+                          Amount: ${workflow.request_data.amount}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                   
-                  <div className="text-sm text-gray-600 mb-3">
-                    <p><strong>Type:</strong> {workflow.type}</p>
-                    <p><strong>Submitter:</strong> {workflow.submitter_name}</p>
-                    <p><strong>Created:</strong> {new Date(workflow.created_at).toLocaleDateString()} at {new Date(workflow.created_at).toLocaleTimeString()}</p>
-                    <p><strong>Description:</strong> {workflow.description}</p>
-                  </div>
-
-                  {workflow.steps.length > 0 && (
-                    <div className="mb-3">
-                      <p className="text-sm font-medium text-gray-700 mb-2">Approval Steps:</p>
-                      <div className="flex flex-wrap gap-2">
-                        {workflow.steps.map((step) => (
-                          <Badge 
-                            key={step.id} 
-                            variant="outline" 
-                            className={
-                              step.status === 'approved' ? 'bg-green-100 text-green-700 border-green-300' :
-                              step.status === 'rejected' ? 'bg-red-100 text-red-700 border-red-300' :
-                              'bg-yellow-100 text-yellow-700 border-yellow-300'
-                            }
-                          >
-                            {step.name}: {step.status}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between">
-                    <Badge variant="secondary" className="text-xs">
-                      ID: {workflow.id.substring(0, 8)}...
-                    </Badge>
-                    {workflow.request_data?.amount && (
-                      <Badge variant="outline" className="text-sm">
-                        Amount: ${workflow.request_data.amount}
-                      </Badge>
-                    )}
-                  </div>
+                  {/* Show workflow canvas for each active workflow */}
+                  <WorkflowCanvas 
+                    selectedTemplate={null}
+                    workflowName={workflow.name}
+                    workflowType={workflow.type}
+                    formData={workflow.request_data}
+                    generatedWorkflow={workflow}
+                  />
                 </div>
               ))}
             </div>

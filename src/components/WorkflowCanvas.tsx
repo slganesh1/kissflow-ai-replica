@@ -11,7 +11,7 @@ interface WorkflowStep {
   description: string;
   icon: React.ComponentType<{ className?: string }>;
   color: string;
-  status?: 'pending' | 'active' | 'completed';
+  status?: 'pending' | 'active' | 'completed' | 'approved' | 'rejected';
 }
 
 interface WorkflowCanvasProps {
@@ -19,13 +19,15 @@ interface WorkflowCanvasProps {
   workflowName: string;
   workflowType: string;
   formData?: any;
+  generatedWorkflow?: any;
 }
 
 export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
   selectedTemplate,
   workflowName,
   workflowType,
-  formData
+  formData,
+  generatedWorkflow
 }) => {
   const generateWorkflowSteps = (): WorkflowStep[] => {
     const steps: WorkflowStep[] = [];
@@ -41,8 +43,26 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
       status: 'completed'
     });
 
-    // Generate steps based on template or workflow type
-    if (selectedTemplate) {
+    // If we have a generated workflow, use its steps with real status
+    if (generatedWorkflow) {
+      generatedWorkflow.steps.forEach((step: any, index: number) => {
+        steps.push({
+          id: step.id,
+          name: step.name,
+          type: step.type,
+          description: step.description,
+          icon: step.type === 'approval' ? User : 
+                step.type === 'review' ? CheckCircle :
+                step.type === 'ai-processing' ? Bot : Zap,
+          color: step.status === 'approved' ? 'bg-green-100 border-green-300 text-green-700' :
+                 step.status === 'rejected' ? 'bg-red-100 border-red-300 text-red-700' :
+                 step.status === 'pending' ? 'bg-yellow-100 border-yellow-300 text-yellow-700' :
+                 'bg-gray-100 border-gray-300 text-gray-700',
+          status: step.status
+        });
+      });
+    } else if (selectedTemplate) {
+      // Generate steps based on template
       switch (selectedTemplate.name) {
         case 'Customer Onboarding':
           steps.push(
@@ -236,14 +256,19 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
 
     // End step
     if (steps.length > 1) {
+      const allStepsCompleted = generatedWorkflow ? 
+        generatedWorkflow.status === 'completed' : false;
+      
       steps.push({
         id: 'complete',
         name: 'Workflow Complete',
         type: 'end',
         description: 'Workflow completed successfully',
         icon: CheckCircle,
-        color: 'bg-green-100 border-green-300 text-green-700',
-        status: 'pending'
+        color: allStepsCompleted ? 
+          'bg-green-100 border-green-300 text-green-700' : 
+          'bg-gray-100 border-gray-300 text-gray-500',
+        status: allStepsCompleted ? 'completed' : 'pending'
       });
     }
 
@@ -255,9 +280,14 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
   return (
     <Card className="h-[600px]">
       <CardHeader>
-        <CardTitle className="text-lg">Workflow Canvas</CardTitle>
+        <CardTitle className="text-lg">Workflow Diagram</CardTitle>
         <CardDescription>
           {workflowName || selectedTemplate?.name || 'Visual representation of your workflow'}
+          {generatedWorkflow && (
+            <Badge className="ml-2" variant="outline">
+              Status: {generatedWorkflow.status}
+            </Badge>
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -281,8 +311,9 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
                       <Badge 
                         variant="outline" 
                         className={
-                          step.status === 'completed' ? 'border-green-500 text-green-700' :
+                          step.status === 'completed' || step.status === 'approved' ? 'border-green-500 text-green-700' :
                           step.status === 'active' ? 'border-blue-500 text-blue-700' :
+                          step.status === 'rejected' ? 'border-red-500 text-red-700' :
                           'border-gray-400 text-gray-600'
                         }
                       >
