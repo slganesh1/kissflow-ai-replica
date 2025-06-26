@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,6 +33,13 @@ interface GeneratedWorkflow {
   urgency: 'low' | 'medium' | 'high' | 'urgent';
 }
 
+interface AIWorkflowGeneratorProps {
+  generatedWorkflow: GeneratedWorkflow | null;
+  setGeneratedWorkflow: (workflow: GeneratedWorkflow | null) => void;
+  workflowData: Record<string, any> | null;
+  setWorkflowData: (data: Record<string, any> | null) => void;
+}
+
 const stepTypes = {
   start: { icon: Play, color: 'text-green-600', bgColor: 'bg-green-100 border-green-300', name: 'Start' },
   task: { icon: CheckCircle, color: 'text-blue-600', bgColor: 'bg-blue-100 border-blue-300', name: 'Task' },
@@ -45,14 +51,17 @@ const stepTypes = {
   end: { icon: XCircle, color: 'text-red-600', bgColor: 'bg-red-100 border-red-300', name: 'End' }
 };
 
-export const AIWorkflowGenerator = () => {
+export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
+  generatedWorkflow,
+  setGeneratedWorkflow,
+  workflowData,
+  setWorkflowData
+}) => {
   const [scenario, setScenario] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedWorkflow, setGeneratedWorkflow] = useState<GeneratedWorkflow | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
   const [executionProgress, setExecutionProgress] = useState<{ [key: string]: 'pending' | 'executing' | 'completed' | 'failed' }>({});
   const [showInputForm, setShowInputForm] = useState(false);
-  const [workflowData, setWorkflowData] = useState<Record<string, any> | null>(null);
 
   const parseScenario = (input: string): GeneratedWorkflow => {
     const lowerInput = input.toLowerCase();

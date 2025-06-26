@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -65,6 +64,10 @@ export const WorkflowBuilder = () => {
   const [workflowName, setWorkflowName] = useState('');
   const [workflowDescription, setWorkflowDescription] = useState('');
   const [isBuilding, setIsBuilding] = useState(false);
+  
+  // Add workflow state that persists across tabs
+  const [generatedWorkflow, setGeneratedWorkflow] = useState(null);
+  const [workflowData, setWorkflowData] = useState(null);
 
   const startFromTemplate = (template) => {
     setSelectedTemplate(template);
@@ -288,7 +291,12 @@ export const WorkflowBuilder = () => {
         </TabsList>
 
         <TabsContent value="ai-generator">
-          <AIWorkflowGenerator />
+          <AIWorkflowGenerator 
+            generatedWorkflow={generatedWorkflow}
+            setGeneratedWorkflow={setGeneratedWorkflow}
+            workflowData={workflowData}
+            setWorkflowData={setWorkflowData}
+          />
         </TabsContent>
 
         <TabsContent value="templates">
