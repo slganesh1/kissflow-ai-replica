@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -65,6 +66,7 @@ export const WorkflowBuilder = () => {
   const [triggerType, setTriggerType] = useState('');
   const [assignedAgent, setAssignedAgent] = useState('');
   const [isBuilding, setIsBuilding] = useState(false);
+  const [currentWorkflow, setCurrentWorkflow] = useState(null);
 
   const startFromTemplate = (template) => {
     setSelectedTemplate(template);
@@ -72,6 +74,7 @@ export const WorkflowBuilder = () => {
     setWorkflowDescription(template.description);
     setWorkflowType(template.category.toLowerCase().replace(' ', '_'));
     setIsBuilding(true);
+    setCurrentWorkflow(null); // Clear any previous workflow
     toast.success(`Started building workflow: ${template.name}`);
   };
 
@@ -83,6 +86,14 @@ export const WorkflowBuilder = () => {
     toast.success('Workflow saved successfully!');
   };
 
+  // Handler for when a new workflow is generated from AI
+  const handleWorkflowGenerated = (generatedWorkflow) => {
+    setCurrentWorkflow(generatedWorkflow);
+    setWorkflowName(generatedWorkflow.workflow_name || 'AI Generated Workflow');
+    setWorkflowType(generatedWorkflow.workflow_type || 'ai_generated');
+    setIsBuilding(true);
+  };
+
   if (isBuilding) {
     return (
       <div className="space-y-6">
@@ -92,7 +103,11 @@ export const WorkflowBuilder = () => {
             <p className="text-gray-600">Building: {workflowName}</p>
           </div>
           <div className="flex space-x-2">
-            <Button variant="outline" onClick={() => setIsBuilding(false)}>
+            <Button variant="outline" onClick={() => {
+              setIsBuilding(false);
+              setCurrentWorkflow(null);
+              setSelectedTemplate(null);
+            }}>
               Back to Templates
             </Button>
             <Button onClick={saveWorkflow}>
@@ -106,12 +121,13 @@ export const WorkflowBuilder = () => {
           </div>
         </div>
 
-        {/* Focus on the current workflow diagram - Full width */}
+        {/* Only show current workflow diagram - no old workflows */}
         <div className="w-full">
           <WorkflowCanvas 
             selectedTemplate={selectedTemplate}
             workflowName={workflowName}
             workflowType={workflowType}
+            generatedWorkflow={currentWorkflow}
             formData={{ 
               workflowName,
               workflowType,
@@ -121,7 +137,7 @@ export const WorkflowBuilder = () => {
           />
         </div>
 
-        {/* Properties Panel - Smaller and below the diagram */}
+        {/* Properties Panel */}
         <Card className="max-w-2xl mx-auto">
           <CardHeader>
             <CardTitle className="text-lg">Workflow Configuration</CardTitle>
@@ -251,7 +267,7 @@ export const WorkflowBuilder = () => {
         </TabsList>
 
         <TabsContent value="ai-generator">
-          <AIWorkflowGenerator />
+          <AIWorkflowGenerator onWorkflowGenerated={handleWorkflowGenerated} />
         </TabsContent>
 
         <TabsContent value="templates">

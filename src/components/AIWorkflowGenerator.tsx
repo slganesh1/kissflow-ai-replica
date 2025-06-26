@@ -1,578 +1,238 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Sparkles, Wand2, ArrowRight, CheckCircle, Clock, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
+import { Sparkles, Wand2, Brain, Zap } from 'lucide-react';
 import { toast } from 'sonner';
-import { WorkflowInputForm } from './WorkflowInputForm';
-import { WorkflowCanvas } from './WorkflowCanvas';
-import { supabase } from '@/integrations/supabase/client';
 
-interface GeneratedWorkflow {
-  id: string;
-  name: string;
-  type: string;
-  description: string;
-  status: 'pending' | 'in_progress' | 'completed' | 'failed' | 'cancelled';
-  steps: Array<{
-    id: string;
-    name: string;
-    type: string;
-    description: string;
-    status: 'pending' | 'approved' | 'rejected';
-  }>;
-  submitter_name: string;
-  created_at: string;
-  request_data: any;
+interface AIWorkflowGeneratorProps {
+  onWorkflowGenerated?: (workflow: any) => void;
 }
 
-export const AIWorkflowGenerator = () => {
-  const [prompt, setPrompt] = useState('');
+export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({ onWorkflowGenerated }) => {
+  const [description, setDescription] = useState('');
+  const [workflowType, setWorkflowType] = useState('');
+  const [urgency, setUrgency] = useState('');
+  const [complexity, setComplexity] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedWorkflow, setGeneratedWorkflow] = useState<GeneratedWorkflow | null>(null);
-  const [showForm, setShowForm] = useState(false);
-  const [activeWorkflows, setActiveWorkflows] = useState<GeneratedWorkflow[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  // Fetch active workflows
-  const fetchActiveWorkflows = async () => {
-    try {
-      setLoading(true);
-      console.log('Fetching active workflows for AI generator...');
-      
-      const { data: workflows, error: workflowError } = await supabase
-        .from('workflow_executions')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      if (workflowError) {
-        console.error('Error fetching workflows:', workflowError);
-        return;
-      }
-
-      console.log('Fetched workflows:', workflows);
-
-      // Fetch approvals for these workflows
-      const workflowIds = workflows?.map(w => w.id) || [];
-      let approvalsByWorkflow = {};
-      
-      if (workflowIds.length > 0) {
-        const { data: approvals, error: approvalError } = await supabase
-          .from('workflow_approvals')
-          .select('*')
-          .in('workflow_id', workflowIds);
-
-        if (approvalError) {
-          console.error('Error fetching approvals:', approvalError);
-        } else {
-          // Group approvals by workflow_id
-          approvalsByWorkflow = (approvals || []).reduce((acc, approval) => {
-            if (!acc[approval.workflow_id]) {
-              acc[approval.workflow_id] = [];
-            }
-            acc[approval.workflow_id].push(approval);
-            return acc;
-          }, {} as { [key: string]: any[] });
-        }
-      }
-
-      // Transform workflows to include approval steps
-      const transformedWorkflows = workflows?.map(workflow => {
-        // Safely access request_data properties with proper type casting
-        const requestData = workflow.request_data as any;
-        const description = requestData?.business_purpose || requestData?.description || requestData?.justification || 'No description';
-        
-        return {
-          id: workflow.id,
-          name: workflow.workflow_name,
-          type: workflow.workflow_type,
-          description,
-          status: workflow.status as 'pending' | 'in_progress' | 'completed' | 'failed' | 'cancelled',
-          submitter_name: workflow.submitter_name,
-          created_at: workflow.created_at,
-          request_data: workflow.request_data,
-          steps: (approvalsByWorkflow[workflow.id] || []).map(approval => ({
-            id: approval.step_id,
-            name: approval.step_name,
-            type: approval.approver_role,
-            description: `${approval.step_name} (${approval.approver_role})`,
-            status: approval.status as 'pending' | 'approved' | 'rejected'
-          }))
-        };
-      }) || [];
-
-      console.log('Transformed workflows with steps:', transformedWorkflows);
-      setActiveWorkflows(transformedWorkflows);
-    } catch (error) {
-      console.error('Error in fetchActiveWorkflows:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchActiveWorkflows();
-    
-    // Set up real-time subscription for workflow changes
-    const channel = supabase
-      .channel('ai_workflow_changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'workflow_executions' },
-        (payload) => {
-          console.log('Workflow change detected in AI generator:', payload);
-          fetchActiveWorkflows();
-        }
-      )
-      .on(
-        'postgres_changes',  
-        { event: '*', schema: 'public', table: 'workflow_approvals' },
-        (payload) => {
-          console.log('Approval change detected in AI generator:', payload);
-          fetchActiveWorkflows();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
 
   const generateWorkflow = async () => {
-    if (!prompt.trim()) {
-      toast.error('Please enter a workflow description');
+    if (!description.trim()) {
+      toast.error('Please describe what workflow you need');
       return;
     }
 
     setIsGenerating(true);
-
+    
     try {
-      // Simulate AI generation with realistic workflow based on prompt
+      // Simulate AI generation with realistic delay
       await new Promise(resolve => setTimeout(resolve, 2000));
-
-      let workflowType = 'general_workflow';
-      let workflowName = 'Generated Workflow';
-      let steps = [];
-
-      // Analyze prompt to determine workflow type and steps
-      const lowerPrompt = prompt.toLowerCase();
       
-      if (lowerPrompt.includes('expense') || lowerPrompt.includes('cost') || lowerPrompt.includes('budget')) {
-        workflowType = 'expense_approval';
-        workflowName = 'AI Generated Expense Approval';
-        
-        // Check if high value expense
-        const hasHighValue = lowerPrompt.includes('1000') || lowerPrompt.includes('thousand') || lowerPrompt.includes('high');
-        
-        if (hasHighValue) {
-          steps = [
-            { id: 'manager-approval', name: 'Manager Approval', type: 'approval', description: 'Manager review and approval', status: 'pending' as const },
-            { id: 'finance-director-approval', name: 'Finance Director Approval', type: 'approval', description: 'Finance director final approval', status: 'pending' as const }
-          ];
-        } else {
-          steps = [
-            { id: 'manager-approval', name: 'Manager Approval', type: 'approval', description: 'Manager review and approval', status: 'pending' as const }
-          ];
-        }
-      } else if (lowerPrompt.includes('campaign') || lowerPrompt.includes('marketing')) {
-        workflowType = 'campaign_approval';
-        workflowName = 'AI Generated Campaign Approval';
-        steps = [
-          { id: 'content-review', name: 'Content Review', type: 'review', description: 'Review campaign content and messaging', status: 'pending' as const },
-          { id: 'manager-approval', name: 'Manager Approval', type: 'approval', description: 'Final campaign approval', status: 'pending' as const }
-        ];
-      } else {
-        workflowName = `AI Generated: ${prompt.substring(0, 50)}${prompt.length > 50 ? '...' : ''}`;
-        steps = [
-          { id: 'review-step', name: 'Review Step', type: 'review', description: 'Review and validate request', status: 'pending' as const },
-          { id: 'approval-step', name: 'Approval Step', type: 'approval', description: 'Final approval required', status: 'pending' as const }
-        ];
-      }
-
-      const generated: GeneratedWorkflow = {
-        id: `ai-generated-${Date.now()}`,
-        name: workflowName,
-        type: workflowType,
-        description: prompt,
-        status: 'pending',
-        steps,
-        submitter_name: 'AI Generator',
+      // Generate workflow based on input
+      const generatedWorkflow = {
+        id: `wf_${Date.now()}`,
+        workflow_name: `AI Generated: ${description.substring(0, 50)}...`,
+        workflow_type: workflowType || 'ai_generated',
+        status: 'active',
         created_at: new Date().toISOString(),
         request_data: {
-          title: workflowName,
-          business_purpose: prompt,
-          generated_by_ai: true,
-          created_at: new Date().toISOString()
-        }
+          description,
+          urgency: urgency || 'medium',
+          complexity: complexity || 'medium'
+        },
+        steps: generateStepsBasedOnDescription(description, workflowType)
       };
 
-      setGeneratedWorkflow(generated);
       toast.success('Workflow generated successfully!');
+      
+      // Call the callback to update parent component
+      if (onWorkflowGenerated) {
+        onWorkflowGenerated(generatedWorkflow);
+      }
+      
     } catch (error) {
-      console.error('Error generating workflow:', error);
       toast.error('Failed to generate workflow');
+      console.error('Workflow generation error:', error);
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const handleWorkflowSubmit = async (data: Record<string, any>) => {
-    try {
-      console.log('Submitting AI generated workflow with data:', data);
+  const generateStepsBasedOnDescription = (desc: string, type: string) => {
+    const lowerDesc = desc.toLowerCase();
+    const steps = [];
+
+    // Add initial step
+    steps.push({
+      id: 'init',
+      name: 'Request Initiated',
+      type: 'trigger',
+      description: 'Workflow started from AI generation',
+      status: 'completed'
+    });
+
+    // Generate steps based on keywords and type
+    if (lowerDesc.includes('approval') || lowerDesc.includes('approve')) {
+      steps.push({
+        id: 'review',
+        name: 'AI Analysis & Review',
+        type: 'ai-processing',
+        description: 'AI analyzes the request and determines approval requirements',
+        status: 'active'
+      });
       
-      // Create the workflow with proper status (pending until all approvals)
-      const { data: workflow, error: workflowError } = await supabase
-        .from('workflow_executions')
-        .insert({
-          workflow_name: data.workflowName,
-          workflow_type: data.workflowType,
-          submitter_name: data.submitterName,
-          status: 'pending', // CRITICAL: Stay pending until all approvals
-          request_data: {
-            title: data.title,
-            amount: parseFloat(data.amount) || 0,
-            business_purpose: data.businessPurpose,
-            category: data.category,
-            urgency: data.urgency,
-            generated_by_ai: true,
-            created_at: new Date().toISOString()
-          }
-        })
-        .select()
-        .single();
-
-      if (workflowError) {
-        console.error('Error creating AI workflow:', workflowError);
-        toast.error('Failed to create workflow: ' + workflowError.message);
-        return;
-      }
-
-      // Create approval steps based on workflow type and amount
-      const amount = parseFloat(data.amount) || 0;
-      const approvalSteps = [];
-
-      if (data.workflowType === 'expense_approval' && amount > 1000) {
-        approvalSteps.push(
-          {
-            workflow_id: workflow.id,
-            step_id: 'manager-approval',
-            step_name: 'Manager Approval',
-            approver_role: 'manager',
-            status: 'pending'
-          },
-          {
-            workflow_id: workflow.id,
-            step_id: 'finance-director-approval',
-            step_name: 'Finance Director Approval',
-            approver_role: 'finance_director',
-            status: 'pending'
-          }
-        );
-      } else {
-        approvalSteps.push({
-          workflow_id: workflow.id,
-          step_id: 'manager-approval',
-          step_name: 'Manager Approval',
-          approver_role: 'manager',
-          status: 'pending'
-        });
-      }
-
-      // Create approval records
-      const { error: approvalError } = await supabase
-        .from('workflow_approvals')
-        .insert(approvalSteps);
-
-      if (approvalError) {
-        console.error('Error creating approval records:', approvalError);
-        toast.error('Failed to create approval records');
-        return;
-      }
-
-      console.log('AI workflow created successfully with approvals');
-      
-      // Reset the form and generated workflow
-      setGeneratedWorkflow(null);
-      setShowForm(false);
-      setPrompt('');
-      
-      toast.success('AI generated workflow submitted successfully!');
-      
-      // Refresh the active workflows list
-      await fetchActiveWorkflows();
-    } catch (error) {
-      console.error('Error submitting AI workflow:', error);
-      toast.error('Failed to submit workflow');
+      steps.push({
+        id: 'approval',
+        name: 'Human Approval Required',
+        type: 'approval',
+        description: 'Manager or authorized person reviews and approves the request',
+        status: 'pending'
+      });
     }
-  };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-      case 'in_progress': return 'bg-blue-100 text-blue-800 border-blue-300';
-      case 'completed': return 'bg-green-100 text-green-800 border-green-300';
-      case 'failed': return 'bg-red-100 text-red-800 border-red-300';
-      case 'cancelled': return 'bg-gray-100 text-gray-800 border-gray-300';
-      default: return 'bg-gray-100 text-gray-800 border-gray-300';
+    if (lowerDesc.includes('document') || lowerDesc.includes('file')) {
+      steps.push({
+        id: 'doc-process',
+        name: 'Document Processing',
+        type: 'ai-processing',
+        description: 'AI processes and validates submitted documents',
+        status: lowerDesc.includes('approval') ? 'pending' : 'active'
+      });
     }
-  };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'pending': return <Clock className="h-4 w-4" />;
-      case 'in_progress': return <AlertCircle className="h-4 w-4" />;
-      case 'completed': return <CheckCircle className="h-4 w-4" />;
-      case 'failed': return <XCircle className="h-4 w-4" />;
-      case 'cancelled': return <XCircle className="h-4 w-4" />;
-      default: return <Clock className="h-4 w-4" />;
+    if (lowerDesc.includes('email') || lowerDesc.includes('notification')) {
+      steps.push({
+        id: 'notify',
+        name: 'Send Notifications',
+        type: 'notification',
+        description: 'Automated email notifications to relevant parties',
+        status: 'pending'
+      });
     }
-  };
 
-  if (showForm && generatedWorkflow) {
-    return (
-      <div className="space-y-6">
-        {/* Full width workflow canvas */}
-        <WorkflowCanvas 
-          selectedTemplate={null}
-          workflowName={generatedWorkflow.name}
-          workflowType={generatedWorkflow.type}
-          formData={generatedWorkflow.request_data}
-          generatedWorkflow={generatedWorkflow}
-        />
-        
-        {/* Form below the diagram */}
-        <div className="max-w-2xl mx-auto">
-          <WorkflowInputForm
-            workflowName={generatedWorkflow.name}
-            workflowType={generatedWorkflow.type}
-            onSubmit={handleWorkflowSubmit}
-            onCancel={() => {
-              setShowForm(false);
-              setGeneratedWorkflow(null);
-            }}
-          />
-        </div>
-      </div>
-    );
-  }
+    // Add completion step
+    steps.push({
+      id: 'complete',
+      name: 'Workflow Complete',
+      type: 'end',
+      description: 'All steps completed successfully',
+      status: 'pending'
+    });
+
+    return steps;
+  };
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <div className="flex items-center space-x-2">
-            <Sparkles className="h-6 w-6 text-purple-600" />
-            <div>
-              <CardTitle>AI Workflow Generator</CardTitle>
-              <CardDescription>
-                Describe your workflow in natural language and let AI generate it for you
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label htmlFor="workflow-prompt">Describe your workflow</Label>
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center space-x-2">
+          <Brain className="h-5 w-5 text-purple-600" />
+          <span>AI Workflow Generator</span>
+        </CardTitle>
+        <CardDescription>
+          Describe your business process and let AI create an intelligent workflow for you
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="md:col-span-2">
+            <Label htmlFor="description">Workflow Description</Label>
             <Textarea
-              id="workflow-prompt"
-              placeholder="e.g., 'Create a marketing expense approval workflow for purchases over $1000 that requires both manager and finance director approval'"
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
+              id="description"
+              placeholder="Describe the process you want to automate (e.g., 'Expense approval workflow that requires manager approval for amounts over $500')"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
               rows={4}
-              className="mt-2"
+              className="mt-1"
             />
           </div>
           
+          <div>
+            <Label htmlFor="workflow-type">Workflow Type</Label>
+            <Select value={workflowType} onValueChange={setWorkflowType}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="approval">Approval Process</SelectItem>
+                <SelectItem value="data_processing">Data Processing</SelectItem>
+                <SelectItem value="customer_service">Customer Service</SelectItem>
+                <SelectItem value="finance">Finance & Accounting</SelectItem>
+                <SelectItem value="hr">Human Resources</SelectItem>
+                <SelectItem value="marketing">Marketing</SelectItem>
+                <SelectItem value="operations">Operations</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="urgency">Urgency Level</Label>
+            <Select value={urgency} onValueChange={setUrgency}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select urgency" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="low">Low - Standard processing</SelectItem>
+                <SelectItem value="medium">Medium - Moderate priority</SelectItem>
+                <SelectItem value="high">High - Urgent processing</SelectItem>
+                <SelectItem value="critical">Critical - Immediate attention</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="complexity">Process Complexity</Label>
+            <Select value={complexity} onValueChange={setComplexity}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select complexity" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="simple">Simple - 2-3 steps</SelectItem>
+                <SelectItem value="medium">Medium - 4-6 steps</SelectItem>
+                <SelectItem value="complex">Complex - 7+ steps</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="flex justify-center pt-4">
           <Button 
             onClick={generateWorkflow}
-            disabled={isGenerating || !prompt.trim()}
-            className="w-full"
+            disabled={isGenerating || !description.trim()}
+            className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-8 py-3"
+            size="lg"
           >
             {isGenerating ? (
               <>
-                <Wand2 className="h-4 w-4 mr-2 animate-spin" />
+                <Sparkles className="h-5 w-5 mr-2 animate-spin" />
                 Generating Workflow...
               </>
             ) : (
               <>
-                <Sparkles className="h-4 w-4 mr-2" />
-                Generate Workflow
+                <Wand2 className="h-5 w-5 mr-2" />
+                Generate AI Workflow
               </>
             )}
           </Button>
-        </CardContent>
-      </Card>
-
-      {/* Show workflow canvas immediately when workflow is generated */}
-      {generatedWorkflow && (
-        <div className="space-y-6">
-          {/* Full width workflow canvas */}
-          <WorkflowCanvas 
-            selectedTemplate={null}
-            workflowName={generatedWorkflow.name}
-            workflowType={generatedWorkflow.type}
-            formData={generatedWorkflow.request_data}
-            generatedWorkflow={generatedWorkflow}
-          />
-          
-          {/* Generated workflow info card */}
-          <Card className="border-purple-200 bg-purple-50 max-w-2xl mx-auto">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-purple-800">Generated Workflow</CardTitle>
-                  <CardDescription className="text-purple-600">
-                    Review and customize your AI-generated workflow
-                  </CardDescription>
-                </div>
-                <Badge className="bg-purple-100 text-purple-700 border-purple-300">
-                  AI Generated
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <h4 className="font-semibold text-purple-800">{generatedWorkflow.name}</h4>
-                <p className="text-sm text-purple-700 mt-1">{generatedWorkflow.description}</p>
-              </div>
-
-              <div className="space-y-3">
-                <h5 className="font-medium text-purple-800">Workflow Steps:</h5>
-                <div className="space-y-2">
-                  {generatedWorkflow.steps.map((step, index) => (
-                    <div key={step.id} className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-purple-200">
-                      <div className="flex-shrink-0 w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                        <span className="text-sm font-medium text-purple-700">{index + 1}</span>
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-medium text-gray-900">{step.name}</p>
-                        <p className="text-sm text-gray-600">{step.description}</p>
-                      </div>
-                      <Badge variant="outline" className="text-orange-600 border-orange-300">
-                        {step.status}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex space-x-3">
-                <Button 
-                  onClick={() => setShowForm(true)}
-                  className="flex-1 bg-purple-600 hover:bg-purple-700"
-                >
-                  <ArrowRight className="h-4 w-4 mr-2" />
-                  Customize & Submit
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => setGeneratedWorkflow(null)}
-                >
-                  Discard
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
         </div>
-      )}
-    
-      {/* Active Workflows Section */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
+
+        <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
+          <div className="flex items-start space-x-3">
+            <Zap className="h-5 w-5 text-blue-600 mt-0.5" />
             <div>
-              <CardTitle>Recent AI Generated Workflows</CardTitle>
-              <CardDescription>Track your AI-generated and submitted workflows</CardDescription>
+              <h4 className="font-medium text-blue-900 mb-1">AI-Powered Intelligence</h4>
+              <p className="text-sm text-blue-700">
+                Our AI analyzes your description to create optimized workflows with intelligent routing, 
+                automated decision points, and smart approvals based on your business rules.
+              </p>
             </div>
-            <Button variant="outline" size="sm" onClick={fetchActiveWorkflows} disabled={loading}>
-              <RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
           </div>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <p className="text-gray-500">Loading workflows...</p>
-          ) : activeWorkflows.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-gray-500">No workflows found</p>
-              <p className="text-sm text-gray-400 mt-1">Generate your first AI workflow above!</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {activeWorkflows.map((workflow) => (
-                <div key={workflow.id} className="space-y-4">
-                  <div className="border rounded-lg p-4 hover:shadow-sm transition-shadow">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-semibold">{workflow.name}</h4>
-                      <Badge className={getStatusColor(workflow.status)} variant="outline">
-                        <div className="flex items-center space-x-1">
-                          {getStatusIcon(workflow.status)}
-                          <span className="capitalize">{workflow.status.replace('_', ' ')}</span>
-                        </div>
-                      </Badge>
-                    </div>
-                    
-                    <div className="text-sm text-gray-600 mb-3">
-                      <p><strong>Type:</strong> {workflow.type}</p>
-                      <p><strong>Submitter:</strong> {workflow.submitter_name}</p>
-                      <p><strong>Created:</strong> {new Date(workflow.created_at).toLocaleDateString()} at {new Date(workflow.created_at).toLocaleTimeString()}</p>
-                      <p><strong>Description:</strong> {workflow.description}</p>
-                    </div>
-
-                    {workflow.steps.length > 0 && (
-                      <div className="mb-3">
-                        <p className="text-sm font-medium text-gray-700 mb-2">Approval Steps:</p>
-                        <div className="flex flex-wrap gap-2">
-                          {workflow.steps.map((step) => (
-                            <Badge 
-                              key={step.id} 
-                              variant="outline" 
-                              className={
-                                step.status === 'approved' ? 'bg-green-100 text-green-700 border-green-300' :
-                                step.status === 'rejected' ? 'bg-red-100 text-red-700 border-red-300' :
-                                'bg-yellow-100 text-yellow-700 border-yellow-300'
-                              }
-                            >
-                              {step.name}: {step.status}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between">
-                      <Badge variant="secondary" className="text-xs">
-                        ID: {workflow.id.substring(0, 8)}...
-                      </Badge>
-                      {workflow.request_data?.amount && (
-                        <Badge variant="outline" className="text-sm">
-                          Amount: ${workflow.request_data.amount}
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Show workflow canvas for each active workflow */}
-                  <WorkflowCanvas 
-                    selectedTemplate={null}
-                    workflowName={workflow.name}
-                    workflowType={workflow.type}
-                    formData={workflow.request_data}
-                    generatedWorkflow={workflow}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
