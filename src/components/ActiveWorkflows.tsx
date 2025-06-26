@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -5,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Eye, Clock, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { WorkflowDetailModal } from './WorkflowDetailModal';
 
 interface WorkflowExecution {
   id: string;
@@ -23,24 +23,19 @@ interface WorkflowApproval {
   step_name: string;
   status: string;
   approver_role: string;
-  approver_id: string | null;
-  approved_at: string | null;
-  rejection_reason: string | null;
 }
 
 export const ActiveWorkflows = () => {
   const [workflows, setWorkflows] = useState<WorkflowExecution[]>([]);
   const [approvals, setApprovals] = useState<{ [key: string]: WorkflowApproval[] }>({});
   const [loading, setLoading] = useState(true);
-  const [showCompleted, setShowCompleted] = useState(true);
-  const [selectedWorkflow, setSelectedWorkflow] = useState<WorkflowExecution | null>(null);
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
 
   const fetchWorkflows = async () => {
     try {
-      console.log('Fetching workflows for ActiveWorkflows component...');
+      console.log('Fetching workflows...');
       
-      // Fetch all workflows or filter based on showCompleted
+      // Fetch workflows based on filter - show all if showCompleted is true, otherwise exclude completed and cancelled
       const query = supabase
         .from('workflow_executions')
         .select('*')
@@ -72,8 +67,6 @@ export const ActiveWorkflows = () => {
         if (approvalError) {
           console.error('Error fetching approvals:', approvalError);
         } else {
-          console.log('Fetched approvals:', approvalData);
-          
           // Group approvals by workflow_id
           const groupedApprovals = (approvalData || []).reduce((acc, approval) => {
             if (!acc[approval.workflow_id]) {
@@ -83,7 +76,6 @@ export const ActiveWorkflows = () => {
             return acc;
           }, {} as { [key: string]: WorkflowApproval[] });
           
-          console.log('Grouped approvals:', groupedApprovals);
           setApprovals(groupedApprovals);
         }
       }
@@ -100,7 +92,7 @@ export const ActiveWorkflows = () => {
     
     // Set up real-time subscription for workflow changes
     const channel = supabase
-      .channel('active_workflow_changes')
+      .channel('workflow_changes')
       .on(
         'postgres_changes',
         {
@@ -109,7 +101,7 @@ export const ActiveWorkflows = () => {
           table: 'workflow_executions'
         },
         (payload) => {
-          console.log('Workflow change detected in ActiveWorkflows:', payload);
+          console.log('Workflow change detected:', payload);
           fetchWorkflows();
         }
       )
@@ -121,7 +113,7 @@ export const ActiveWorkflows = () => {
           table: 'workflow_approvals'
         },
         (payload) => {
-          console.log('Approval change detected in ActiveWorkflows:', payload);
+          console.log('Approval change detected:', payload);
           fetchWorkflows();
         }
       )
@@ -157,19 +149,14 @@ export const ActiveWorkflows = () => {
   const getWorkflowSummary = (workflow: WorkflowExecution) => {
     const workflowApprovals = approvals[workflow.id] || [];
     const pendingApprovals = workflowApprovals.filter(a => a.status === 'pending');
-    const approvedApprovals = workflowApprovals.filter(a => a.status === 'approved');
-    const rejectedApprovals = workflowApprovals.filter(a => a.status === 'rejected');
+    const completedApprovals = workflowApprovals.filter(a => a.status === 'approved');
     
-    if (workflow.status === 'completed') {
-      return `All approvals completed (${approvedApprovals.length} approved)`;
-    } else if (workflow.status === 'failed' && rejectedApprovals.length > 0) {
-      return `Workflow rejected at: ${rejectedApprovals[0].step_name}`;
-    } else if (workflow.status === 'pending' && pendingApprovals.length > 0) {
-      return `Waiting for ${pendingApprovals.length} approval(s): ${pendingApprovals.map(a => a.step_name).join(', ')}`;
-    } else if (workflow.status === 'in_progress') {
-      return `In progress - ${approvedApprovals.length} approved, ${pendingApprovals.length} pending`;
+    if (workflow.status === 'pending' && pendingApprovals.length > 0) {
+      return `Waiting for ${pendingApprovals.length} approval(s)`;
     } else if (workflow.status === 'pending' && workflowApprovals.length === 0) {
       return 'Workflow created, awaiting processing';
+    } else if (completedApprovals.length > 0) {
+      return `${completedApprovals.length} approval(s) completed`;
     } else {
       return `Status: ${workflow.status.replace('_', ' ')}`;
     }
@@ -178,16 +165,6 @@ export const ActiveWorkflows = () => {
   const handleRefresh = () => {
     setLoading(true);
     fetchWorkflows();
-  };
-
-  const handleViewDetails = (workflow: WorkflowExecution) => {
-    setSelectedWorkflow(workflow);
-    setIsDetailModalOpen(true);
-  };
-
-  const handleCloseDetailModal = () => {
-    setIsDetailModalOpen(false);
-    setSelectedWorkflow(null);
   };
 
   if (loading) {
@@ -204,136 +181,96 @@ export const ActiveWorkflows = () => {
   }
 
   return (
-    <>
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Workflow Monitor</CardTitle>
-              <CardDescription>Monitor and track your workflow executions</CardDescription>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowCompleted(!showCompleted)}
-              >
-                {showCompleted ? 'Hide Completed' : 'Show All'}
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading}>
-                <RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
-                Refresh
-              </Button>
-            </div>
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Workflow Monitor</CardTitle>
+            <CardDescription>Monitor and track your workflow executions</CardDescription>
           </div>
-        </CardHeader>
-        <CardContent>
-          {workflows.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-gray-500">
-                {showCompleted ? 'No workflows found' : 'No active workflows found'}
-              </p>
-              <p className="text-sm text-gray-400 mt-1">
-                Create a new workflow to get started.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {workflows.map((workflow) => (
-                <div key={workflow.id} className="border rounded-lg p-4 hover:shadow-sm transition-shadow">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-semibold">{workflow.workflow_name}</h4>
-                    <Badge className={getStatusColor(workflow.status)} variant="outline">
-                      <div className="flex items-center space-x-1">
-                        {getStatusIcon(workflow.status)}
-                        <span className="capitalize">{workflow.status.replace('_', ' ')}</span>
-                      </div>
-                    </Badge>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowCompleted(!showCompleted)}
+            >
+              {showCompleted ? 'Hide Completed' : 'Show All'}
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleRefresh}>
+              <RefreshCw className="h-4 w-4 mr-1" />
+              Refresh
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {workflows.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-gray-500">
+              {showCompleted ? 'No workflows found' : 'No active workflows found'}
+            </p>
+            <p className="text-sm text-gray-400 mt-1">
+              Create a new workflow to get started.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {workflows.map((workflow) => (
+              <div key={workflow.id} className="border rounded-lg p-4 hover:shadow-sm transition-shadow">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-semibold">{workflow.workflow_name}</h4>
+                  <Badge className={getStatusColor(workflow.status)} variant="outline">
+                    <div className="flex items-center space-x-1">
+                      {getStatusIcon(workflow.status)}
+                      <span className="capitalize">{workflow.status.replace('_', ' ')}</span>
+                    </div>
+                  </Badge>
+                </div>
+                
+                <div className="text-sm text-gray-600 mb-3">
+                  <p><strong>Type:</strong> {workflow.workflow_type}</p>
+                  <p><strong>Submitter:</strong> {workflow.submitter_name}</p>
+                  <p><strong>Created:</strong> {new Date(workflow.created_at).toLocaleDateString()} at {new Date(workflow.created_at).toLocaleTimeString()}</p>
+                  {workflow.updated_at && workflow.updated_at !== workflow.created_at && (
+                    <p><strong>Last Updated:</strong> {new Date(workflow.updated_at).toLocaleTimeString()}</p>
+                  )}
+                  <p><strong>Status:</strong> {getWorkflowSummary(workflow)}</p>
+                </div>
+
+                {workflow.request_data && (
+                  <div className="bg-gray-50 p-2 rounded text-xs mb-3">
+                    <strong>Request Details:</strong>
+                    {workflow.request_data.title && <div>Title: {workflow.request_data.title}</div>}
+                    {workflow.request_data.amount && <div>Amount: ${workflow.request_data.amount}</div>}
+                    {workflow.request_data.campaign_name && <div>Campaign: {workflow.request_data.campaign_name}</div>}
+                    {workflow.request_data.business_purpose && <div>Purpose: {workflow.request_data.business_purpose}</div>}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Button variant="outline" size="sm">
+                      <Eye className="h-4 w-4 mr-1" />
+                      View Details
+                    </Button>
                   </div>
                   
-                  <div className="text-sm text-gray-600 mb-3">
-                    <p><strong>Type:</strong> {workflow.workflow_type}</p>
-                    <p><strong>Submitter:</strong> {workflow.submitter_name}</p>
-                    <p><strong>Created:</strong> {new Date(workflow.created_at).toLocaleDateString()} at {new Date(workflow.created_at).toLocaleTimeString()}</p>
-                    {workflow.updated_at && workflow.updated_at !== workflow.created_at && (
-                      <p><strong>Last Updated:</strong> {new Date(workflow.updated_at).toLocaleDateString()} at {new Date(workflow.updated_at).toLocaleTimeString()}</p>
-                    )}
-                    <p><strong>Status:</strong> {getWorkflowSummary(workflow)}</p>
-                  </div>
-
-                  {workflow.request_data && (
-                    <div className="bg-gray-50 p-2 rounded text-xs mb-3">
-                      <strong>Request Details:</strong>
-                      {workflow.request_data.title && <div>Title: {workflow.request_data.title}</div>}
-                      {workflow.request_data.amount && <div>Amount: ${workflow.request_data.amount}</div>}
-                      {workflow.request_data.campaign_name && <div>Campaign: {workflow.request_data.campaign_name}</div>}
-                      {workflow.request_data.business_purpose && <div>Purpose: {workflow.request_data.business_purpose}</div>}
-                    </div>
-                  )}
-
-                  {/* Show detailed approval status */}
-                  {approvals[workflow.id] && approvals[workflow.id].length > 0 && (
-                    <div className="mb-3">
-                      <p className="text-sm font-medium text-gray-700 mb-2">Approval Steps:</p>
-                      <div className="space-y-1">
-                        {approvals[workflow.id].map((approval) => (
-                          <div key={approval.id} className="flex items-center justify-between text-xs bg-gray-50 p-2 rounded">
-                            <span>{approval.step_name}</span>
-                            <div className="flex items-center space-x-2">
-                              <Badge 
-                                variant="outline" 
-                                className={
-                                  approval.status === 'approved' ? 'bg-green-100 text-green-700 border-green-300' :
-                                  approval.status === 'rejected' ? 'bg-red-100 text-red-700 border-red-300' :
-                                  'bg-yellow-100 text-yellow-700 border-yellow-300'
-                                }
-                              >
-                                {approval.status}
-                              </Badge>
-                              {approval.approved_at && (
-                                <span className="text-gray-500">
-                                  {new Date(approval.approved_at).toLocaleDateString()}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <Button variant="outline" size="sm" onClick={() => handleViewDetails(workflow)}>
-                        <Eye className="h-4 w-4 mr-1" />
-                        View Details
-                      </Button>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      {approvals[workflow.id]?.some(a => a.status === 'pending') && (
-                        <Badge variant="outline" className="text-orange-600 border-orange-300">
-                          Pending Approval
-                        </Badge>
-                      )}
-                      <Badge variant="secondary" className="text-xs">
-                        ID: {workflow.id.substring(0, 8)}...
+                  <div className="flex items-center space-x-2">
+                    {approvals[workflow.id]?.some(a => a.status === 'pending') && (
+                      <Badge variant="outline" className="text-orange-600 border-orange-300">
+                        Pending Approval
                       </Badge>
-                    </div>
+                    )}
+                    <Badge variant="secondary" className="text-xs">
+                      ID: {workflow.id.substring(0, 8)}...
+                    </Badge>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <WorkflowDetailModal
-        workflow={selectedWorkflow}
-        approvals={selectedWorkflow ? approvals[selectedWorkflow.id] || [] : []}
-        isOpen={isDetailModalOpen}
-        onClose={handleCloseDetailModal}
-      />
-    </>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 };
