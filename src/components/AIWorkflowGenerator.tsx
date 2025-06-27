@@ -10,9 +10,9 @@ import { Sparkles, Wand2, Play, Save, FileText, Bot, Mail, Database, Clock, Arro
 import { toast } from 'sonner';
 import { VisualWorkflowDiagram } from './VisualWorkflowDiagram';
 import { supabase } from '@/integrations/supabase/client';
-import type { Database } from '@/integrations/supabase/types';
+import type { Database as DatabaseType } from '@/integrations/supabase/types';
 
-type WorkflowStatus = Database['public']['Enums']['workflow_status'];
+type WorkflowStatus = DatabaseType['public']['Enums']['workflow_status'];
 
 interface AIWorkflowGeneratorProps {
   generatedWorkflow: any;
