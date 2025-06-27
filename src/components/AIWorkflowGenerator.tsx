@@ -170,6 +170,8 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
       };
 
       console.log('Generated workflow data:', generatedWorkflowData);
+      console.log('Workflow steps:', workflowSteps);
+      console.log('Setting generated workflow...');
       
       setGeneratedWorkflow(generatedWorkflowData);
       setWorkflowData(generatedWorkflowData);
@@ -183,6 +185,9 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
       setIsGenerating(false);
     }
   };
+
+  console.log('Current generatedWorkflow state:', generatedWorkflow);
+  console.log('Display condition check:', generatedWorkflow && generatedWorkflow.steps && generatedWorkflow.steps.length > 0);
 
   return (
     <div className="space-y-6">
@@ -254,14 +259,14 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
         </CardContent>
       </Card>
 
-      {/* Generated Workflow Display */}
-      {generatedWorkflow && generatedWorkflow.steps && generatedWorkflow.steps.length > 0 && (
+      {/* Generated Workflow Display - This should show immediately after generation */}
+      {generatedWorkflow && generatedWorkflow.steps && (
         <Card className="border-0 shadow-lg bg-gradient-to-br from-green-50 to-blue-50">
           <CardHeader className="bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-t-lg">
             <CardTitle className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <CheckCircle2 className="h-6 w-6" />
-                <span>Generated Workflow</span>
+                <span>Generated Workflow Diagram</span>
               </div>
               <Badge className="bg-white/20 text-white border-white/30">
                 {generatedWorkflow.complexity} complexity
@@ -293,34 +298,36 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
               <div>
                 <h4 className="font-semibold mb-4 flex items-center">
                   <ArrowRight className="h-4 w-4 mr-2" />
-                  Workflow Steps
+                  Detailed Workflow Steps
                 </h4>
                 <div className="space-y-3">
                   {generatedWorkflow.steps.map((step: any, index: number) => (
-                    <div key={step.id} className="flex items-center space-x-4 p-3 bg-white/60 rounded-lg">
+                    <div key={step.id} className="flex items-center space-x-4 p-4 bg-white/80 rounded-lg shadow-sm border border-gray-200">
                       <div className="flex-shrink-0">
-                        <div className="w-8 h-8 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                        <div className="w-10 h-10 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full flex items-center justify-center text-white font-semibold">
                           {index + 1}
                         </div>
                       </div>
                       <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <step.icon className="h-4 w-4 text-gray-600" />
-                          <span className="font-medium">{step.name}</span>
-                          <Badge variant="outline" className="text-xs">{step.type}</Badge>
+                        <div className="flex items-center space-x-2 mb-2">
+                          <step.icon className="h-5 w-5 text-gray-600" />
+                          <span className="font-semibold text-lg">{step.name}</span>
+                          <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">{step.type}</Badge>
                           {step.approver_role && (
-                            <Badge className="text-xs bg-orange-100 text-orange-800">
+                            <Badge className="text-xs bg-orange-100 text-orange-800 border-orange-200">
                               {step.approver_role}
                             </Badge>
                           )}
                         </div>
-                        <p className="text-sm text-gray-600">{step.description}</p>
+                        <p className="text-gray-700 mb-1">{step.description}</p>
                         {step.condition && (
-                          <p className="text-xs text-blue-600 mt-1">Condition: {step.condition}</p>
+                          <p className="text-xs text-blue-600 font-medium">Condition: {step.condition}</p>
                         )}
                       </div>
                       {index < generatedWorkflow.steps.length - 1 && (
-                        <ArrowRight className="h-4 w-4 text-gray-400" />
+                        <div className="flex-shrink-0">
+                          <ArrowRight className="h-6 w-6 text-gray-400" />
+                        </div>
                       )}
                     </div>
                   ))}
