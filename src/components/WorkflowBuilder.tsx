@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -70,15 +71,33 @@ export const WorkflowBuilder = () => {
   const [workflowDescription, setWorkflowDescription] = useState('');
   const [isBuilding, setIsBuilding] = useState(false);
   
-  // Add workflow state that persists across tabs
+  // Persistent state that maintains across tabs
   const [generatedWorkflow, setGeneratedWorkflow] = useState(null);
   const [workflowData, setWorkflowData] = useState(null);
+  const [activeTab, setActiveTab] = useState('ai-generator');
 
   const startFromTemplate = (template) => {
     setSelectedTemplate(template);
     setWorkflowName(template.name);
     setWorkflowDescription(template.description);
     setIsBuilding(true);
+    
+    // Create workflow data from template
+    const templateWorkflowData = {
+      id: `template-${template.id}-${Date.now()}`,
+      name: template.name,
+      description: template.description,
+      type: 'template',
+      category: template.category,
+      steps: template.steps,
+      agents: template.agents,
+      created_at: new Date().toISOString(),
+      status: 'draft'
+    };
+    
+    setWorkflowData(templateWorkflowData);
+    setGeneratedWorkflow(templateWorkflowData);
+    
     toast.success(`Started building workflow: ${template.name}`);
   };
 
@@ -87,7 +106,27 @@ export const WorkflowBuilder = () => {
       toast.error('Please enter a workflow name');
       return;
     }
+    
+    // Update the current workflow data
+    const updatedWorkflow = {
+      ...workflowData,
+      name: workflowName,
+      description: workflowDescription,
+      updated_at: new Date().toISOString()
+    };
+    
+    setWorkflowData(updatedWorkflow);
+    setGeneratedWorkflow(updatedWorkflow);
+    
     toast.success('Workflow saved successfully!');
+  };
+
+  // Handle tab change to maintain state
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    console.log('Tab changed to:', value);
+    console.log('Current workflow data:', workflowData);
+    console.log('Generated workflow:', generatedWorkflow);
   };
 
   if (isBuilding) {
@@ -97,6 +136,13 @@ export const WorkflowBuilder = () => {
           <div>
             <h2 className="text-2xl font-bold">🚀 Workflow Builder</h2>
             <p className="text-indigo-100">Building: {workflowName}</p>
+            {workflowData && (
+              <div className="flex items-center space-x-4 mt-2 text-sm">
+                <span>Type: {workflowData.type}</span>
+                <span>•</span>
+                <span>Created: {new Date(workflowData.created_at).toLocaleTimeString()}</span>
+              </div>
+            )}
           </div>
           <div className="flex space-x-2">
             <Button variant="outline" onClick={() => setIsBuilding(false)} className="bg-white/20 border-white/30 text-white hover:bg-white/30">
@@ -250,6 +296,18 @@ export const WorkflowBuilder = () => {
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Show current workflow info if available */}
+              {workflowData && (
+                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                  <h4 className="font-medium text-sm mb-2">Current Workflow</h4>
+                  <div className="text-xs space-y-1">
+                    <div>ID: {workflowData.id}</div>
+                    <div>Type: {workflowData.type}</div>
+                    <div>Status: {workflowData.status}</div>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -263,6 +321,13 @@ export const WorkflowBuilder = () => {
         <div>
           <h2 className="text-2xl font-bold">🎨 Workflow Builder</h2>
           <p className="text-cyan-100">Create intelligent workflows with AI-powered automation</p>
+          {workflowData && (
+            <div className="mt-2 text-sm">
+              <Badge className="bg-white/20 text-white border-white/30">
+                Active: {workflowData.name}
+              </Badge>
+            </div>
+          )}
         </div>
         <Button onClick={() => setIsBuilding(true)} className="bg-white/20 border-white/30 text-white hover:bg-white/30 shadow-lg">
           <Plus className="h-4 w-4 mr-2" />
@@ -270,7 +335,7 @@ export const WorkflowBuilder = () => {
         </Button>
       </div>
 
-      <Tabs defaultValue="ai-generator" className="w-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="grid w-full grid-cols-7 bg-white/60 backdrop-blur-sm border border-white/20 shadow-lg rounded-xl p-1">
           <TabsTrigger value="ai-generator" className="flex items-center space-x-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-pink-500 data-[state=active]:to-violet-500 data-[state=active]:text-white rounded-lg transition-all duration-300">
             <Sparkles className="h-4 w-4" />

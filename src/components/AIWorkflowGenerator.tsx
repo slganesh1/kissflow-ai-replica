@@ -2,55 +2,21 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Sparkles, ArrowRight, CheckCircle, AlertCircle, Users, DollarSign, FileText, Mail, Clock, XCircle, Play, Zap, Loader2, FormInput } from 'lucide-react';
+import { Sparkles, Wand2, Play, Save, FileText, Bot, Mail, Database, Clock, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { WorkflowInputForm } from './WorkflowInputForm';
-import { supabase } from '@/integrations/supabase/client';
-
-interface WorkflowStep {
-  id: string;
-  name: string;
-  type: 'start' | 'task' | 'approval' | 'form' | 'decision' | 'email' | 'delay' | 'end';
-  description: string;
-  icon: React.ComponentType<any>;
-  color: string;
-  bgColor: string;
-  assignee?: string;
-  condition?: string;
-  timeEstimate?: string;
-  priority?: 'low' | 'medium' | 'high' | 'urgent';
-  position: { x: number; y: number };
-  connectedTo?: string[];
-}
-
-interface GeneratedWorkflow {
-  name: string;
-  description: string;
-  category: string;
-  steps: WorkflowStep[];
-  estimatedTime: string;
-  urgency: 'low' | 'medium' | 'high' | 'urgent';
-}
 
 interface AIWorkflowGeneratorProps {
-  generatedWorkflow: GeneratedWorkflow | null;
-  setGeneratedWorkflow: (workflow: GeneratedWorkflow | null) => void;
-  workflowData: Record<string, any> | null;
-  setWorkflowData: (data: Record<string, any> | null) => void;
+  generatedWorkflow: any;
+  setGeneratedWorkflow: (workflow: any) => void;
+  workflowData: any;
+  setWorkflowData: (data: any) => void;
 }
-
-const stepTypes = {
-  start: { icon: Play, color: 'text-green-600', bgColor: 'bg-green-100 border-green-300', name: 'Start' },
-  task: { icon: CheckCircle, color: 'text-blue-600', bgColor: 'bg-blue-100 border-blue-300', name: 'Task' },
-  approval: { icon: Users, color: 'text-purple-600', bgColor: 'bg-purple-100 border-purple-300', name: 'Approval' },
-  form: { icon: FileText, color: 'text-green-600', bgColor: 'bg-green-100 border-green-300', name: 'Form' },
-  decision: { icon: AlertCircle, color: 'text-yellow-600', bgColor: 'bg-yellow-100 border-yellow-300', name: 'Decision' },
-  email: { icon: Mail, color: 'text-blue-600', bgColor: 'bg-blue-100 border-blue-300', name: 'Email' },
-  delay: { icon: Clock, color: 'text-purple-600', bgColor: 'bg-purple-100 border-purple-300', name: 'Delay' },
-  end: { icon: XCircle, color: 'text-red-600', bgColor: 'bg-red-100 border-red-300', name: 'End' }
-};
 
 export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
   generatedWorkflow,
@@ -58,437 +24,221 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
   workflowData,
   setWorkflowData
 }) => {
-  const [scenario, setScenario] = useState('');
+  const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isExecuting, setIsExecuting] = useState(false);
-  const [executionProgress, setExecutionProgress] = useState<{ [key: string]: 'pending' | 'executing' | 'completed' | 'failed' }>({});
+  const [selectedWorkflowType, setSelectedWorkflowType] = useState('');
   const [showInputForm, setShowInputForm] = useState(false);
 
-  const getApproverHierarchy = (workflowType: string) => {
-    try {
-      const hierarchies = JSON.parse(localStorage.getItem('approver_hierarchies') || '[]');
-      return hierarchies.find((h: any) => h.workflowType === workflowType) || null;
-    } catch {
-      return null;
+  const workflowPrompts = [
+    {
+      title: 'Marketing Campaign Approval',
+      description: 'Create a workflow for marketing campaign approval with budget review',
+      prompt: 'Create a marketing campaign approval workflow that requires manager approval for campaigns over $5000 and finance director approval for campaigns over $15000',
+      type: 'campaign_approval'
+    },
+    {
+      title: 'Expense Reimbursement',
+      description: 'Multi-step expense approval process with different thresholds',
+      prompt: 'Create an expense reimbursement workflow with manager approval for expenses under $1000 and both manager and finance director approval for expenses over $1000',
+      type: 'expense_approval'
+    },
+    {
+      title: 'Purchase Order Process',
+      description: 'Procurement workflow with vendor verification and approval',
+      prompt: 'Create a purchase order workflow that includes vendor verification, budget check, manager approval, and procurement team processing',
+      type: 'purchase_order'
+    },
+    {
+      title: 'Content Review Pipeline',
+      description: 'Content creation and review workflow with multiple stakeholders',
+      prompt: 'Create a content review workflow that includes content creation, legal review, marketing approval, and final publishing',
+      type: 'content_review'
     }
-  };
-
-  const parseScenario = (input: string): GeneratedWorkflow => {
-    const lowerInput = input.toLowerCase();
-    
-    // Enhanced scenario detection
-    const isApprovalProcess = lowerInput.includes('approval') || lowerInput.includes('approve');
-    const hasMoneyAmount = input.match(/\$[\d,]+|\$?\d+[\d,]*|\d+[\d,]*\s*dollars?/);
-    const hasManager = lowerInput.includes('manager');
-    const hasFinance = lowerInput.includes('finance');
-    const isExpense = lowerInput.includes('expense') || lowerInput.includes('cost') || lowerInput.includes('budget');
-    const isMarketing = lowerInput.includes('marketing') || lowerInput.includes('campaign') || lowerInput.includes('advertising');
-    const isHR = lowerInput.includes('hr') || lowerInput.includes('human resource') || lowerInput.includes('hiring');
-    const hasForm = lowerInput.includes('form') || lowerInput.includes('request') || lowerInput.includes('submit');
-    const hasNotification = lowerInput.includes('notification') || lowerInput.includes('notify') || lowerInput.includes('alert');
-    const isUrgent = lowerInput.includes('urgent') || lowerInput.includes('asap') || lowerInput.includes('immediately') || lowerInput.includes('rush');
-    const hasDeadline = lowerInput.includes('deadline') || lowerInput.includes('by next week') || lowerInput.includes('target');
-    const isProduct = lowerInput.includes('product') || lowerInput.includes('launch');
-    const isQ4 = lowerInput.includes('q4') || lowerInput.includes('holiday') || lowerInput.includes('fourth quarter');
-
-    let workflowName = 'Custom Workflow';
-    let category = 'General';
-    let description = 'Auto-generated workflow based on your scenario';
-    let urgency: 'low' | 'medium' | 'high' | 'urgent' = 'medium';
-    let workflowType = 'general';
-
-    // Determine workflow type and get appropriate hierarchy
-    if (isHR) {
-      workflowType = 'hr_approval';
-      workflowName = 'HR Process Workflow';
-      category = 'Human Resources';
-      description = 'HR workflow with configured approval hierarchy';
-    } else if (isApprovalProcess && isMarketing && hasMoneyAmount) {
-      workflowType = 'marketing_approval';
-      workflowName = `Marketing Campaign Approval - ${hasMoneyAmount[0]}`;
-      category = 'Marketing';
-      description = `Approval workflow for ${hasMoneyAmount[0]} marketing campaign${isProduct ? ' for product launch' : ''}${isQ4 ? ' for Q4/holiday season' : ''}`;
-      urgency = isUrgent ? 'urgent' : 'high';
-    } else if (isApprovalProcess && isExpense) {
-      workflowType = 'expense_approval';
-      workflowName = 'Expense Approval Process';
-      category = 'Finance';
-      description = `Automated approval process for ${isMarketing ? 'marketing ' : ''}expenses${hasMoneyAmount ? ` of ${hasMoneyAmount[0]}` : ''}`;
-      urgency = isUrgent ? 'urgent' : 'medium';
-    }
-
-    // Get the configured hierarchy for this workflow type
-    const hierarchy = getApproverHierarchy(workflowType);
-
-    const steps: WorkflowStep[] = [];
-    let yPosition = 0;
-    const stepConnections: { [key: string]: string[] } = {};
-
-    // Start step
-    const startId = 'start-1';
-    steps.push({
-      id: startId,
-      name: 'Workflow Initiated',
-      type: 'start',
-      description: `${isUrgent ? 'Urgent: ' : ''}${workflowName} process begins`,
-      icon: stepTypes.start.icon,
-      color: stepTypes.start.color,
-      bgColor: stepTypes.start.bgColor,
-      priority: urgency,
-      position: { x: 0, y: yPosition }
-    });
-    yPosition += 120;
-
-    // Form submission
-    const formId = 'form-1';
-    steps.push({
-      id: formId,
-      name: `Submit ${isMarketing ? 'Marketing Campaign' : isHR ? 'HR' : 'Expense'} Request`,
-      type: 'form',
-      description: `Complete detailed request form including ${hasMoneyAmount ? `budget of ${hasMoneyAmount[0]}` : 'cost breakdown'}${isProduct ? ', product launch details' : ''}${hasDeadline ? ', timeline requirements' : ''}`,
-      icon: stepTypes.form.icon,
-      color: stepTypes.form.color,
-      bgColor: stepTypes.form.bgColor,
-      timeEstimate: '15-30 minutes',
-      priority: urgency,
-      position: { x: 0, y: yPosition }
-    });
-    stepConnections[startId] = [formId];
-    yPosition += 120;
-
-    // Initial notification
-    const notifyId = 'email-1';
-    steps.push({
-      id: notifyId,
-      name: 'Notify Stakeholders',
-      type: 'email',
-      description: `Send automatic notification to approvers${isUrgent ? ' with urgent priority flag' : ''}${hierarchy ? ' based on configured hierarchy' : ''}`,
-      icon: stepTypes.email.icon,
-      color: stepTypes.email.color,
-      bgColor: stepTypes.email.bgColor,
-      timeEstimate: 'Immediate',
-      priority: urgency,
-      position: { x: 0, y: yPosition }
-    });
-    stepConnections[formId] = [notifyId];
-    yPosition += 120;
-
-    let lastStepId = notifyId;
-
-    // Create approval steps based on configured hierarchy
-    if (hierarchy && hierarchy.levels.length > 0) {
-      const sortedLevels = hierarchy.levels.sort((a, b) => a.order - b.order);
-      
-      for (const level of sortedLevels) {
-        const approvalId = `approval-${level.order}`;
-        steps.push({
-          id: approvalId,
-          name: `${level.title} Approval`,
-          type: 'approval',
-          description: `${level.title} reviews and approves the request${isMarketing ? ' including campaign strategy and ROI' : ''}${isHR ? ' including policy compliance' : ''}`,
-          icon: stepTypes.approval.icon,
-          color: stepTypes.approval.color,
-          bgColor: stepTypes.approval.bgColor,
-          assignee: level.title,
-          timeEstimate: isUrgent ? '4-8 hours' : '1-2 business days',
-          priority: urgency,
-          position: { x: 0, y: yPosition }
-        });
-        stepConnections[lastStepId] = [approvalId];
-        lastStepId = approvalId;
-        yPosition += 120;
-      }
-    } else {
-      // Fallback to default approval if no hierarchy configured
-      const managerApprovalId = 'approval-1';
-      steps.push({
-        id: managerApprovalId,
-        name: 'Manager Review & Approval',
-        type: 'approval',
-        description: `Direct manager evaluates ${isMarketing ? 'campaign strategy, ROI projections,' : isHR ? 'policy compliance,' : 'expense justification,'} and budget allocation`,
-        icon: stepTypes.approval.icon,
-        color: stepTypes.approval.color,
-        bgColor: stepTypes.approval.bgColor,
-        assignee: 'Direct Manager',
-        timeEstimate: isUrgent ? '4-8 hours' : '1-2 business days',
-        priority: urgency,
-        position: { x: 0, y: yPosition }
-      });
-      stepConnections[lastStepId] = [managerApprovalId];
-      lastStepId = managerApprovalId;
-      yPosition += 120;
-    }
-
-    // Final notification
-    const finalNotifyId = 'email-2';
-    steps.push({
-      id: finalNotifyId,
-      name: 'Send Decision Notification',
-      type: 'email',
-      description: `Notify all stakeholders of approval decision${isUrgent ? ' and immediate next steps' : ''}${hierarchy ? ' based on hierarchy outcome' : ''}`,
-      icon: stepTypes.email.icon,
-      color: stepTypes.email.color,
-      bgColor: stepTypes.email.bgColor,
-      timeEstimate: 'Immediate',
-      priority: urgency,
-      position: { x: 0, y: yPosition }
-    });
-    stepConnections[lastStepId] = [finalNotifyId];
-    yPosition += 120;
-
-    // End step
-    const endId = 'end-1';
-    steps.push({
-      id: endId,
-      name: 'Workflow Complete',
-      type: 'end',
-      description: `${workflowName} process completed${isUrgent ? ' with urgent timeline met' : ''}${hierarchy ? ' following configured approval hierarchy' : ''}`,
-      icon: stepTypes.end.icon,
-      color: stepTypes.end.color,
-      bgColor: stepTypes.end.bgColor,
-      position: { x: 0, y: yPosition }
-    });
-    stepConnections[finalNotifyId] = [endId];
-
-    // Add connections to steps
-    Object.entries(stepConnections).forEach(([stepId, connections]) => {
-      const step = steps.find(s => s.id === stepId);
-      if (step) {
-        step.connectedTo = connections;
-      }
-    });
-
-    // Calculate total time
-    const totalSteps = steps.length - 2; // exclude start and end
-    const baseTime = isUrgent ? 1 : 2;
-    const estimatedTime = `${totalSteps * baseTime}-${totalSteps * baseTime * 2} ${isUrgent ? 'hours' : 'days'}`;
-
-    return {
-      name: workflowName,
-      description,
-      category,
-      steps,
-      estimatedTime,
-      urgency
-    };
-  };
+  ];
 
   const generateWorkflow = async () => {
-    if (!scenario.trim()) {
-      toast.error('Please describe your workflow scenario');
+    if (!prompt.trim()) {
+      toast.error('Please enter a workflow description');
       return;
     }
 
     setIsGenerating(true);
     
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
     try {
-      const workflow = parseScenario(scenario);
-      setGeneratedWorkflow(workflow);
-      // Initialize execution progress
-      const progress = {};
-      workflow.steps.forEach(step => {
-        progress[step.id] = 'pending';
+      // Simulate AI workflow generation with more detailed structure
+      const workflowSteps = [];
+      const approvalSteps = [];
+      
+      // Parse the prompt to determine workflow type and requirements
+      const isExpenseWorkflow = prompt.toLowerCase().includes('expense') || selectedWorkflowType === 'expense_approval';
+      const isCampaignWorkflow = prompt.toLowerCase().includes('campaign') || selectedWorkflowType === 'campaign_approval';
+      const isPurchaseWorkflow = prompt.toLowerCase().includes('purchase') || selectedWorkflowType === 'purchase_order';
+      
+      // Generate initial workflow steps
+      workflowSteps.push({
+        id: 'step-1',
+        name: 'Request Submission',
+        type: 'form_input',
+        description: 'User submits the initial request with required details',
+        icon: FileText,
+        status: 'pending'
       });
-      setExecutionProgress(progress);
-      
-      // Check if hierarchy was used
-      const lowerInput = scenario.toLowerCase();
-      const workflowType = lowerInput.includes('hr') ? 'hr_approval' : 
-                          lowerInput.includes('marketing') ? 'marketing_approval' : 'expense_approval';
-      const hierarchy = getApproverHierarchy(workflowType);
-      
-      if (hierarchy) {
-        toast.success(`Enhanced visual workflow generated using ${hierarchy.name} hierarchy!`);
+
+      // Add validation step
+      workflowSteps.push({
+        id: 'step-2',
+        name: 'Automated Validation',
+        type: 'validation',
+        description: 'System validates request completeness and business rules',
+        icon: Bot,
+        status: 'pending'
+      });
+
+      // Add approval steps based on workflow type
+      if (isExpenseWorkflow) {
+        workflowSteps.push({
+          id: 'step-3',
+          name: 'Manager Review',
+          type: 'approval',
+          description: 'Direct manager reviews and approves the expense request',
+          icon: CheckCircle2,
+          status: 'pending',
+          approver_role: 'manager'
+        });
+        
+        approvalSteps.push({
+          step_id: 'manager-approval',
+          step_name: 'Manager Approval',
+          approver_role: 'manager',
+          required: true,
+          order: 1
+        });
+
+        if (prompt.includes('1000') || prompt.includes('finance director')) {
+          workflowSteps.push({
+            id: 'step-4',
+            name: 'Finance Director Approval',
+            type: 'approval',
+            description: 'Finance director approval required for amounts over $1000',
+            icon: CheckCircle2,
+            status: 'pending',
+            approver_role: 'finance_director',
+            condition: 'amount > 1000'
+          });
+          
+          approvalSteps.push({
+            step_id: 'finance-director-approval',
+            step_name: 'Finance Director Approval',
+            approver_role: 'finance_director',
+            required: true,
+            order: 2,
+            condition: 'amount > 1000'
+          });
+        }
+      } else if (isCampaignWorkflow) {
+        workflowSteps.push({
+          id: 'step-3',
+          name: 'Marketing Manager Review',
+          type: 'approval',
+          description: 'Marketing manager reviews campaign strategy and budget',
+          icon: CheckCircle2,
+          status: 'pending',
+          approver_role: 'manager'
+        });
+        
+        approvalSteps.push({
+          step_id: 'manager-approval',
+          step_name: 'Marketing Manager Approval',
+          approver_role: 'manager',
+          required: true,
+          order: 1
+        });
       } else {
-        toast.success('Enhanced visual workflow generated with default approval structure!');
-        toast.info('Tip: Configure custom approval hierarchies in the Approvers tab');
+        // Generic approval step
+        workflowSteps.push({
+          id: 'step-3',
+          name: 'Approval Required',
+          type: 'approval',
+          description: 'Manager approval required for this request',
+          icon: CheckCircle2,
+          status: 'pending',
+          approver_role: 'manager'
+        });
+        
+        approvalSteps.push({
+          step_id: 'manager-approval',
+          step_name: 'Manager Approval',
+          approver_role: 'manager',
+          required: true,
+          order: 1
+        });
       }
+
+      // Add notification step
+      workflowSteps.push({
+        id: 'step-final',
+        name: 'Completion Notification',
+        type: 'notification',
+        description: 'Send completion notification to all stakeholders',
+        icon: Mail,
+        status: 'pending'
+      });
+
+      const generatedWorkflowData = {
+        id: `workflow-${Date.now()}`,
+        name: prompt.slice(0, 50) + (prompt.length > 50 ? '...' : ''),
+        description: prompt,
+        type: selectedWorkflowType || 'custom',
+        steps: workflowSteps,
+        approvalSteps: approvalSteps,
+        created_at: new Date().toISOString(),
+        status: 'draft',
+        triggers: ['manual', 'form_submission'],
+        estimated_duration: `${workflowSteps.length * 2}-${workflowSteps.length * 4} hours`,
+        complexity: workflowSteps.length > 4 ? 'high' : workflowSteps.length > 2 ? 'medium' : 'low'
+      };
+
+      setGeneratedWorkflow(generatedWorkflowData);
+      setWorkflowData(generatedWorkflowData);
+      
+      toast.success('🎉 AI Workflow generated successfully!');
+      
     } catch (error) {
+      console.error('Error generating workflow:', error);
       toast.error('Failed to generate workflow. Please try again.');
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const startWorkflowWithInput = () => {
-    if (!generatedWorkflow) return;
-    setShowInputForm(true);
+  const handlePromptSelect = (selectedPrompt: any) => {
+    setPrompt(selectedPrompt.prompt);
+    setSelectedWorkflowType(selectedPrompt.type);
   };
 
-  const handleWorkflowSubmission = (data: Record<string, any>) => {
-    setWorkflowData(data);
+  const handleSubmitWorkflow = (formData: any) => {
+    console.log('Submitting workflow with generated structure:', generatedWorkflow);
+    console.log('Form data:', formData);
+    
+    const workflowToSubmit = {
+      ...formData,
+      workflowName: formData.workflowName || generatedWorkflow?.name,
+      workflowType: formData.workflowType || generatedWorkflow?.type,
+      generatedStructure: generatedWorkflow,
+      approvalSteps: generatedWorkflow?.approvalSteps || []
+    };
+    
+    // The WorkflowInputForm will handle the actual submission to Supabase
+    toast.success('Workflow structure applied to form!');
     setShowInputForm(false);
-    toast.success('Input received! Ready to execute workflow with real data.');
-    console.log('Workflow Data:', data);
   };
 
-  const executeWorkflow = async () => {
-    if (!generatedWorkflow) return;
-    
-    setIsExecuting(true);
-    toast.success(`Starting execution of ${generatedWorkflow.name}${workflowData ? ' with submitted data' : ''}`);
-    
-    // Create workflow execution record
-    let workflowExecutionId = null;
-    
-    if (workflowData) {
-      try {
-        // Use type assertion to bypass TypeScript checking until types are regenerated
-        const { data: execution, error: executionError } = await (supabase as any)
-          .from('workflow_executions')
-          .insert({
-            workflow_name: generatedWorkflow.name,
-            workflow_type: generatedWorkflow.category,
-            request_data: workflowData,
-            submitter_name: 'Current User',
-            status: 'in_progress'
-          })
-          .select()
-          .single();
-
-        if (executionError) {
-          console.log('Workflow execution will be simulated for demo purposes');
-          workflowExecutionId = 'simulated-' + Date.now();
-        } else {
-          workflowExecutionId = execution.id;
-        }
-
-        console.log('Created workflow execution:', workflowExecutionId);
-      } catch (error) {
-        console.log('Workflow execution will be simulated for demo purposes');
-        workflowExecutionId = 'simulated-' + Date.now();
-      }
-    }
-    
-    // Execute steps sequentially with manual approval handling
-    for (const step of generatedWorkflow.steps) {
-      setExecutionProgress(prev => ({
-        ...prev,
-        [step.id]: 'executing'
-      }));
-      
-      // Handle approval steps differently
-      if (step.type === 'approval' && workflowExecutionId) {
-        try {
-          // Use type assertion for approval creation as well
-          const { error: approvalError } = await (supabase as any)
-            .from('workflow_approvals')
-            .insert({
-              workflow_id: workflowExecutionId,
-              step_id: step.id,
-              step_name: step.name,
-              approver_role: step.assignee?.toLowerCase() || 'manager'
-            });
-
-          if (approvalError) {
-            console.log('Approval creation simulated:', approvalError);
-          }
-
-          // Mark as waiting for approval
-          setExecutionProgress(prev => ({
-            ...prev,
-            [step.id]: 'pending'
-          }));
-          
-          toast.info(`${step.name} - Waiting for manual approval from ${step.assignee}`);
-          
-          // In a real scenario, this would wait for actual approval
-          // For demo, we'll simulate a delay
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          
-          setExecutionProgress(prev => ({
-            ...prev,
-            [step.id]: 'completed'
-          }));
-          
-          toast.success(`${step.name} - Approved (simulated)`);
-        } catch (error) {
-          console.error('Error handling approval step:', error);
-          setExecutionProgress(prev => ({
-            ...prev,
-            [step.id]: 'failed'
-          }));
-          toast.error(`${step.name} - Approval process failed`);
-        }
-      } else {
-        // Regular step execution
-        const executionTime = step.type === 'delay' ? 3000 : 
-                             step.type === 'email' ? 500 : 1000;
-        
-        await new Promise(resolve => setTimeout(resolve, executionTime));
-        
-        setExecutionProgress(prev => ({
-          ...prev,
-          [step.id]: 'completed'
-        }));
-        
-        // Show contextual completion messages
-        let completionMessage = `Completed: ${step.name}`;
-        if (workflowData) {
-          if (step.type === 'form' && workflowData.title) {
-            completionMessage += ` for "${workflowData.title}"`;
-          } else if (step.type === 'email' && workflowData.submitter_id) {
-            completionMessage += ` - notification sent`;
-          } else if (step.type === 'task' && workflowData.amount) {
-            completionMessage += ` for $${workflowData.amount}`;
-          }
-        }
-        
-        toast.success(completionMessage);
-      }
-    }
-    
-    setIsExecuting(false);
-    const finalMessage = `Workflow "${generatedWorkflow.name}" executed successfully!${workflowData ? ` Request processed for: ${workflowData.title || workflowData.campaign_name || 'submission'}` : ''}`;
-    toast.success(finalMessage);
-  };
-
-  const createWorkflow = () => {
-    if (generatedWorkflow) {
-      toast.success(`Created workflow template: ${generatedWorkflow.name}`);
-    }
-  };
-
-  const getStepStatusIcon = (stepId: string) => {
-    const status = executionProgress[stepId];
-    switch (status) {
-      case 'executing':
-        return <Loader2 className="h-4 w-4 animate-spin text-blue-600" />;
-      case 'completed':
-        return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case 'failed':
-        return <XCircle className="h-4 w-4 text-red-600" />;
-      case 'pending':
-        return <Clock className="h-4 w-4 text-yellow-600" />;
-      default:
-        return null;
-    }
-  };
-
-  const getStepStatusColor = (stepId: string) => {
-    const status = executionProgress[stepId];
-    switch (status) {
-      case 'executing':
-        return 'border-blue-400 bg-blue-50';
-      case 'completed':
-        return 'border-green-400 bg-green-50';
-      case 'failed':
-        return 'border-red-400 bg-red-50';
-      case 'pending':
-        return 'border-yellow-400 bg-yellow-50';
-      default:
-        return '';
-    }
-  };
-
-  if (showInputForm && generatedWorkflow) {
+  if (showInputForm) {
     return (
       <WorkflowInputForm
-        workflowName={generatedWorkflow.name}
-        workflowType={generatedWorkflow.category}
-        onSubmit={handleWorkflowSubmission}
+        workflowName={generatedWorkflow?.name}
+        workflowType={generatedWorkflow?.type}
+        onSubmit={handleSubmitWorkflow}
         onCancel={() => setShowInputForm(false)}
       />
     );
@@ -496,248 +246,195 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
+      <Card className="border-0 shadow-lg bg-gradient-to-br from-purple-50 to-pink-50">
+        <CardHeader className="bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-t-lg">
           <CardTitle className="flex items-center space-x-2">
-            <Sparkles className="h-5 w-5 text-purple-600" />
-            <span>AI Visual Workflow Generator</span>
+            <Sparkles className="h-6 w-6" />
+            <span>AI Workflow Generator</span>
           </CardTitle>
-          <CardDescription>
-            Describe your business process and I'll create a detailed visual workflow diagram automatically
+          <CardDescription className="text-purple-100">
+            Describe your business process and let AI create an intelligent workflow
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <label className="text-sm font-medium mb-2 block">
-              Describe your workflow scenario:
-            </label>
-            <Textarea
-              placeholder="Example: I need approval for a $15000 marketing campaign for our Q4 product launch. This is urgent as we need to start by next week to meet our holiday sales target"
-              value={scenario}
-              onChange={(e) => setScenario(e.target.value)}
-              rows={4}
-              className="resize-none"
-            />
-          </div>
-          
-          <div className="flex space-x-2">
+        <CardContent className="p-6">
+          <div className="space-y-6">
+            {/* Quick Templates */}
+            <div>
+              <Label className="text-base font-medium mb-3 block">📋 Quick Start Templates</Label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {workflowPrompts.map((template, index) => (
+                  <Card key={index} className="cursor-pointer hover:shadow-md transition-all duration-300 border-2 hover:border-purple-300">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <h4 className="font-medium text-sm">{template.title}</h4>
+                        <Badge variant="outline" className="text-xs">{template.type}</Badge>
+                      </div>
+                      <p className="text-xs text-gray-600 mb-3">{template.description}</p>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={() => handlePromptSelect(template)}
+                        className="w-full text-xs"
+                      >
+                        Use Template
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+
+            {/* Custom Prompt */}
+            <div>
+              <Label htmlFor="workflow-prompt" className="text-base font-medium">
+                🤖 Describe Your Workflow
+              </Label>
+              <Textarea
+                id="workflow-prompt"
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="Describe your business process... For example: 'Create an expense approval workflow where expenses under $500 need manager approval, and expenses over $500 need both manager and finance director approval'"
+                rows={4}
+                className="mt-2"
+              />
+            </div>
+
+            {/* Workflow Type */}
+            <div>
+              <Label htmlFor="workflow-type" className="text-base font-medium">
+                📂 Workflow Category
+              </Label>
+              <Select value={selectedWorkflowType} onValueChange={setSelectedWorkflowType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select workflow type (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="expense_approval">Expense Approval</SelectItem>
+                  <SelectItem value="campaign_approval">Campaign Approval</SelectItem>
+                  <SelectItem value="purchase_order">Purchase Order</SelectItem>
+                  <SelectItem value="content_review">Content Review</SelectItem>
+                  <SelectItem value="budget_request">Budget Request</SelectItem>
+                  <SelectItem value="custom">Custom Workflow</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <Button 
-              onClick={generateWorkflow}
-              disabled={isGenerating || !scenario.trim()}
-              className="bg-purple-600 hover:bg-purple-700"
+              onClick={generateWorkflow} 
+              disabled={isGenerating || !prompt.trim()}
+              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
             >
               {isGenerating ? (
                 <>
-                  <Sparkles className="h-4 w-4 mr-2 animate-spin" />
-                  Generating Enhanced Workflow...
+                  <Wand2 className="h-4 w-4 mr-2 animate-spin" />
+                  Generating Workflow...
                 </>
               ) : (
                 <>
                   <Sparkles className="h-4 w-4 mr-2" />
-                  Generate Visual Workflow
+                  Generate AI Workflow
                 </>
               )}
             </Button>
-            
-            {generatedWorkflow && (
-              <>
-                <Button 
-                  onClick={startWorkflowWithInput}
-                  disabled={isExecuting}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  <FormInput className="h-4 w-4 mr-2" />
-                  Submit Real Request
-                </Button>
-                
-                <Button 
-                  onClick={executeWorkflow}
-                  disabled={isExecuting}
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  {isExecuting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Executing...
-                    </>
-                  ) : (
-                    <>
-                      <Play className="h-4 w-4 mr-2" />
-                      Execute Workflow
-                    </>
-                  )}
-                </Button>
-                <Button onClick={createWorkflow} variant="outline">
-                  Save as Template
-                </Button>
-              </>
-            )}
           </div>
-
-          {workflowData && (
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <h4 className="font-medium text-blue-900 mb-2">Ready to Execute with Real Data:</h4>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div><strong>Title:</strong> {workflowData.title || workflowData.campaign_name || workflowData.expense_title}</div>
-                {workflowData.amount && <div><strong>Amount:</strong> ${workflowData.amount}</div>}
-                {workflowData.budget_amount && <div><strong>Budget:</strong> ${workflowData.budget_amount}</div>}
-                <div><strong>Status:</strong> <Badge variant="secondary">{workflowData.status}</Badge></div>
-              </div>
-            </div>
-          )}
         </CardContent>
       </Card>
 
+      {/* Generated Workflow Display */}
       {generatedWorkflow && (
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Workflow Steps Palette */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center space-x-2">
-                <span>Workflow Controls</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <h4 className="font-medium text-sm">Execution Status</h4>
-                <div className="space-y-1">
-                  {Object.entries(executionProgress).map(([stepId, status]) => {
-                    const step = generatedWorkflow.steps.find(s => s.id === stepId);
-                    return (
-                      <div key={stepId} className="flex items-center space-x-2 text-xs">
-                        {getStepStatusIcon(stepId)}
-                        <span className={status === 'completed' ? 'text-green-600' : status === 'executing' ? 'text-blue-600' : 'text-gray-600'}>
-                          {step?.name}
-                        </span>
-                      </div>
-                    );
-                  })}
+        <Card className="border-0 shadow-lg bg-gradient-to-br from-green-50 to-blue-50">
+          <CardHeader className="bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-t-lg">
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <CheckCircle2 className="h-6 w-6" />
+                <span>Generated Workflow</span>
+              </div>
+              <Badge className="bg-white/20 text-white border-white/30">
+                {generatedWorkflow.complexity} complexity
+              </Badge>
+            </CardTitle>
+            <CardDescription className="text-green-100">
+              {generatedWorkflow.description}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="space-y-6">
+              {/* Workflow Info */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="text-center p-3 bg-white/60 rounded-lg">
+                  <div className="text-2xl font-bold text-blue-600">{generatedWorkflow.steps.length}</div>
+                  <div className="text-sm text-gray-600">Total Steps</div>
+                </div>
+                <div className="text-center p-3 bg-white/60 rounded-lg">
+                  <div className="text-2xl font-bold text-green-600">{generatedWorkflow.approvalSteps.length}</div>
+                  <div className="text-sm text-gray-600">Approval Points</div>
+                </div>
+                <div className="text-center p-3 bg-white/60 rounded-lg">
+                  <div className="text-2xl font-bold text-purple-600">{generatedWorkflow.estimated_duration}</div>
+                  <div className="text-sm text-gray-600">Est. Duration</div>
                 </div>
               </div>
-              
-              {Object.entries(stepTypes).map(([type, config]) => (
-                <div
-                  key={type}
-                  className={`p-3 rounded-lg cursor-pointer transition-all ${config.bgColor} border-2 hover:shadow-md`}
-                >
-                  <div className="flex items-center space-x-3">
-                    <config.icon className={`h-5 w-5 ${config.color}`} />
-                    <span className="font-medium">Add {config.name}</span>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
 
-          {/* Enhanced Visual Workflow Canvas */}
-          <div className="lg:col-span-3">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-xl">{generatedWorkflow.name}</CardTitle>
-                    <CardDescription>{generatedWorkflow.description}</CardDescription>
-                  </div>
-                  <div className="flex space-x-2">
-                    <Badge variant="secondary">{generatedWorkflow.category}</Badge>
-                    <Badge variant="outline">~{generatedWorkflow.estimatedTime}</Badge>
-                    <Badge 
-                      className={
-                        generatedWorkflow.urgency === 'urgent' ? 'bg-red-100 text-red-700' :
-                        generatedWorkflow.urgency === 'high' ? 'bg-orange-100 text-orange-700' :
-                        'bg-blue-100 text-blue-700'
-                      }
-                    >
-                      {generatedWorkflow.urgency.toUpperCase()}
-                    </Badge>
-                    {isExecuting && (
-                      <Badge className="bg-blue-100 text-blue-700">
-                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                        EXECUTING
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="bg-gray-50 rounded-lg p-6 min-h-[700px] relative">
-                  <div className="flex flex-col items-center space-y-4">
-                    {generatedWorkflow.steps.map((step, index) => (
-                      <div key={step.id} className="flex flex-col items-center">
-                        {/* Enhanced Workflow Step with Execution Status */}
-                        <div className={`relative p-4 rounded-lg border-2 min-w-[280px] max-w-[320px] ${step.bgColor} ${getStepStatusColor(step.id)} shadow-sm hover:shadow-md transition-all`}>
-                          <div className="flex items-center space-x-3 mb-3">
-                            <step.icon className={`h-6 w-6 ${step.color}`} />
-                            <h4 className="font-semibold text-sm flex-1">{step.name}</h4>
-                            <div className="flex items-center space-x-2">
-                              {getStepStatusIcon(step.id)}
-                              {step.priority === 'urgent' && (
-                                <Badge className="text-xs bg-red-100 text-red-600">
-                                  URGENT
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                          
-                          <p className="text-xs text-gray-700 mb-3 leading-relaxed">{step.description}</p>
-                          
-                          <div className="flex flex-wrap gap-2">
-                            {step.assignee && (
-                              <Badge className="text-xs bg-blue-50 text-blue-700">
-                                👤 {step.assignee}
-                              </Badge>
-                            )}
-                            
-                            {step.condition && (
-                              <Badge className="text-xs bg-yellow-50 text-yellow-700">
-                                ⚡ {step.condition}
-                              </Badge>
-                            )}
-                            
-                            {step.timeEstimate && (
-                              <Badge className="text-xs bg-purple-50 text-purple-700">
-                                ⏱️ {step.timeEstimate}
-                              </Badge>
-                            )}
-                          </div>
+              {/* Workflow Steps Visualization */}
+              <div>
+                <h4 className="font-semibold mb-4 flex items-center">
+                  <ArrowRight className="h-4 w-4 mr-2" />
+                  Workflow Steps
+                </h4>
+                <div className="space-y-3">
+                  {generatedWorkflow.steps.map((step: any, index: number) => (
+                    <div key={step.id} className="flex items-center space-x-4 p-3 bg-white/60 rounded-lg">
+                      <div className="flex-shrink-0">
+                        <div className="w-8 h-8 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                          {index + 1}
                         </div>
-                        
-                        {/* Enhanced Connection Arrow with Flow Lines */}
-                        {index < generatedWorkflow.steps.length - 1 && (
-                          <div className="flex flex-col items-center py-3">
-                            <div className="w-0.5 h-4 bg-gray-400"></div>
-                            <div className="flex items-center justify-center">
-                              <ArrowRight className="h-5 w-5 text-gray-500 bg-gray-50 p-0.5 rounded border" />
-                            </div>
-                            <div className="w-0.5 h-4 bg-gray-400"></div>
-                          </div>
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <step.icon className="h-4 w-4 text-gray-600" />
+                          <span className="font-medium">{step.name}</span>
+                          <Badge variant="outline" className="text-xs">{step.type}</Badge>
+                          {step.approver_role && (
+                            <Badge className="text-xs bg-orange-100 text-orange-800">
+                              {step.approver_role}
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-600">{step.description}</p>
+                        {step.condition && (
+                          <p className="text-xs text-blue-600 mt-1">Condition: {step.condition}</p>
                         )}
                       </div>
-                    ))}
-                  </div>
-                  
-                  {/* Workflow Summary */}
-                  <div className="absolute top-4 right-4 bg-white p-3 rounded-lg shadow-md border">
-                    <div className="text-xs text-gray-600">
-                      <div><strong>{generatedWorkflow.steps.length}</strong> steps</div>
-                      <div><strong>{generatedWorkflow.estimatedTime}</strong> total time</div>
-                      <div className="flex items-center space-x-1">
-                        <Zap className="h-3 w-3" />
-                        <span>Auto-connected flow</span>
-                      </div>
-                      {isExecuting && (
-                        <div className="flex items-center space-x-1 text-blue-600">
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                          <span>Executing...</span>
-                        </div>
+                      {index < generatedWorkflow.steps.length - 1 && (
+                        <ArrowRight className="h-4 w-4 text-gray-400" />
                       )}
                     </div>
-                  </div>
+                  ))}
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex space-x-3">
+                <Button 
+                  onClick={() => setShowInputForm(true)}
+                  className="flex-1 bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600"
+                >
+                  <Play className="h-4 w-4 mr-2" />
+                  Create This Workflow
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={() => {
+                    setGeneratedWorkflow(null);
+                    setPrompt('');
+                  }}
+                >
+                  Generate New
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
