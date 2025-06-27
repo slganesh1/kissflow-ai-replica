@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Sparkles, Wand2, Play, Save, FileText, Bot, Mail, Database, Clock, ArrowRight, CheckCircle2, AlertCircle, DollarSign, Users, Shield, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { VisualWorkflowDiagram } from './VisualWorkflowDiagram';
+import { WorkflowInputForm } from './WorkflowInputForm';
 
 interface AIWorkflowGeneratorProps {
   generatedWorkflow: any;
@@ -27,6 +28,7 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedWorkflowType, setSelectedWorkflowType] = useState('');
+  const [showExecutionForm, setShowExecutionForm] = useState(false);
 
   const generateWorkflow = async () => {
     if (!prompt.trim()) {
@@ -284,6 +286,31 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
     }
   };
 
+  const handleExecuteWorkflow = () => {
+    if (!generatedWorkflow) {
+      toast.error('Please generate a workflow first');
+      return;
+    }
+    setShowExecutionForm(true);
+  };
+
+  const handleWorkflowSubmit = (formData: Record<string, any>) => {
+    console.log('Workflow execution data:', formData);
+    toast.success('Workflow executed successfully! Check the Active tab to monitor progress.');
+    setShowExecutionForm(false);
+  };
+
+  if (showExecutionForm) {
+    return (
+      <WorkflowInputForm
+        workflowName={generatedWorkflow?.name || ''}
+        workflowType={generatedWorkflow?.type || ''}
+        onSubmit={handleWorkflowSubmit}
+        onCancel={() => setShowExecutionForm(false)}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       
@@ -383,13 +410,11 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
             {/* Action Buttons */}
             <div className="flex space-x-4 p-6">
               <Button 
-                onClick={() => {
-                  toast.success('Visual workflow diagram created successfully!');
-                }}
+                onClick={handleExecuteWorkflow}
                 className="flex-1 bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-lg py-3"
               >
                 <Play className="h-5 w-5 mr-2" />
-                Deploy This Workflow
+                Execute This Workflow
               </Button>
               <Button 
                 variant="outline"
