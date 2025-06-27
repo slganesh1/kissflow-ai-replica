@@ -198,6 +198,8 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
         complexity: workflowSteps.length > 4 ? 'high' : workflowSteps.length > 2 ? 'medium' : 'low'
       };
 
+      console.log('Generated workflow data:', generatedWorkflowData);
+      
       setGeneratedWorkflow(generatedWorkflowData);
       setWorkflowData(generatedWorkflowData);
       
