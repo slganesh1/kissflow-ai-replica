@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -203,7 +202,11 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
       setGeneratedWorkflow(generatedWorkflowData);
       setWorkflowData(generatedWorkflowData);
       
-      toast.success('🎉 AI Workflow generated successfully!');
+      // Add a small delay to ensure state is updated
+      setTimeout(() => {
+        console.log('Workflow state after update:', generatedWorkflowData);
+        toast.success('🎉 AI Workflow generated successfully!');
+      }, 100);
       
     } catch (error) {
       console.error('Error generating workflow:', error);
@@ -245,6 +248,8 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
       />
     );
   }
+
+  console.log('Current generatedWorkflow state:', generatedWorkflow);
 
   return (
     <div className="space-y-6">
@@ -342,8 +347,8 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
         </CardContent>
       </Card>
 
-      {/* Generated Workflow Display */}
-      {generatedWorkflow && (
+      {/* Generated Workflow Display - Force render with explicit check */}
+      {generatedWorkflow && generatedWorkflow.steps && generatedWorkflow.steps.length > 0 && (
         <Card className="border-0 shadow-lg bg-gradient-to-br from-green-50 to-blue-50">
           <CardHeader className="bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-t-lg">
             <CardTitle className="flex items-center justify-between">
@@ -368,7 +373,7 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
                   <div className="text-sm text-gray-600">Total Steps</div>
                 </div>
                 <div className="text-center p-3 bg-white/60 rounded-lg">
-                  <div className="text-2xl font-bold text-green-600">{generatedWorkflow.approvalSteps.length}</div>
+                  <div className="text-2xl font-bold text-green-600">{generatedWorkflow.approvalSteps?.length || 0}</div>
                   <div className="text-sm text-gray-600">Approval Points</div>
                 </div>
                 <div className="text-center p-3 bg-white/60 rounded-lg">
@@ -427,6 +432,7 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
                 <Button 
                   variant="outline"
                   onClick={() => {
+                    console.log('Clearing workflow...');
                     setGeneratedWorkflow(null);
                     setPrompt('');
                   }}
@@ -437,6 +443,14 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Debug info - remove this after testing */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="text-xs text-gray-500 p-2 bg-gray-100 rounded">
+          Debug: generatedWorkflow exists: {generatedWorkflow ? 'Yes' : 'No'}, 
+          Steps count: {generatedWorkflow?.steps?.length || 0}
+        </div>
       )}
     </div>
   );
