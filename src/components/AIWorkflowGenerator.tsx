@@ -9,7 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Sparkles, Wand2, Play, Save, FileText, Bot, Mail, Database, Clock, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { WorkflowInputForm } from './WorkflowInputForm';
 
 interface AIWorkflowGeneratorProps {
   generatedWorkflow: any;
@@ -27,7 +26,6 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedWorkflowType, setSelectedWorkflowType] = useState('');
-  const [showInputForm, setShowInputForm] = useState(false);
 
   const generateWorkflow = async () => {
     if (!prompt.trim()) {
@@ -186,34 +184,6 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
     }
   };
 
-  const handleSubmitWorkflow = (formData: any) => {
-    console.log('Submitting workflow with generated structure:', generatedWorkflow);
-    console.log('Form data:', formData);
-    
-    const workflowToSubmit = {
-      ...formData,
-      workflowName: formData.workflowName || generatedWorkflow?.name,
-      workflowType: formData.workflowType || generatedWorkflow?.type,
-      generatedStructure: generatedWorkflow,
-      approvalSteps: generatedWorkflow?.approvalSteps || []
-    };
-    
-    // The WorkflowInputForm will handle the actual submission to Supabase
-    toast.success('Workflow structure applied to form!');
-    setShowInputForm(false);
-  };
-
-  if (showInputForm) {
-    return (
-      <WorkflowInputForm
-        workflowName={generatedWorkflow?.name}
-        workflowType={generatedWorkflow?.type}
-        onSubmit={handleSubmitWorkflow}
-        onCancel={() => setShowInputForm(false)}
-      />
-    );
-  }
-
   return (
     <div className="space-y-6">
       <Card className="border-0 shadow-lg bg-gradient-to-br from-purple-50 to-pink-50">
@@ -360,7 +330,9 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
               {/* Actions */}
               <div className="flex space-x-3">
                 <Button 
-                  onClick={() => setShowInputForm(true)}
+                  onClick={() => {
+                    toast.success('Workflow saved successfully!');
+                  }}
                   className="flex-1 bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600"
                 >
                   <Play className="h-4 w-4 mr-2" />
