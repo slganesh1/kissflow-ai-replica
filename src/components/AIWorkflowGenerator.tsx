@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,7 +9,10 @@ import { Badge } from '@/components/ui/badge';
 import { Sparkles, Wand2, Play, Save, FileText, Bot, Mail, Database, Clock, ArrowRight, CheckCircle2, AlertCircle, DollarSign, Users, Shield, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { VisualWorkflowDiagram } from './VisualWorkflowDiagram';
-import { WorkflowInputForm } from './WorkflowInputForm';
+import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
+
+type WorkflowStatus = Database['public']['Enums']['workflow_status'];
 
 interface AIWorkflowGeneratorProps {
   generatedWorkflow: any;
@@ -28,7 +30,7 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedWorkflowType, setSelectedWorkflowType] = useState('');
-  const [showExecutionForm, setShowExecutionForm] = useState(false);
+  const [isExecuting, setIsExecuting] = useState(false);
 
   const generateWorkflow = async () => {
     if (!prompt.trim()) {
@@ -286,30 +288,87 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
     }
   };
 
-  const handleExecuteWorkflow = () => {
+  const handleExecuteWorkflow = async () => {
     if (!generatedWorkflow) {
       toast.error('Please generate a workflow first');
       return;
     }
-    setShowExecutionForm(true);
-  };
 
-  const handleWorkflowSubmit = (formData: Record<string, any>) => {
-    console.log('Workflow execution data:', formData);
-    toast.success('Workflow executed successfully! Check the Active tab to monitor progress.');
-    setShowExecutionForm(false);
-  };
+    setIsExecuting(true);
+    
+    try {
+      console.log('Executing workflow:', generatedWorkflow);
 
-  if (showExecutionForm) {
-    return (
-      <WorkflowInputForm
-        workflowName={generatedWorkflow?.name || ''}
-        workflowType={generatedWorkflow?.type || ''}
-        onSubmit={handleWorkflowSubmit}
-        onCancel={() => setShowExecutionForm(false)}
-      />
-    );
-  }
+      // Create workflow execution record
+      const workflowExecutionData = {
+        workflow_name: generatedWorkflow.name,
+        workflow_type: generatedWorkflow.type || 'campaign_approval',
+        submitter_name: 'AI Generated',
+        status: 'pending' as WorkflowStatus,
+        request_data: {
+          description: generatedWorkflow.description,
+          amount: generatedWorkflow.amount || 0,
+          steps: generatedWorkflow.steps,
+          approval_steps: generatedWorkflow.approvalSteps,
+          created_at: new Date().toISOString(),
+          complexity: generatedWorkflow.complexity,
+          estimated_duration: generatedWorkflow.estimated_duration
+        }
+      };
+
+      console.log('Creating workflow execution:', workflowExecutionData);
+
+      const { data: workflow, error: workflowError } = await supabase
+        .from('workflow_executions')
+        .insert(workflowExecutionData)
+        .select()
+        .single();
+
+      if (workflowError) {
+        console.error('Error creating workflow:', workflowError);
+        toast.error('Failed to execute workflow: ' + workflowError.message);
+        return;
+      }
+
+      console.log('Workflow executed successfully:', workflow);
+
+      // Create approval records if there are approval steps
+      if (generatedWorkflow.approvalSteps && generatedWorkflow.approvalSteps.length > 0) {
+        const approvalRecords = generatedWorkflow.approvalSteps.map((step: any, index: number) => ({
+          workflow_id: workflow.id,
+          step_id: step.step_id,
+          step_name: step.step_name,
+          approver_role: step.approver_role,
+          status: 'pending' as const,
+          order_sequence: index + 1
+        }));
+
+        console.log('Creating approval records:', approvalRecords);
+
+        const { error: approvalError } = await supabase
+          .from('workflow_approvals')
+          .insert(approvalRecords);
+
+        if (approvalError) {
+          console.error('Error creating approval records:', approvalError);
+          toast.error('Failed to create approval records: ' + approvalError.message);
+          return;
+        }
+      }
+
+      const approvalCount = generatedWorkflow.approvalSteps?.length || 0;
+      toast.success(
+        `🎉 Workflow "${generatedWorkflow.name}" executed successfully! 
+        ${approvalCount > 0 ? `Waiting for ${approvalCount} approval(s). Check the Active tab to monitor progress.` : 'Processing...'}`
+      );
+
+    } catch (error) {
+      console.error('Error executing workflow:', error);
+      toast.error('Failed to execute workflow: ' + (error as Error).message);
+    } finally {
+      setIsExecuting(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -411,10 +470,20 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
             <div className="flex space-x-4 p-6">
               <Button 
                 onClick={handleExecuteWorkflow}
+                disabled={isExecuting}
                 className="flex-1 bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-lg py-3"
               >
-                <Play className="h-5 w-5 mr-2" />
-                Execute This Workflow
+                {isExecuting ? (
+                  <>
+                    <Zap className="h-5 w-5 mr-2 animate-spin" />
+                    Executing Workflow...
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-5 w-5 mr-2" />
+                    Execute This Workflow
+                  </>
+                )}
               </Button>
               <Button 
                 variant="outline"
