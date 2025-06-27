@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,33 +28,6 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedWorkflowType, setSelectedWorkflowType] = useState('');
   const [showInputForm, setShowInputForm] = useState(false);
-
-  const workflowPrompts = [
-    {
-      title: 'Marketing Campaign Approval',
-      description: 'Create a workflow for marketing campaign approval with budget review',
-      prompt: 'Create a marketing campaign approval workflow that requires manager approval for campaigns over $5000 and finance director approval for campaigns over $15000',
-      type: 'campaign_approval'
-    },
-    {
-      title: 'Expense Reimbursement',
-      description: 'Multi-step expense approval process with different thresholds',
-      prompt: 'Create an expense reimbursement workflow with manager approval for expenses under $1000 and both manager and finance director approval for expenses over $1000',
-      type: 'expense_approval'
-    },
-    {
-      title: 'Purchase Order Process',
-      description: 'Procurement workflow with vendor verification and approval',
-      prompt: 'Create a purchase order workflow that includes vendor verification, budget check, manager approval, and procurement team processing',
-      type: 'purchase_order'
-    },
-    {
-      title: 'Content Review Pipeline',
-      description: 'Content creation and review workflow with multiple stakeholders',
-      prompt: 'Create a content review workflow that includes content creation, legal review, marketing approval, and final publishing',
-      type: 'content_review'
-    }
-  ];
 
   const generateWorkflow = async () => {
     if (!prompt.trim()) {
@@ -202,11 +176,7 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
       setGeneratedWorkflow(generatedWorkflowData);
       setWorkflowData(generatedWorkflowData);
       
-      // Add a small delay to ensure state is updated
-      setTimeout(() => {
-        console.log('Workflow state after update:', generatedWorkflowData);
-        toast.success('🎉 AI Workflow generated successfully!');
-      }, 100);
+      toast.success('🎉 AI Workflow generated successfully!');
       
     } catch (error) {
       console.error('Error generating workflow:', error);
@@ -214,11 +184,6 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
     } finally {
       setIsGenerating(false);
     }
-  };
-
-  const handlePromptSelect = (selectedPrompt: any) => {
-    setPrompt(selectedPrompt.prompt);
-    setSelectedWorkflowType(selectedPrompt.type);
   };
 
   const handleSubmitWorkflow = (formData: any) => {
@@ -249,8 +214,6 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
     );
   }
 
-  console.log('Current generatedWorkflow state:', generatedWorkflow);
-
   return (
     <div className="space-y-6">
       <Card className="border-0 shadow-lg bg-gradient-to-br from-purple-50 to-pink-50">
@@ -265,32 +228,6 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
         </CardHeader>
         <CardContent className="p-6">
           <div className="space-y-6">
-            {/* Quick Templates */}
-            <div>
-              <Label className="text-base font-medium mb-3 block">📋 Quick Start Templates</Label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {workflowPrompts.map((template, index) => (
-                  <Card key={index} className="cursor-pointer hover:shadow-md transition-all duration-300 border-2 hover:border-purple-300">
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between mb-2">
-                        <h4 className="font-medium text-sm">{template.title}</h4>
-                        <Badge variant="outline" className="text-xs">{template.type}</Badge>
-                      </div>
-                      <p className="text-xs text-gray-600 mb-3">{template.description}</p>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        onClick={() => handlePromptSelect(template)}
-                        className="w-full text-xs"
-                      >
-                        Use Template
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-
             {/* Custom Prompt */}
             <div>
               <Label htmlFor="workflow-prompt" className="text-base font-medium">
@@ -347,7 +284,7 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
         </CardContent>
       </Card>
 
-      {/* Generated Workflow Display - Force render with explicit check */}
+      {/* Generated Workflow Display */}
       {generatedWorkflow && generatedWorkflow.steps && generatedWorkflow.steps.length > 0 && (
         <Card className="border-0 shadow-lg bg-gradient-to-br from-green-50 to-blue-50">
           <CardHeader className="bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-t-lg">
@@ -435,6 +372,7 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
                     console.log('Clearing workflow...');
                     setGeneratedWorkflow(null);
                     setPrompt('');
+                    setSelectedWorkflowType('');
                   }}
                 >
                   Generate New
@@ -443,14 +381,6 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
             </div>
           </CardContent>
         </Card>
-      )}
-
-      {/* Debug info - remove this after testing */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="text-xs text-gray-500 p-2 bg-gray-100 rounded">
-          Debug: generatedWorkflow exists: {generatedWorkflow ? 'Yes' : 'No'}, 
-          Steps count: {generatedWorkflow?.steps?.length || 0}
-        </div>
       )}
     </div>
   );
