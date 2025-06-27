@@ -163,6 +163,7 @@ export type Database = {
           approver_role: string
           created_at: string | null
           id: string
+          order_sequence: number
           rejection_reason: string | null
           status: Database["public"]["Enums"]["approval_status"] | null
           step_id: string
@@ -176,6 +177,7 @@ export type Database = {
           approver_role: string
           created_at?: string | null
           id?: string
+          order_sequence: number
           rejection_reason?: string | null
           status?: Database["public"]["Enums"]["approval_status"] | null
           step_id: string
@@ -189,6 +191,7 @@ export type Database = {
           approver_role?: string
           created_at?: string | null
           id?: string
+          order_sequence?: number
           rejection_reason?: string | null
           status?: Database["public"]["Enums"]["approval_status"] | null
           step_id?: string
