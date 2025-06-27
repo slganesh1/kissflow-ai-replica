@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +9,9 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { AlertCircle, Info } from 'lucide-react';
+import type { Database } from '@/integrations/supabase/types';
+
+type WorkflowStatus = Database['public']['Enums']['workflow_status'];
 
 interface WorkflowInputFormProps {
   workflowName?: string;
@@ -84,7 +86,7 @@ export const WorkflowInputForm: React.FC<WorkflowInputFormProps> = ({
         workflow_name: formData.workflowName,
         workflow_type: formData.workflowType,
         submitter_name: formData.submitterName,
-        status: 'pending', // Always start as pending
+        status: 'pending' as WorkflowStatus, // Properly type the status
         request_data: {
           title: formData.title,
           amount: parseFloat(formData.amount) || 0,
@@ -125,7 +127,7 @@ export const WorkflowInputForm: React.FC<WorkflowInputFormProps> = ({
           step_id: 'manager-approval',
           step_name: 'Manager Approval',
           approver_role: 'manager',
-          status: 'pending',
+          status: 'pending' as const,
           order_sequence: 1
         });
 
@@ -136,7 +138,7 @@ export const WorkflowInputForm: React.FC<WorkflowInputFormProps> = ({
             step_id: 'finance-director-approval',
             step_name: 'Finance Director Approval',
             approver_role: 'finance_director',
-            status: 'pending',
+            status: 'pending' as const,
             order_sequence: 2
           });
         }
@@ -147,7 +149,7 @@ export const WorkflowInputForm: React.FC<WorkflowInputFormProps> = ({
           step_id: 'marketing-manager-approval',
           step_name: 'Marketing Manager Approval',
           approver_role: 'manager',
-          status: 'pending',
+          status: 'pending' as const,
           order_sequence: 1
         });
 
@@ -158,7 +160,7 @@ export const WorkflowInputForm: React.FC<WorkflowInputFormProps> = ({
             step_id: 'finance-director-approval',
             step_name: 'Finance Director Approval',
             approver_role: 'finance_director',
-            status: 'pending',
+            status: 'pending' as const,
             order_sequence: 2
           });
         }
@@ -169,7 +171,7 @@ export const WorkflowInputForm: React.FC<WorkflowInputFormProps> = ({
           step_id: 'manager-approval',
           step_name: 'Manager Approval',
           approver_role: 'manager',
-          status: 'pending',
+          status: 'pending' as const,
           order_sequence: 1
         });
       }
