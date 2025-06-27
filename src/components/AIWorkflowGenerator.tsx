@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Sparkles, Wand2, Play, Save, FileText, Bot, Mail, Database, Clock, ArrowRight, CheckCircle2, AlertCircle, DollarSign, Users, Shield, Zap } from 'lucide-react';
 import { toast } from 'sonner';
+import { VisualWorkflowDiagram } from './VisualWorkflowDiagram';
 
 interface AIWorkflowGeneratorProps {
   generatedWorkflow: any;
@@ -272,7 +274,7 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
       setGeneratedWorkflow(generatedWorkflowData);
       setWorkflowData(generatedWorkflowData);
       
-      toast.success(`🎉 Multi-step workflow generated! ${workflowSteps.length} steps with ${approvalSteps.length} approval levels`);
+      toast.success(`🎉 Visual workflow diagram generated! ${workflowSteps.length} steps with ${approvalSteps.length} approval levels`);
       
     } catch (error) {
       console.error('Error generating workflow:', error);
@@ -305,7 +307,7 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
                 id="workflow-prompt"
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Describe your business process... For example: 'Create an expense approval workflow where expenses under $500 need manager approval, and expenses over $500 need both manager and finance director approval'"
+                placeholder="Describe your business process... For example: 'Create an expense approval workflow for $150,000 marketing campaign with multiple approval levels'"
                 rows={4}
                 className="mt-2"
               />
@@ -338,12 +340,12 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
               {isGenerating ? (
                 <>
                   <Wand2 className="h-4 w-4 mr-2 animate-spin" />
-                  Generating Multi-Level Workflow...
+                  Generating Visual Workflow Diagram...
                 </>
               ) : (
                 <>
                   <Sparkles className="h-4 w-4 mr-2" />
-                  Generate AI Workflow
+                  Generate Visual Workflow Diagram
                 </>
               )}
             </Button>
@@ -351,14 +353,14 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
         </CardContent>
       </Card>
 
-      {/* Enhanced Workflow Display */}
+      {/* Visual Workflow Diagram */}
       {generatedWorkflow && generatedWorkflow.steps && (
-        <Card className="border-0 shadow-lg bg-gradient-to-br from-green-50 to-blue-50">
+        <Card className="border-0 shadow-lg">
           <CardHeader className="bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-t-lg">
             <CardTitle className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <CheckCircle2 className="h-6 w-6" />
-                <span>Multi-Level Workflow Diagram</span>
+                <span>Visual Workflow Diagram</span>
               </div>
               <div className="flex space-x-2">
                 <Badge className="bg-white/20 text-white border-white/30">
@@ -375,110 +377,31 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
               {generatedWorkflow.description}
             </CardDescription>
           </CardHeader>
-          <CardContent className="p-6">
-            <div className="space-y-6">
-              {/* Enhanced Workflow Stats */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="text-center p-4 bg-white/80 rounded-xl shadow-sm">
-                  <div className="text-3xl font-bold text-blue-600">{generatedWorkflow.steps.length}</div>
-                  <div className="text-sm text-gray-600 font-medium">Total Steps</div>
-                </div>
-                <div className="text-center p-4 bg-white/80 rounded-xl shadow-sm">
-                  <div className="text-3xl font-bold text-green-600">{generatedWorkflow.approvalSteps?.length || 0}</div>
-                  <div className="text-sm text-gray-600 font-medium">Approval Levels</div>
-                </div>
-                <div className="text-center p-4 bg-white/80 rounded-xl shadow-sm">
-                  <div className="text-3xl font-bold text-purple-600">{generatedWorkflow.estimated_duration}</div>
-                  <div className="text-sm text-gray-600 font-medium">Est. Duration</div>
-                </div>
-                <div className="text-center p-4 bg-white/80 rounded-xl shadow-sm">
-                  <div className="text-3xl font-bold text-red-600 capitalize">{generatedWorkflow.risk_level}</div>
-                  <div className="text-sm text-gray-600 font-medium">Risk Level</div>
-                </div>
-              </div>
-
-              {/* Visual Flow Diagram */}
-              <div>
-                <h4 className="font-semibold mb-6 flex items-center text-xl">
-                  <ArrowRight className="h-5 w-5 mr-2" />
-                  Complete Workflow Flow
-                </h4>
-                <div className="space-y-4">
-                  {generatedWorkflow.steps.map((step: any, index: number) => (
-                    <div key={step.id}>
-                      <div className="flex items-center space-x-6 p-6 bg-white/90 rounded-xl shadow-md border-l-4 border-blue-400 hover:shadow-lg transition-shadow">
-                        <div className="flex-shrink-0">
-                          <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
-                            {index + 1}
-                          </div>
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-3">
-                            <step.icon className="h-6 w-6 text-gray-700" />
-                            <span className="font-bold text-xl text-gray-800">{step.name}</span>
-                            <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-300 font-medium">
-                              {step.type.replace('_', ' ')}
-                            </Badge>
-                            {step.approver_role && (
-                              <Badge className="text-xs bg-orange-100 text-orange-800 border-orange-300 font-medium">
-                                {step.approver_role.replace('_', ' ')}
-                              </Badge>
-                            )}
-                            {step.estimatedTime && (
-                              <Badge className="text-xs bg-green-100 text-green-800 border-green-300">
-                                <Clock className="h-3 w-3 mr-1" />
-                                {step.estimatedTime}
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-gray-700 text-base mb-2">{step.description}</p>
-                          {step.condition && (
-                            <div className="flex items-center space-x-2">
-                              <AlertCircle className="h-4 w-4 text-amber-500" />
-                              <p className="text-sm text-amber-700 font-medium bg-amber-50 px-3 py-1 rounded-full">
-                                Condition: {step.condition}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      {index < generatedWorkflow.steps.length - 1 && (
-                        <div className="flex justify-center py-2">
-                          <div className="flex flex-col items-center">
-                            <div className="w-1 h-8 bg-gradient-to-b from-blue-400 to-purple-400 rounded-full"></div>
-                            <ArrowRight className="h-6 w-6 text-blue-500 transform rotate-90" />
-                            <div className="w-1 h-8 bg-gradient-to-b from-purple-400 to-blue-400 rounded-full"></div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex space-x-4 pt-4">
-                <Button 
-                  onClick={() => {
-                    toast.success('Multi-level workflow created successfully!');
-                  }}
-                  className="flex-1 bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-lg py-3"
-                >
-                  <Play className="h-5 w-5 mr-2" />
-                  Deploy This Workflow
-                </Button>
-                <Button 
-                  variant="outline"
-                  onClick={() => {
-                    setGeneratedWorkflow(null);
-                    setPrompt('');
-                    setSelectedWorkflowType('');
-                  }}
-                  className="bg-white/50 hover:bg-white/70"
-                >
-                  Generate New
-                </Button>
-              </div>
+          <CardContent className="p-0">
+            <VisualWorkflowDiagram workflow={generatedWorkflow} />
+            
+            {/* Action Buttons */}
+            <div className="flex space-x-4 p-6">
+              <Button 
+                onClick={() => {
+                  toast.success('Visual workflow diagram created successfully!');
+                }}
+                className="flex-1 bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-lg py-3"
+              >
+                <Play className="h-5 w-5 mr-2" />
+                Deploy This Workflow
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  setGeneratedWorkflow(null);
+                  setPrompt('');
+                  setSelectedWorkflowType('');
+                }}
+                className="bg-white/50 hover:bg-white/70"
+              >
+                Generate New
+              </Button>
             </div>
           </CardContent>
         </Card>
