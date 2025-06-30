@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Sparkles, Wand2, Play, Save, FileText, Bot, Mail, Database, Clock, ArrowRight, CheckCircle2, AlertCircle, DollarSign, Users, Shield, Zap } from 'lucide-react';
+import { Sparkles, Wand2, Play, Save, FileText, Bot, Mail, Database, Clock, ArrowRight, CheckCircle2, AlertCircle, DollarSign, Users, Shield, Zap, User, Building, Key, Briefcase } from 'lucide-react';
 import { toast } from 'sonner';
 import { VisualWorkflowDiagram } from './VisualWorkflowDiagram';
 import { supabase } from '@/integrations/supabase/client';
@@ -49,228 +49,443 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
       const approvalSteps = [];
       
       // Determine workflow type
+      const isOnboardingWorkflow = prompt.toLowerCase().includes('onboarding') || prompt.toLowerCase().includes('new employee') || prompt.toLowerCase().includes('employee joins') || selectedWorkflowType === 'employee_onboarding';
       const isExpenseWorkflow = prompt.toLowerCase().includes('expense') || selectedWorkflowType === 'expense_approval';
       const isCampaignWorkflow = prompt.toLowerCase().includes('campaign') || selectedWorkflowType === 'campaign_approval' || prompt.toLowerCase().includes('marketing');
       const isPurchaseWorkflow = prompt.toLowerCase().includes('purchase') || selectedWorkflowType === 'purchase_order';
       
-      // Step 1: Initial Request
-      workflowSteps.push({
-        id: 'step-1',
-        name: 'Request Submission',
-        type: 'form_input',
-        description: 'User submits the initial request with detailed requirements and business justification',
-        icon: FileText,
-        status: 'pending',
-        estimatedTime: '15 minutes'
-      });
-
-      // Step 2: Automated Analysis
-      workflowSteps.push({
-        id: 'step-2',
-        name: 'AI Risk Assessment',
-        type: 'ai_analysis',
-        description: 'AI analyzes request for compliance, budget impact, and risk factors',
-        icon: Bot,
-        status: 'pending',
-        estimatedTime: '2 minutes'
-      });
-
-      // Step 3: Document Validation
-      workflowSteps.push({
-        id: 'step-3',
-        name: 'Document Validation',
-        type: 'validation',
-        description: 'System validates all required documents and supporting materials',
-        icon: Shield,
-        status: 'pending',
-        estimatedTime: '5 minutes'
-      });
-
-      // Approval Logic Based on Amount and Type
-      let approvalOrder = 4;
-
-      if (isCampaignWorkflow || isExpenseWorkflow) {
-        // Marketing Manager Approval (always required)
-        workflowSteps.push({
-          id: `step-${approvalOrder}`,
-          name: 'Marketing Manager Approval',
-          type: 'approval',
-          description: 'Marketing manager reviews strategy alignment and campaign details',
-          icon: CheckCircle2,
-          status: 'pending',
-          approver_role: 'marketing_manager',
-          estimatedTime: '2-6 hours'
-        });
+      if (isOnboardingWorkflow) {
+        // Comprehensive Employee Onboarding Workflow
         
+        // Step 1: Hiring Request Approval
+        workflowSteps.push({
+          id: 'step-1',
+          name: 'Hiring Request Approval',
+          type: 'approval',
+          description: 'HR Manager reviews and approves the new hire request with position details, salary, and start date',
+          icon: User,
+          status: 'pending',
+          approver_role: 'hr_manager',
+          estimatedTime: '1-2 hours'
+        });
+
         approvalSteps.push({
-          step_id: 'marketing-manager-approval',
-          step_name: 'Marketing Manager Approval',
-          approver_role: 'marketing_manager',
+          step_id: 'hiring-request-approval',
+          step_name: 'Hiring Request Approval',
+          approver_role: 'hr_manager',
           required: true,
           order: 1
         });
-        approvalOrder++;
 
-        // Finance Review for amounts over $10,000
-        if (amount > 10000) {
-          workflowSteps.push({
-            id: `step-${approvalOrder}`,
-            name: 'Finance Team Review',
-            type: 'approval',
-            description: 'Finance team reviews budget allocation and financial impact',
-            icon: DollarSign,
-            status: 'pending',
-            approver_role: 'finance_analyst',
-            condition: 'amount > $10,000',
-            estimatedTime: '1-2 hours'
-          });
-          
-          approvalSteps.push({
-            step_id: 'finance-review',
-            step_name: 'Finance Team Review',
-            approver_role: 'finance_analyst',
-            required: true,
-            order: 2,
-            condition: 'amount > $10,000'
-          });
-          approvalOrder++;
-        }
-
-        // Finance Director for amounts over $50,000
-        if (amount > 50000) {
-          workflowSteps.push({
-            id: `step-${approvalOrder}`,
-            name: 'Finance Director Approval',
-            type: 'approval',
-            description: 'Finance director approval for significant budget impact',
-            icon: Users,
-            status: 'pending',
-            approver_role: 'finance_director',
-            condition: 'amount > $50,000',
-            estimatedTime: '4-8 hours'
-          });
-          
-          approvalSteps.push({
-            step_id: 'finance-director-approval',
-            step_name: 'Finance Director Approval',
-            approver_role: 'finance_director',
-            required: true,
-            order: 3,
-            condition: 'amount > $50,000'
-          });
-          approvalOrder++;
-        }
-
-        // VP/C-Level for amounts over $100,000
-        if (amount > 100000) {
-          workflowSteps.push({
-            id: `step-${approvalOrder}`,
-            name: 'Executive Approval',
-            type: 'approval',
-            description: 'VP or C-level executive approval for major strategic initiatives',
-            icon: Shield,
-            status: 'pending',
-            approver_role: 'executive',
-            condition: 'amount > $100,000',
-            estimatedTime: '1-3 days'
-          });
-          
-          approvalSteps.push({
-            step_id: 'executive-approval',
-            step_name: 'Executive Approval',
-            approver_role: 'executive',
-            required: true,
-            order: 4,
-            condition: 'amount > $100,000'
-          });
-          approvalOrder++;
-        }
-
-        // Board approval for amounts over $500,000
-        if (amount > 500000) {
-          workflowSteps.push({
-            id: `step-${approvalOrder}`,
-            name: 'Board Approval',
-            type: 'approval',
-            description: 'Board of directors approval required for major financial commitments',
-            icon: Users,
-            status: 'pending',
-            approver_role: 'board',
-            condition: 'amount > $500,000',
-            estimatedTime: '1-2 weeks'
-          });
-          
-          approvalSteps.push({
-            step_id: 'board-approval',
-            step_name: 'Board Approval',
-            approver_role: 'board',
-            required: true,
-            order: 5,
-            condition: 'amount > $500,000'
-          });
-          approvalOrder++;
-        }
-      }
-
-      // Legal Review for large contracts
-      if (amount > 75000 || prompt.toLowerCase().includes('contract')) {
+        // Step 2: Document Collection
         workflowSteps.push({
-          id: `step-${approvalOrder}`,
-          name: 'Legal Review',
-          type: 'review',
-          description: 'Legal team reviews contracts and compliance requirements',
+          id: 'step-2',
+          name: 'Document Collection',
+          type: 'form_input',
+          description: 'Collect required documents: ID, tax forms, emergency contacts, banking details, and contracts',
+          icon: FileText,
+          status: 'pending',
+          estimatedTime: '2-3 days'
+        });
+
+        // Step 3: Background Check & Verification
+        workflowSteps.push({
+          id: 'step-3',
+          name: 'Background Check & Verification',
+          type: 'validation',
+          description: 'HR conducts background verification, reference checks, and document validation',
           icon: Shield,
           status: 'pending',
-          approver_role: 'legal',
-          condition: 'contracts or amount > $75,000',
-          estimatedTime: '1-3 days'
+          estimatedTime: '3-5 days'
         });
-        approvalOrder++;
-      }
 
-      // Procurement step for large purchases
-      if (amount > 25000) {
+        // Step 4: IT Asset Provisioning
         workflowSteps.push({
-          id: `step-${approvalOrder}`,
-          name: 'Procurement Processing',
+          id: 'step-4',
+          name: 'IT Asset Provisioning',
           type: 'processing',
-          description: 'Procurement team handles vendor negotiations and purchase orders',
+          description: 'IT team provisions laptop, phone, email account, and software licenses',
           icon: Database,
           status: 'pending',
-          estimatedTime: '2-5 days'
+          estimatedTime: '1-2 days'
         });
-        approvalOrder++;
+
+        // Step 5: System Access Setup
+        workflowSteps.push({
+          id: 'step-5',
+          name: 'System Access Setup',
+          type: 'processing',
+          description: 'IT creates user accounts, sets up VPN access, and configures role-based permissions',
+          icon: Key,
+          status: 'pending',
+          estimatedTime: '4-6 hours'
+        });
+
+        // Step 6: Workspace Preparation
+        workflowSteps.push({
+          id: 'step-6',
+          name: 'Workspace Preparation',
+          type: 'processing',
+          description: 'Admin team prepares desk, assigns parking, orders business cards, and sets up office access',
+          icon: Building,
+          status: 'pending',
+          estimatedTime: '1-2 days'
+        });
+
+        // Step 7: Payroll Setup
+        workflowSteps.push({
+          id: 'step-7',
+          name: 'Payroll Setup',
+          type: 'processing',
+          description: 'Finance team sets up payroll, benefits enrollment, and tax withholdings',
+          icon: DollarSign,
+          status: 'pending',
+          estimatedTime: '2-3 hours'
+        });
+
+        // Step 8: Policy & Compliance Training
+        workflowSteps.push({
+          id: 'step-8',
+          name: 'Policy & Compliance Training',
+          type: 'processing',
+          description: 'Employee completes mandatory training on policies, safety, and compliance requirements',
+          icon: Shield,
+          status: 'pending',
+          estimatedTime: '4-8 hours'
+        });
+
+        // Step 9: Department Integration
+        workflowSteps.push({
+          id: 'step-9',
+          name: 'Department Integration',
+          type: 'processing',
+          description: 'Department manager introduces team, assigns mentor, and provides role-specific training',
+          icon: Users,
+          status: 'pending',
+          estimatedTime: '1-2 days'
+        });
+
+        // Step 10: IT Security Briefing
+        workflowSteps.push({
+          id: 'step-10',
+          name: 'IT Security Briefing',
+          type: 'approval',
+          description: 'IT Security team conducts security briefing and confirms system access compliance',
+          icon: Shield,
+          status: 'pending',
+          approver_role: 'it_security',
+          estimatedTime: '1 hour'
+        });
+
+        approvalSteps.push({
+          step_id: 'it-security-briefing',
+          step_name: 'IT Security Briefing',
+          approver_role: 'it_security',
+          required: true,
+          order: 2
+        });
+
+        // Step 11: Finance Approval
+        workflowSteps.push({
+          id: 'step-11',
+          name: 'Finance Approval',
+          type: 'approval',
+          description: 'Finance director approves payroll setup and benefits enrollment',
+          icon: DollarSign,
+          status: 'pending',
+          approver_role: 'finance_director',
+          estimatedTime: '2-4 hours'
+        });
+
+        approvalSteps.push({
+          step_id: 'finance-approval',
+          step_name: 'Finance Approval',
+          approver_role: 'finance_director',
+          required: true,
+          order: 3
+        });
+
+        // Step 12: Department Manager Approval
+        workflowSteps.push({
+          id: 'step-12',
+          name: 'Department Manager Approval',
+          type: 'approval',
+          description: 'Department manager confirms readiness and approves employee to start working',
+          icon: Users,
+          status: 'pending',
+          approver_role: 'department_manager',
+          estimatedTime: '1-2 hours'
+        });
+
+        approvalSteps.push({
+          step_id: 'department-manager-approval',
+          step_name: 'Department Manager Approval',
+          approver_role: 'department_manager',
+          required: true,
+          order: 4
+        });
+
+        // Step 13: Welcome & Orientation
+        workflowSteps.push({
+          id: 'step-13',
+          name: 'Welcome & Orientation',
+          type: 'notification',
+          description: 'Send welcome package, schedule first day orientation, and notify all departments',
+          icon: Mail,
+          status: 'pending',
+          estimatedTime: '1 hour'
+        });
+
+        // Step 14: First Day Check-in
+        workflowSteps.push({
+          id: 'step-14',
+          name: 'First Day Check-in',
+          type: 'processing',
+          description: 'HR conducts first day check-in, collects feedback, and ensures smooth transition',
+          icon: CheckCircle2,
+          status: 'pending',
+          estimatedTime: '30 minutes'
+        });
+
+        // Step 15: 30-Day Review
+        workflowSteps.push({
+          id: 'step-15',
+          name: '30-Day Review',
+          type: 'review',
+          description: 'Schedule 30-day review meeting with manager and HR to assess integration progress',
+          icon: Clock,
+          status: 'pending',
+          estimatedTime: '1 hour'
+        });
+
+      } else if (isExpenseWorkflow || isCampaignWorkflow) {
+        // ... keep existing code for expense/campaign workflows
+        
+        // Step 1: Initial Request
+        workflowSteps.push({
+          id: 'step-1',
+          name: 'Request Submission',
+          type: 'form_input',
+          description: 'User submits the initial request with detailed requirements and business justification',
+          icon: FileText,
+          status: 'pending',
+          estimatedTime: '15 minutes'
+        });
+
+        // Step 2: Automated Analysis
+        workflowSteps.push({
+          id: 'step-2',
+          name: 'AI Risk Assessment',
+          type: 'ai_analysis',
+          description: 'AI analyzes request for compliance, budget impact, and risk factors',
+          icon: Bot,
+          status: 'pending',
+          estimatedTime: '2 minutes'
+        });
+
+        // Step 3: Document Validation
+        workflowSteps.push({
+          id: 'step-3',
+          name: 'Document Validation',
+          type: 'validation',
+          description: 'System validates all required documents and supporting materials',
+          icon: Shield,
+          status: 'pending',
+          estimatedTime: '5 minutes'
+        });
+
+        // Approval Logic Based on Amount and Type
+        let approvalOrder = 4;
+
+        if (isCampaignWorkflow || isExpenseWorkflow) {
+          // Marketing Manager Approval (always required)
+          workflowSteps.push({
+            id: `step-${approvalOrder}`,
+            name: 'Marketing Manager Approval',
+            type: 'approval',
+            description: 'Marketing manager reviews strategy alignment and campaign details',
+            icon: CheckCircle2,
+            status: 'pending',
+            approver_role: 'marketing_manager',
+            estimatedTime: '2-6 hours'
+          });
+          
+          approvalSteps.push({
+            step_id: 'marketing-manager-approval',
+            step_name: 'Marketing Manager Approval',
+            approver_role: 'marketing_manager',
+            required: true,
+            order: 1
+          });
+          approvalOrder++;
+
+          // Finance Review for amounts over $10,000
+          if (amount > 10000) {
+            workflowSteps.push({
+              id: `step-${approvalOrder}`,
+              name: 'Finance Team Review',
+              type: 'approval',
+              description: 'Finance team reviews budget allocation and financial impact',
+              icon: DollarSign,
+              status: 'pending',
+              approver_role: 'finance_analyst',
+              condition: 'amount > $10,000',
+              estimatedTime: '1-2 hours'
+            });
+            
+            approvalSteps.push({
+              step_id: 'finance-review',
+              step_name: 'Finance Team Review',
+              approver_role: 'finance_analyst',
+              required: true,
+              order: 2,
+              condition: 'amount > $10,000'
+            });
+            approvalOrder++;
+          }
+
+          // Finance Director for amounts over $50,000
+          if (amount > 50000) {
+            workflowSteps.push({
+              id: `step-${approvalOrder}`,
+              name: 'Finance Director Approval',
+              type: 'approval',
+              description: 'Finance director approval for significant budget impact',
+              icon: Users,
+              status: 'pending',
+              approver_role: 'finance_director',
+              condition: 'amount > $50,000',
+              estimatedTime: '4-8 hours'
+            });
+            
+            approvalSteps.push({
+              step_id: 'finance-director-approval',
+              step_name: 'Finance Director Approval',
+              approver_role: 'finance_director',
+              required: true,
+              order: 3,
+              condition: 'amount > $50,000'
+            });
+            approvalOrder++;
+          }
+
+          // VP/C-Level for amounts over $100,000
+          if (amount > 100000) {
+            workflowSteps.push({
+              id: `step-${approvalOrder}`,
+              name: 'Executive Approval',
+              type: 'approval',
+              description: 'VP or C-level executive approval for major strategic initiatives',
+              icon: Shield,
+              status: 'pending',
+              approver_role: 'executive',
+              condition: 'amount > $100,000',
+              estimatedTime: '1-3 days'
+            });
+            
+            approvalSteps.push({
+              step_id: 'executive-approval',
+              step_name: 'Executive Approval',
+              approver_role: 'executive',
+              required: true,
+              order: 4,
+              condition: 'amount > $100,000'
+            });
+            approvalOrder++;
+          }
+
+          // Board approval for amounts over $500,000
+          if (amount > 500000) {
+            workflowSteps.push({
+              id: `step-${approvalOrder}`,
+              name: 'Board Approval',
+              type: 'approval',
+              description: 'Board of directors approval required for major financial commitments',
+              icon: Users,
+              status: 'pending',
+              approver_role: 'board',
+              condition: 'amount > $500,000',
+              estimatedTime: '1-2 weeks'
+            });
+            
+            approvalSteps.push({
+              step_id: 'board-approval',
+              step_name: 'Board Approval',
+              approver_role: 'board',
+              required: true,
+              order: 5,
+              condition: 'amount > $500,000'
+            });
+            approvalOrder++;
+          }
+        }
+
+        // Legal Review for large contracts
+        if (amount > 75000 || prompt.toLowerCase().includes('contract')) {
+          workflowSteps.push({
+            id: `step-${approvalOrder}`,
+            name: 'Legal Review',
+            type: 'review',
+            description: 'Legal team reviews contracts and compliance requirements',
+            icon: Shield,
+            status: 'pending',
+            approver_role: 'legal',
+            condition: 'contracts or amount > $75,000',
+            estimatedTime: '1-3 days'
+          });
+          approvalOrder++;
+        }
+
+        // Procurement step for large purchases
+        if (amount > 25000) {
+          workflowSteps.push({
+            id: `step-${approvalOrder}`,
+            name: 'Procurement Processing',
+            type: 'processing',
+            description: 'Procurement team handles vendor negotiations and purchase orders',
+            icon: Database,
+            status: 'pending',
+            estimatedTime: '2-5 days'
+          });
+          approvalOrder++;
+        }
+
+        // Final notification and execution
+        workflowSteps.push({
+          id: `step-${approvalOrder}`,
+          name: 'Execution & Notification',
+          type: 'notification',
+          description: 'Execute approved workflow and notify all stakeholders',
+          icon: Zap,
+          status: 'pending',
+          estimatedTime: '30 minutes'
+        });
       }
 
-      // Final notification and execution
-      workflowSteps.push({
-        id: `step-${approvalOrder}`,
-        name: 'Execution & Notification',
-        type: 'notification',
-        description: 'Execute approved workflow and notify all stakeholders',
-        icon: Zap,
-        status: 'pending',
-        estimatedTime: '30 minutes'
-      });
-
       // Calculate total estimated time
-      const totalHours = Math.max(8, approvalSteps.length * 6 + (amount > 100000 ? 24 : 0));
-      const complexity = workflowSteps.length > 8 ? 'high' : workflowSteps.length > 5 ? 'medium' : 'low';
+      const totalHours = isOnboardingWorkflow ? 
+        Math.max(40, workflowSteps.length * 4) : // Onboarding takes longer
+        Math.max(8, approvalSteps.length * 6 + (amount > 100000 ? 24 : 0));
+      
+      const complexity = workflowSteps.length > 12 ? 'high' : workflowSteps.length > 8 ? 'medium' : 'low';
 
       const generatedWorkflowData = {
         id: `workflow-${Date.now()}`,
         name: prompt.slice(0, 50) + (prompt.length > 50 ? '...' : ''),
         description: prompt,
-        type: selectedWorkflowType || 'campaign_approval',
+        type: selectedWorkflowType || (isOnboardingWorkflow ? 'employee_onboarding' : 'campaign_approval'),
         amount: amount,
         steps: workflowSteps,
         approvalSteps: approvalSteps,
         created_at: new Date().toISOString(),
         status: 'draft',
         triggers: ['manual', 'form_submission'],
-        estimated_duration: `${totalHours}-${totalHours * 2} hours`,
+        estimated_duration: isOnboardingWorkflow ? 
+          `${Math.ceil(totalHours/8)} business days` : 
+          `${totalHours}-${totalHours * 2} hours`,
         complexity: complexity,
-        risk_level: amount > 100000 ? 'high' : amount > 50000 ? 'medium' : 'low'
+        risk_level: isOnboardingWorkflow ? 'medium' : 
+          (amount > 100000 ? 'high' : amount > 50000 ? 'medium' : 'low')
       };
 
       console.log('Generated comprehensive workflow:', generatedWorkflowData);
@@ -373,13 +588,13 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
   return (
     <div className="space-y-6">
       
-      <Card className="border-0 shadow-lg bg-gradient-to-br from-purple-50 to-pink-50">
-        <CardHeader className="bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-t-lg">
+      <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-50 to-cyan-50">
+        <CardHeader className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-t-lg">
           <CardTitle className="flex items-center space-x-2">
             <Sparkles className="h-6 w-6" />
             <span>AI Workflow Generator</span>
           </CardTitle>
-          <CardDescription className="text-purple-100">
+          <CardDescription className="text-blue-100">
             Describe your business process and let AI create an intelligent workflow
           </CardDescription>
         </CardHeader>
@@ -393,7 +608,7 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
                 id="workflow-prompt"
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Describe your business process... For example: 'Create an expense approval workflow for $150,000 marketing campaign with multiple approval levels'"
+                placeholder="Describe your business process... For example: 'When a new employee joins, multiple departments must coordinate — HR, IT, Admin, and Finance. This involves document collection, asset provisioning, access rights, policy compliance, and payroll setup.'"
                 rows={4}
                 className="mt-2"
               />
@@ -408,6 +623,7 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
                   <SelectValue placeholder="Select workflow type (optional)" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="employee_onboarding">Employee Onboarding</SelectItem>
                   <SelectItem value="expense_approval">Expense Approval</SelectItem>
                   <SelectItem value="campaign_approval">Campaign Approval</SelectItem>
                   <SelectItem value="purchase_order">Purchase Order</SelectItem>
@@ -421,7 +637,7 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
             <Button 
               onClick={generateWorkflow} 
               disabled={isGenerating || !prompt.trim()}
-              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+              className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
             >
               {isGenerating ? (
                 <>
