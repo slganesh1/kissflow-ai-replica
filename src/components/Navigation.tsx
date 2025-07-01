@@ -40,7 +40,7 @@ export const Navigation = () => {
               }`}
             >
               <Home className="h-4 w-4" />
-              <span>Workflow Builder</span>
+              <span>Workflow Hub</span>
             </Button>
             
             <Button

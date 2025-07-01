@@ -1,6 +1,7 @@
 
 import { WorkflowBuilder } from "@/components/WorkflowBuilder";
 import { WorkflowInputForm } from "@/components/WorkflowInputForm";
+import { ActiveWorkflows } from "@/components/ActiveWorkflows";
 import { Navigation } from "@/components/Navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
@@ -58,28 +59,38 @@ const Index = () => {
           </div>
         </div>
 
-        <Tabs defaultValue="builder" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 bg-white/60 backdrop-blur-sm border border-white/20 shadow-lg rounded-xl p-1">
-            <TabsTrigger 
-              value="builder" 
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white rounded-lg transition-all duration-300"
-            >
-              🎯 Workflow Builder
-            </TabsTrigger>
+        <Tabs defaultValue="submit" className="w-full">
+          <TabsList className="grid w-full grid-cols-3 bg-white/60 backdrop-blur-sm border border-white/20 shadow-lg rounded-xl p-1">
             <TabsTrigger 
               value="submit"
               className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white rounded-lg transition-all duration-300"
             >
               📝 Submit Request
             </TabsTrigger>
+            <TabsTrigger 
+              value="active" 
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white rounded-lg transition-all duration-300"
+            >
+              📊 Active Workflows
+            </TabsTrigger>
+            <TabsTrigger 
+              value="builder"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-blue-500 data-[state=active]:text-white rounded-lg transition-all duration-300"
+            >
+              🎯 Workflow Builder
+            </TabsTrigger>
           </TabsList>
-          
-          <TabsContent value="builder" className="space-y-6 mt-6">
-            <WorkflowBuilder />
-          </TabsContent>
           
           <TabsContent value="submit" className="space-y-6 mt-6">
             <WorkflowInputForm />
+          </TabsContent>
+          
+          <TabsContent value="active" className="space-y-6 mt-6">
+            <ActiveWorkflows />
+          </TabsContent>
+          
+          <TabsContent value="builder" className="space-y-6 mt-6">
+            <WorkflowBuilder />
           </TabsContent>
         </Tabs>
       </div>

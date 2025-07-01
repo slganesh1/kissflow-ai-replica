@@ -7,26 +7,23 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { Sparkles, Mail, Lock, LogIn, UserPlus } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 const AuthPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const { user } = useAuth();
 
   useEffect(() => {
-    // Check if user is already logged in
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        navigate('/');
-      }
-    };
-    checkAuth();
-  }, [navigate]);
+    // If user is already logged in, redirect to home
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,24 +36,13 @@ const AuthPage = () => {
       });
 
       if (error) {
-        toast({
-          title: "Login Failed",
-          description: error.message,
-          variant: "destructive",
-        });
+        toast.error('Login Failed: ' + error.message);
       } else if (data.user) {
-        toast({
-          title: "Login Successful",
-          description: "Welcome back!",
-        });
+        toast.success('Login Successful! Welcome back!');
         navigate('/');
       }
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred",
-        variant: "destructive",
-      });
+      toast.error('An unexpected error occurred');
     } finally {
       setLoading(false);
     }
@@ -76,23 +62,12 @@ const AuthPage = () => {
       });
 
       if (error) {
-        toast({
-          title: "Sign Up Failed",
-          description: error.message,
-          variant: "destructive",
-        });
+        toast.error('Sign Up Failed: ' + error.message);
       } else {
-        toast({
-          title: "Sign Up Successful",
-          description: "Please check your email to confirm your account",
-        });
+        toast.success('Sign Up Successful! Please check your email to confirm your account');
       }
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred",
-        variant: "destructive",
-      });
+      toast.error('An unexpected error occurred');
     } finally {
       setLoading(false);
     }
