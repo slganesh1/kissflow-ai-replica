@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,13 +33,20 @@ export const ManualApprovalInterface = () => {
 
   const fetchPendingApprovals = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('get-pending-approvals', {
-        body: { role: 'manager' } // You can make this dynamic based on user role
-      });
+      // Fetch pending approvals directly from the database with workflow details
+      const { data, error } = await supabase
+        .from('workflow_approvals')
+        .select(`
+          *,
+          workflow_executions!inner(*)
+        `)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: true });
 
       if (error) throw error;
 
-      setPendingApprovals(data.approvals || []);
+      console.log('Fetched pending approvals:', data);
+      setPendingApprovals(data || []);
     } catch (error) {
       console.error('Error fetching approvals:', error);
       toast.error('Failed to fetch pending approvals');
@@ -58,11 +64,12 @@ export const ManualApprovalInterface = () => {
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
           table: 'workflow_approvals'
         },
         () => {
+          console.log('Approval change detected, refreshing...');
           fetchPendingApprovals();
         }
       )
@@ -77,18 +84,22 @@ export const ManualApprovalInterface = () => {
     setProcessingId(approval.id);
     
     try {
+      console.log(`Processing approval decision: ${decision} for approval ${approval.id}`);
+
+      // Use the workflow engine's approval function
       const { data, error } = await supabase.functions.invoke('approve-workflow', {
         body: {
           workflowId: approval.workflow_id,
           stepId: approval.step_id,
           decision,
           comments: comments[approval.id] || '',
-          approverId: 'current-user-id' // Replace with actual user ID
+          approverId: 'current-user-id' // Replace with actual user ID from auth
         }
       });
 
       if (error) throw error;
 
+      console.log('Approval processed successfully:', data);
       toast.success(`Workflow ${decision} successfully!`);
       
       // Remove from pending list
@@ -101,9 +112,16 @@ export const ManualApprovalInterface = () => {
         return newComments;
       });
 
+      // Show completion message if workflow is completed
+      if (data?.workflowCompleted) {
+        toast.success('🎉 Workflow completed successfully!', {
+          description: 'All required approvals have been obtained.'
+        });
+      }
+
     } catch (error) {
       console.error('Error processing approval:', error);
-      toast.error(`Failed to ${decision === 'approved' ? 'approve' : 'reject'} workflow`);
+      toast.error(`Failed to ${decision === 'approved' ? 'approve' : 'reject'} workflow: ` + (error as Error).message);
     } finally {
       setProcessingId(null);
     }

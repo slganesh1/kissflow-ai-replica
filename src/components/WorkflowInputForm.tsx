@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -87,7 +86,7 @@ export const WorkflowInputForm: React.FC<WorkflowInputFormProps> = ({
         workflow_name: formData.workflowName,
         workflow_type: formData.workflowType,
         submitter_name: formData.submitterName,
-        status: 'pending' as WorkflowStatus, // Properly type the status
+        status: 'pending' as WorkflowStatus,
         request_data: {
           title: formData.title,
           amount: parseFloat(formData.amount) || 0,
@@ -116,88 +115,22 @@ export const WorkflowInputForm: React.FC<WorkflowInputFormProps> = ({
 
       console.log('Workflow created successfully:', workflow);
 
-      // Determine approval steps based on amount and workflow type
-      const amount = parseFloat(formData.amount) || 0;
-      const approvalSteps = [];
+      // Execute the workflow using the workflow engine
+      const { data: executionResult, error: executionError } = await supabase.functions.invoke('execute-workflow', {
+        body: { workflowId: workflow.id }
+      });
 
-      // Create approval records based on workflow type and amount
-      if (formData.workflowType === 'expense_approval') {
-        // Always require manager approval for expenses
-        approvalSteps.push({
-          workflow_id: workflow.id,
-          step_id: 'manager-approval',
-          step_name: 'Manager Approval',
-          approver_role: 'manager',
-          status: 'pending' as const,
-          order_sequence: 1
-        });
-
-        // Add finance director approval for amounts over $1000
-        if (amount > 1000) {
-          approvalSteps.push({
-            workflow_id: workflow.id,
-            step_id: 'finance-director-approval',
-            step_name: 'Finance Director Approval',
-            approver_role: 'finance_director',
-            status: 'pending' as const,
-            order_sequence: 2
-          });
-        }
-      } else if (formData.workflowType === 'campaign_approval') {
-        // Marketing manager approval for campaigns
-        approvalSteps.push({
-          workflow_id: workflow.id,
-          step_id: 'marketing-manager-approval',
-          step_name: 'Marketing Manager Approval',
-          approver_role: 'manager',
-          status: 'pending' as const,
-          order_sequence: 1
-        });
-
-        // Finance director for large campaigns
-        if (amount > 5000) {
-          approvalSteps.push({
-            workflow_id: workflow.id,
-            step_id: 'finance-director-approval',
-            step_name: 'Finance Director Approval',
-            approver_role: 'finance_director',
-            status: 'pending' as const,
-            order_sequence: 2
-          });
-        }
-      } else {
-        // Default manager approval for other workflow types
-        approvalSteps.push({
-          workflow_id: workflow.id,
-          step_id: 'manager-approval',
-          step_name: 'Manager Approval',
-          approver_role: 'manager',
-          status: 'pending' as const,
-          order_sequence: 1
-        });
+      if (executionError) {
+        console.error('Error executing workflow:', executionError);
+        toast.error('Failed to execute workflow: ' + executionError.message);
+        return;
       }
 
-      console.log('Creating approval steps:', approvalSteps);
+      console.log('Workflow execution started:', executionResult);
 
-      if (approvalSteps.length > 0) {
-        const { data: approvals, error: approvalError } = await supabase
-          .from('workflow_approvals')
-          .insert(approvalSteps)
-          .select();
-
-        if (approvalError) {
-          console.error('Error creating approval records:', approvalError);
-          toast.error('Failed to create approval records: ' + approvalError.message);
-          return;
-        }
-
-        console.log('Approval records created successfully:', approvals);
-      }
-
-      const approvalCount = approvalSteps.length;
       toast.success(
-        `🎉 Workflow "${formData.workflowName}" submitted successfully! 
-        ${approvalCount > 0 ? `Waiting for ${approvalCount} approval(s).` : 'Processing...'}`
+        `🎉 Workflow "${formData.workflowName}" submitted and started successfully! 
+        Check the Active Workflows tab to monitor progress.`
       );
       
       // Reset form
@@ -413,7 +346,7 @@ export const WorkflowInputForm: React.FC<WorkflowInputFormProps> = ({
             disabled={loading} 
             className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
           >
-            {loading ? 'Submitting Workflow...' : 'Submit for Approval'}
+            {loading ? 'Starting Workflow...' : 'Submit for Approval'}
           </Button>
         </form>
       </CardContent>
