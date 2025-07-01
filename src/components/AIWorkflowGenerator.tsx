@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -660,15 +661,15 @@ export const AIWorkflowGenerator = ({ generatedWorkflow, setGeneratedWorkflow, w
           </CardContent>
         </Card>
 
-        {/* Workflow Preview */}
+        {/* Workflow Configuration */}
         {generatedWorkflow && (
           <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-blue-50">
             <CardHeader className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-t-lg">
               <CardTitle className="text-lg flex items-center space-x-2">
-                <File className="h-5 w-5" />
-                <span>Workflow Preview</span>
+                <Settings className="h-5 w-5" />
+                <span>Workflow Configuration</span>
               </CardTitle>
-              <CardDescription className="text-blue-100">Review the generated workflow steps</CardDescription>
+              <CardDescription className="text-blue-100">Configure your workflow settings</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 p-4">
               <div>
@@ -691,14 +692,19 @@ export const AIWorkflowGenerator = ({ generatedWorkflow, setGeneratedWorkflow, w
                 />
               </div>
               <div className="space-y-2">
-                <h4 className="text-sm font-medium">Workflow Steps</h4>
-                <ul className="list-disc pl-4">
-                  {generatedWorkflow.steps.map((step, index) => (
-                    <li key={step.id} className="text-sm">
-                      {index + 1}. {step.name} - {step.description}
-                    </li>
-                  ))}
-                </ul>
+                <h4 className="text-sm font-medium">Generated Steps ({generatedWorkflow.steps.length})</h4>
+                <div className="max-h-32 overflow-y-auto">
+                  <ul className="list-disc pl-4 space-y-1">
+                    {generatedWorkflow.steps.map((step, index) => (
+                      <li key={step.id} className="text-xs">
+                        <span className="font-medium">{step.name}</span>
+                        {step.estimatedTime && (
+                          <span className="text-gray-500 ml-1">({step.estimatedTime})</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
             </CardContent>
           </Card>
