@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { AlertCircle, Info } from 'lucide-react';
+import { workflowEngine } from '@/services/WorkflowEngine';
 import type { Database } from '@/integrations/supabase/types';
 
 type WorkflowStatus = Database['public']['Enums']['workflow_status'];
@@ -115,36 +116,33 @@ export const WorkflowInputForm: React.FC<WorkflowInputFormProps> = ({
 
       console.log('Workflow created successfully:', workflow);
 
-      // Execute the workflow using the workflow engine
-      const { data: executionResult, error: executionError } = await supabase.functions.invoke('execute-workflow', {
-        body: { workflowId: workflow.id }
-      });
+      // Execute the workflow using the workflow engine directly
+      try {
+        await workflowEngine.executeWorkflow(workflow.id);
+        console.log('Workflow execution started successfully');
 
-      if (executionError) {
+        toast.success(
+          `🎉 Workflow "${formData.workflowName}" submitted and started successfully! 
+          Check the Active Workflows tab to monitor progress.`
+        );
+        
+        // Reset form
+        setFormData({
+          workflowName: '',
+          workflowType: '',
+          submitterName: '',
+          title: '',
+          amount: '',
+          businessPurpose: '',
+          category: '',
+          urgency: 'normal',
+          additionalDetails: ''
+        });
+
+      } catch (executionError) {
         console.error('Error executing workflow:', executionError);
-        toast.error('Failed to execute workflow: ' + executionError.message);
-        return;
+        toast.error('Workflow created but failed to start execution: ' + (executionError as Error).message);
       }
-
-      console.log('Workflow execution started:', executionResult);
-
-      toast.success(
-        `🎉 Workflow "${formData.workflowName}" submitted and started successfully! 
-        Check the Active Workflows tab to monitor progress.`
-      );
-      
-      // Reset form
-      setFormData({
-        workflowName: '',
-        workflowType: '',
-        submitterName: '',
-        title: '',
-        amount: '',
-        businessPurpose: '',
-        category: '',
-        urgency: 'normal',
-        additionalDetails: ''
-      });
 
     } catch (error) {
       console.error('Error in workflow submission:', error);

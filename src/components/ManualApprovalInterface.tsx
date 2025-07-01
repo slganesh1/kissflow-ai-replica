@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { CheckCircle, XCircle, Clock, User, FileText, DollarSign, Calendar, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { workflowEngine } from '@/services/WorkflowEngine';
 
 interface PendingApproval {
   id: string;
@@ -86,20 +87,14 @@ export const ManualApprovalInterface = () => {
     try {
       console.log(`Processing approval decision: ${decision} for approval ${approval.id}`);
 
-      // Use the workflow engine's approval function
-      const { data, error } = await supabase.functions.invoke('approve-workflow', {
-        body: {
-          workflowId: approval.workflow_id,
-          stepId: approval.step_id,
-          decision,
-          comments: comments[approval.id] || '',
-          approverId: 'current-user-id' // Replace with actual user ID from auth
-        }
-      });
+      // Use the workflow engine directly instead of edge function
+      await workflowEngine.processApproval(
+        approval.id,
+        decision,
+        'system-user', // For now, using system user - should be replaced with actual auth
+        comments[approval.id] || ''
+      );
 
-      if (error) throw error;
-
-      console.log('Approval processed successfully:', data);
       toast.success(`Workflow ${decision} successfully!`);
       
       // Remove from pending list
@@ -111,13 +106,6 @@ export const ManualApprovalInterface = () => {
         delete newComments[approval.id];
         return newComments;
       });
-
-      // Show completion message if workflow is completed
-      if (data?.workflowCompleted) {
-        toast.success('🎉 Workflow completed successfully!', {
-          description: 'All required approvals have been obtained.'
-        });
-      }
 
     } catch (error) {
       console.error('Error processing approval:', error);
