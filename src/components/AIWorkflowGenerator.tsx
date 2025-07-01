@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -55,6 +54,465 @@ export const AIWorkflowGenerator = ({ generatedWorkflow, setGeneratedWorkflow, w
   const [showChatbot, setShowChatbot] = useState(false);
   const [isChatMinimized, setIsChatMinimized] = useState(false);
 
+  const generateDetailedWorkflow = (description: string) => {
+    const lowerDesc = description.toLowerCase();
+    
+    // Employee/HR Workflows
+    if (lowerDesc.includes('employee') || lowerDesc.includes('hr') || lowerDesc.includes('hiring') || lowerDesc.includes('onboard')) {
+      return [
+        {
+          id: '1',
+          name: 'Application Submission',
+          type: 'form_input',
+          description: 'Candidate submits job application with resume and cover letter',
+          icon: FileText,
+          status: 'complete',
+          estimatedTime: '5 minutes'
+        },
+        {
+          id: '2',
+          name: 'AI Resume Screening',
+          type: 'ai_analysis',
+          description: 'AI analyzes resume for keyword matching, experience level, and qualification scoring',
+          icon: Bot,
+          status: 'complete',
+          estimatedTime: '2 minutes'
+        },
+        {
+          id: '3',
+          name: 'HR Initial Review',
+          type: 'review',
+          description: 'HR team reviews AI recommendations and candidate profile for culture fit',
+          icon: Users,
+          status: 'pending',
+          approver_role: 'HR Recruiter',
+          estimatedTime: '24 hours'
+        },
+        {
+          id: '4',
+          name: 'Technical Assessment',
+          type: 'assessment',
+          description: 'Candidate completes role-specific technical evaluation and skills test',
+          icon: Brain,
+          status: 'pending',
+          estimatedTime: '2 hours'
+        },
+        {
+          id: '5',
+          name: 'Manager Interview',
+          type: 'approval',
+          description: 'Hiring manager conducts behavioral and technical interview session',
+          icon: UserCheck,
+          status: 'pending',
+          approver_role: 'Hiring Manager',
+          estimatedTime: '48 hours'
+        },
+        {
+          id: '6',
+          name: 'Background Check',
+          type: 'validation',
+          description: 'Third-party verification of employment history, education, and references',
+          icon: Shield,
+          status: 'pending',
+          estimatedTime: '72 hours'
+        },
+        {
+          id: '7',
+          name: 'Offer Generation',
+          type: 'processing',
+          description: 'HR generates offer letter with salary, benefits, and start date details',
+          icon: FileText,
+          status: 'pending',
+          estimatedTime: '12 hours'
+        },
+        {
+          id: '8',
+          name: 'Executive Approval',
+          type: 'approval',
+          description: 'Senior leadership approves compensation package and hiring decision',
+          icon: CheckCircle,
+          status: 'pending',
+          approver_role: 'VP/Director',
+          estimatedTime: '24 hours'
+        },
+        {
+          id: '9',
+          name: 'Offer Communication',
+          type: 'notification',
+          description: 'Formal offer extended to candidate with acceptance deadline',
+          icon: Mail,
+          status: 'pending',
+          estimatedTime: '2 hours'
+        }
+      ];
+    }
+    
+    // Order/Purchase Workflows
+    if (lowerDesc.includes('order') || lowerDesc.includes('purchase') || lowerDesc.includes('buy') || lowerDesc.includes('procurement')) {
+      return [
+        {
+          id: '1',
+          name: 'Order Placement',
+          type: 'form_input',
+          description: 'Customer submits order with product selection, quantity, and shipping details',
+          icon: Package,
+          status: 'complete',
+          estimatedTime: '3 minutes'
+        },
+        {
+          id: '2',
+          name: 'Inventory Validation',
+          type: 'validation',
+          description: 'System checks product availability, stock levels, and delivery constraints',
+          icon: Database,
+          status: 'complete',
+          estimatedTime: '30 seconds'
+        },
+        {
+          id: '3',
+          name: 'Pricing Calculation',
+          type: 'ai_analysis',
+          description: 'AI calculates total cost including taxes, shipping, discounts, and promotional offers',
+          icon: Bot,
+          status: 'complete',
+          estimatedTime: '1 minute'
+        },
+        {
+          id: '4',
+          name: 'Payment Processing',
+          type: 'processing',
+          description: 'Secure payment gateway processes credit card or digital payment method',
+          icon: DollarSign,
+          status: 'pending',
+          estimatedTime: '2 minutes'
+        },
+        {
+          id: '5',
+          name: 'Fraud Detection',
+          type: 'validation',
+          description: 'AI-powered fraud detection analyzes payment patterns and risk factors',
+          icon: Shield,
+          status: 'pending',
+          estimatedTime: '5 minutes'
+        },
+        {
+          id: '6',
+          name: 'Order Confirmation',
+          type: 'notification',
+          description: 'Customer receives detailed order confirmation with tracking information',
+          icon: Mail,
+          status: 'pending',
+          estimatedTime: '1 minute'
+        },
+        {
+          id: '7',
+          name: 'Warehouse Processing',
+          type: 'processing',
+          description: 'Warehouse team picks, packs, and prepares order for shipment',
+          icon: Package,
+          status: 'pending',
+          approver_role: 'Warehouse Manager',
+          estimatedTime: '4 hours'
+        },
+        {
+          id: '8',
+          name: 'Quality Control',
+          type: 'review',
+          description: 'Quality assurance team inspects packaged order for accuracy and condition',
+          icon: CheckCircle,
+          status: 'pending',
+          estimatedTime: '30 minutes'
+        },
+        {
+          id: '9',
+          name: 'Shipping Dispatch',
+          type: 'processing',
+          description: 'Courier pickup and delivery tracking activation with customer notifications',
+          icon: ArrowRight,
+          status: 'pending',
+          estimatedTime: '24-48 hours'
+        }
+      ];
+    }
+    
+    // Financial/Expense Workflows
+    if (lowerDesc.includes('expense') || lowerDesc.includes('reimburs') || lowerDesc.includes('financial') || lowerDesc.includes('budget')) {
+      return [
+        {
+          id: '1',
+          name: 'Expense Submission',
+          type: 'form_input',
+          description: 'Employee submits expense report with receipts, categories, and business justification',
+          icon: FileText,
+          status: 'complete',
+          estimatedTime: '10 minutes'
+        },
+        {
+          id: '2',
+          name: 'Receipt OCR Processing',
+          type: 'ai_analysis',
+          description: 'AI extracts data from receipt images including amounts, dates, vendors, and categories',
+          icon: Bot,
+          status: 'complete',
+          estimatedTime: '1 minute'
+        },
+        {
+          id: '3',
+          name: 'Policy Compliance Check',
+          type: 'validation',
+          description: 'System validates expenses against company policy limits and approved categories',
+          icon: Shield,
+          status: 'pending',
+          estimatedTime: '2 minutes'
+        },
+        {
+          id: '4',
+          name: 'Manager Pre-Approval',
+          type: 'approval',
+          description: 'Direct manager reviews and approves expense legitimacy and business necessity',
+          icon: UserCheck,
+          status: 'pending',
+          approver_role: 'Direct Manager',
+          estimatedTime: '24 hours'
+        },
+        {
+          id: '5',
+          name: 'Finance Review',
+          type: 'review',
+          description: 'Finance team conducts detailed review of high-value or flagged expenses',
+          icon: TrendingUp,
+          status: 'pending',
+          approver_role: 'Finance Analyst',
+          estimatedTime: '48 hours'
+        },
+        {
+          id: '6',
+          name: 'Budget Impact Analysis',
+          type: 'ai_analysis',
+          description: 'AI analyzes impact on department budget and generates spending insights',
+          icon: BarChart3,
+          status: 'pending',
+          estimatedTime: '5 minutes'
+        },
+        {
+          id: '7',
+          name: 'Accounting Integration',
+          type: 'processing',
+          description: 'Approved expenses automatically sync with accounting system and general ledger',
+          icon: Database,
+          status: 'pending',
+          estimatedTime: '30 minutes'
+        },
+        {
+          id: '8',
+          name: 'Reimbursement Processing',
+          type: 'processing',
+          description: 'Payroll system processes reimbursement for next pay cycle or direct deposit',
+          icon: DollarSign,
+          status: 'pending',
+          estimatedTime: '72 hours'
+        },
+        {
+          id: '9',
+          name: 'Completion Notification',
+          type: 'notification',
+          description: 'Employee receives confirmation of reimbursement with payment details and timeline',
+          icon: Mail,
+          status: 'pending',
+          estimatedTime: '5 minutes'
+        }
+      ];
+    }
+    
+    // Customer Support Workflows
+    if (lowerDesc.includes('support') || lowerDesc.includes('ticket') || lowerDesc.includes('customer') || lowerDesc.includes('help')) {
+      return [
+        {
+          id: '1',
+          name: 'Ticket Creation',
+          type: 'form_input',
+          description: 'Customer submits support request with issue description, priority level, and contact info',
+          icon: FileText,
+          status: 'complete',
+          estimatedTime: '5 minutes'
+        },
+        {
+          id: '2',
+          name: 'AI Categorization',
+          type: 'ai_analysis',
+          description: 'AI analyzes ticket content to categorize issue type, urgency, and required expertise',
+          icon: Bot,
+          status: 'complete',
+          estimatedTime: '30 seconds'
+        },
+        {
+          id: '3',
+          name: 'Knowledge Base Search',
+          type: 'ai_analysis',
+          description: 'AI searches existing solutions and suggests automated responses for common issues',
+          icon: Brain,
+          status: 'pending',
+          estimatedTime: '1 minute'
+        },
+        {
+          id: '4',
+          name: 'Agent Assignment',
+          type: 'processing',
+          description: 'Intelligent routing assigns ticket to available agent with relevant expertise',
+          icon: Users,
+          status: 'pending',
+          estimatedTime: '15 minutes'
+        },
+        {
+          id: '5',
+          name: 'Initial Response',
+          type: 'notification',
+          description: 'Agent provides acknowledgment and initial assessment with expected resolution timeline',
+          icon: Mail,
+          status: 'pending',
+          approver_role: 'Support Agent',
+          estimatedTime: '2 hours'
+        },
+        {
+          id: '6',
+          name: 'Issue Investigation',
+          type: 'review',
+          description: 'Agent investigates issue using customer data, logs, and diagnostic tools',
+          icon: Activity,
+          status: 'pending',
+          estimatedTime: '4 hours'
+        },
+        {
+          id: '7',
+          name: 'Escalation Review',
+          type: 'approval',
+          description: 'Complex issues escalated to senior support or engineering teams for resolution',
+          icon: ArrowRight,
+          status: 'pending',
+          approver_role: 'Senior Support',
+          estimatedTime: '8 hours',
+          condition: 'If complex technical issue'
+        },
+        {
+          id: '8',
+          name: 'Solution Implementation',
+          type: 'processing',
+          description: 'Agent implements solution and verifies issue resolution with customer',
+          icon: CheckCircle,
+          status: 'pending',
+          estimatedTime: '2 hours'
+        },
+        {
+          id: '9',
+          name: 'Customer Satisfaction',
+          type: 'review',
+          description: 'Customer feedback survey sent to measure satisfaction and identify improvements',
+          icon: TrendingUp,
+          status: 'pending',
+          estimatedTime: '24 hours'
+        }
+      ];
+    }
+    
+    // Default Generic Workflow
+    return [
+      {
+        id: '1',
+        name: 'Request Initiation',
+        type: 'form_input',
+        description: 'User submits initial request with detailed requirements and supporting documentation',
+        icon: FileText,
+        status: 'complete',
+        estimatedTime: '10 minutes'
+      },
+      {
+        id: '2',
+        name: 'AI Content Analysis',
+        type: 'ai_analysis',
+        description: 'Advanced AI processes request content, extracts key data points, and identifies patterns',
+        icon: Bot,
+        status: 'complete',
+        estimatedTime: '3 minutes'
+      },
+      {
+        id: '3',
+        name: 'Automated Validation',
+        type: 'validation',
+        description: 'System performs comprehensive validation checks against business rules and compliance requirements',
+        icon: Shield,
+        status: 'pending',
+        estimatedTime: '5 minutes'
+      },
+      {
+        id: '4',
+        name: 'Risk Assessment',
+        type: 'ai_analysis',
+        description: 'AI evaluates potential risks, impact assessment, and recommends appropriate approval path',
+        icon: Brain,
+        status: 'pending',
+        estimatedTime: '10 minutes'
+      },
+      {
+        id: '5',
+        name: 'Primary Approval',
+        type: 'approval',
+        description: 'Designated approver reviews request details, AI recommendations, and makes approval decision',
+        icon: UserCheck,
+        status: 'pending',
+        approver_role: 'Department Manager',
+        estimatedTime: '24 hours'
+      },
+      {
+        id: '6',
+        name: 'Compliance Review',
+        type: 'review',
+        description: 'Specialized compliance team ensures adherence to regulatory requirements and internal policies',
+        icon: CheckCircle,
+        status: 'pending',
+        approver_role: 'Compliance Officer',
+        estimatedTime: '48 hours'
+      },
+      {
+        id: '7',
+        name: 'Executive Authorization',
+        type: 'approval',
+        description: 'Senior leadership provides final authorization for high-impact or high-value requests',
+        icon: Users,
+        status: 'pending',
+        approver_role: 'Executive Team',
+        estimatedTime: '72 hours',
+        condition: 'If request value > $10,000'
+      },
+      {
+        id: '8',
+        name: 'Implementation Processing',
+        type: 'processing',
+        description: 'Automated systems execute approved request with real-time monitoring and status updates',
+        icon: Zap,
+        status: 'pending',
+        estimatedTime: '2-6 hours'
+      },
+      {
+        id: '9',
+        name: 'Completion Notification',
+        type: 'notification',
+        description: 'All stakeholders receive detailed completion notification with results and next steps',
+        icon: Mail,
+        status: 'pending',
+        estimatedTime: '5 minutes'
+      },
+      {
+        id: '10',
+        name: 'Performance Analytics',
+        type: 'ai_analysis',
+        description: 'AI generates performance metrics, identifies optimization opportunities, and updates workflow intelligence',
+        icon: BarChart3,
+        status: 'pending',
+        estimatedTime: '15 minutes'
+      }
+    ];
+  };
+
   const generateWorkflow = async () => {
     if (!aiDescription.trim()) {
       toast.error('Please enter a description for the AI to generate a workflow.');
@@ -63,86 +521,36 @@ export const AIWorkflowGenerator = ({ generatedWorkflow, setGeneratedWorkflow, w
 
     setIsLoading(true);
     try {
-      // Simulate AI workflow generation
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Simulate AI processing time
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
-      const generatedSteps: WorkflowStep[] = [
-        {
-          id: '1',
-          name: 'Submit Form',
-          type: 'form_input',
-          description: 'User submits the initial request form',
-          icon: FileText,
-          status: 'complete'
-        },
-        {
-          id: '2',
-          name: 'AI Analysis',
-          type: 'ai_analysis',
-          description: 'AI analyzes the request and extracts key information',
-          icon: Bot,
-          status: 'complete'
-        },
-        {
-          id: '3',
-          name: 'Validation Check',
-          type: 'validation',
-          description: 'System validates the extracted information against rules',
-          icon: CheckCircle,
-          status: 'pending'
-        },
-        {
-          id: '4',
-          name: 'Approval Request',
-          type: 'approval',
-          description: 'Request is sent to the appropriate approver',
-          icon: Users,
-          status: 'pending',
-          approver_role: 'Finance Manager',
-          estimatedTime: '24 hours'
-        },
-        {
-          id: '5',
-          name: 'Compliance Review',
-          type: 'review',
-          description: 'Compliance team reviews the request',
-          icon: Shield,
-          status: 'pending',
-          estimatedTime: '48 hours'
-        },
-        {
-          id: '6',
-          name: 'Process Payment',
-          type: 'processing',
-          description: 'Payment is processed based on approved request',
-          icon: DollarSign,
-          status: 'pending'
-        },
-        {
-          id: '7',
-          name: 'Send Notification',
-          type: 'notification',
-          description: 'User is notified of the completed request',
-          icon: Mail,
-          status: 'pending'
-        }
-      ];
+      const generatedSteps = generateDetailedWorkflow(aiDescription);
+
+      // Create intelligent workflow name if not provided
+      const intelligentName = workflowName || (() => {
+        const desc = aiDescription.toLowerCase();
+        if (desc.includes('employee') || desc.includes('hr')) return 'Employee Management Workflow';
+        if (desc.includes('order') || desc.includes('purchase')) return 'Order Processing Workflow';
+        if (desc.includes('expense') || desc.includes('reimburs')) return 'Expense Reimbursement Workflow';
+        if (desc.includes('support') || desc.includes('ticket')) return 'Customer Support Workflow';
+        return 'Smart Business Process Workflow';
+      })();
 
       const newWorkflowData = {
         id: `workflow-${Date.now()}`,
-        name: workflowName || 'Generated Workflow',
-        description: workflowDescription || aiDescription,
+        name: intelligentName,
+        description: workflowDescription || `Intelligent workflow: ${aiDescription}`,
         type: 'ai-generated',
-        category: 'General',
+        category: 'Business Process',
         steps: generatedSteps.length,
-        agents: ['AI Analyzer', 'Validation Bot'],
+        agents: ['AI Processor', 'Smart Validator', 'Decision Engine'],
         created_at: new Date().toISOString(),
         status: 'draft'
       };
 
       setGeneratedWorkflow({ steps: generatedSteps });
       setWorkflowData(newWorkflowData);
-      toast.success('AI-powered workflow generated successfully!');
+      toast.success(`Detailed ${generatedSteps.length}-step workflow generated successfully!`);
     } catch (error) {
       console.error('Error generating workflow:', error);
       toast.error('Failed to generate workflow. Please try again.');
