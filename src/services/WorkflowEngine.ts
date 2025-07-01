@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -79,7 +80,7 @@ export class WorkflowEngine {
       id: data.id,
       name: data.name,
       type: data.type,
-      definition: data.definition as { steps: WorkflowStep[] }
+      definition: data.definition as unknown as { steps: WorkflowStep[] }
     };
 
     return template;
