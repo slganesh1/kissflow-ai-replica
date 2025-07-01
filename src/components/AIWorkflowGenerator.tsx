@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { VisualWorkflowDiagram } from './VisualWorkflowDiagram';
 import { toast } from 'sonner';
-import { Plus, Play, Save, Settings, Bot, Mail, FileText, Database, Zap, ArrowRight, Clock, Sparkles, Activity, Users, Brain, TrendingUp, BarChart3, UserCheck, File, Package, CheckCircle, XCircle, Shield, GitBranch } from 'lucide-react';
+import { Plus, Play, Save, Settings, Bot, Mail, FileText, Database, Zap, ArrowRight, Clock, Sparkles, Activity, Users, Brain, TrendingUp, BarChart3, UserCheck, File, Package, CheckCircle, XCircle, Shield, GitBranch, DollarSign } from 'lucide-react';
 import { WorkflowChatbot } from './WorkflowChatbot';
 
 interface WorkflowStep {
