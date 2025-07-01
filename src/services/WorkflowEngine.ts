@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -75,7 +74,15 @@ export class WorkflowEngine {
       return null;
     }
 
-    return data as WorkflowTemplate;
+    // Safely convert the database record to our WorkflowTemplate interface
+    const template: WorkflowTemplate = {
+      id: data.id,
+      name: data.name,
+      type: data.type,
+      definition: data.definition as { steps: WorkflowStep[] }
+    };
+
+    return template;
   }
 
   private async processWorkflowSteps(workflow: any, template: WorkflowTemplate): Promise<void> {
