@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -58,20 +59,28 @@ export const WorkflowChatbot: React.FC<WorkflowChatbotProps> = ({
     const estimatedDuration = workflow?.estimated_duration || 'Not specified';
     
     // Get approval steps
-    const approvalSteps = workflowSteps.filter((step: any) => step.type === 'approval');
-    const reviewSteps = workflowSteps.filter((step: any) => step.type === 'review');
-    const validationSteps = workflowSteps.filter((step: any) => step.type === 'validation');
+    const approvalSteps = workflowSteps.filter((step: any) => 
+      step.type === 'approval' || step.name.toLowerCase().includes('approval')
+    );
+    const reviewSteps = workflowSteps.filter((step: any) => 
+      step.type === 'review' || step.name.toLowerCase().includes('review')
+    );
+    const validationSteps = workflowSteps.filter((step: any) => 
+      step.type === 'validation' || step.name.toLowerCase().includes('validation')
+    );
+    
+    console.log('Workflow data:', { workflowSteps, approvalSteps, reviewSteps, validationSteps });
     
     // Workflow explanation
-    if (lowerMessage.includes('explain') || lowerMessage.includes('about') || lowerMessage.includes('overview')) {
+    if (lowerMessage.includes('explain') || lowerMessage.includes('about') || lowerMessage.includes('overview') || lowerMessage.includes('workflow')) {
       const stepBreakdown = workflowSteps.map((step: any, index: number) => 
-        `${index + 1}. **${step.name}** (${step.type}) - ${step.duration || 'Variable time'}\n   ${step.description}`
+        `${index + 1}. **${step.name}** (${step.type || 'Standard'}) - ${step.duration || 'Variable time'}\n   ${step.description || 'No description available'}`
       ).join('\n\n');
 
-      return `**${workflowName} - Complete Workflow Explanation:**
+      return `**${workflowName} - Complete Workflow Analysis:**
 
 **Overview:**
-This workflow has ${workflowSteps.length} sequential steps designed to ensure comprehensive processing and approval.
+This workflow contains ${workflowSteps.length} sequential steps designed for comprehensive processing and approval.
 
 **Estimated Total Duration:** ${estimatedDuration}
 
@@ -79,69 +88,88 @@ This workflow has ${workflowSteps.length} sequential steps designed to ensure co
 
 ${stepBreakdown}
 
-**Key Features:**
+**Process Characteristics:**
 • ${approvalSteps.length} approval checkpoints
 • ${reviewSteps.length} review stages  
 • ${validationSteps.length} validation processes
 • Automated notifications and tracking
 
-Would you like me to explain any specific step in more detail?`;
+The workflow ensures proper oversight and compliance while maintaining efficiency. Would you like me to explain any specific step in more detail?`;
     }
 
     // Approval-related questions
     if (lowerMessage.includes('approval') || lowerMessage.includes('approve')) {
+      if (approvalSteps.length === 0) {
+        return `**Approval Process in ${workflowName}:**
+
+I notice this workflow doesn't have explicit approval steps defined. However, based on the workflow structure, the approval process likely involves:
+
+${workflowSteps.filter(step => step.assignee && step.assignee !== 'System' && step.assignee !== 'Automated').map((step: any, index: number) => 
+  `• **${step.name}**: Assigned to ${step.assignee} (${step.duration || 'Variable time'})`
+).join('\n')}
+
+This suggests a multi-level approval system where different stakeholders review and approve at various stages.`;
+      }
+
       const approvalDetails = approvalSteps.map((step: any, index: number) => 
-        `**${step.name}**\n• Assignee: ${step.assignee || 'Not specified'}\n• Duration: ${step.duration || 'Variable'}\n• Description: ${step.description}`
+        `**${step.name}**\n• Assignee: ${step.assignee || 'Not specified'}\n• Duration: ${step.duration || 'Variable'}\n• Description: ${step.description || 'Standard approval process'}`
       ).join('\n\n');
 
       return `**Approval Process in ${workflowName}:**
 
 This workflow includes ${approvalSteps.length} approval step(s):
 
-${approvalDetails || 'No specific approval steps configured.'}
+${approvalDetails}
 
 **Approval Flow:**
-${approvalSteps.length > 1 ? 'Multi-level approval system with escalation' : 'Single approval required'}
+${approvalSteps.length > 1 ? 'Multi-level approval system with escalation pathways' : 'Single approval checkpoint'}
 
-Each approval step includes conditions for both approval and rejection paths to ensure proper workflow routing.`;
+Each approval step includes proper routing for both approval and rejection scenarios to ensure workflow integrity.`;
     }
 
     // Time/duration questions
-    if (lowerMessage.includes('time') || lowerMessage.includes('duration') || lowerMessage.includes('long')) {
+    if (lowerMessage.includes('time') || lowerMessage.includes('duration') || lowerMessage.includes('long') || lowerMessage.includes('how long')) {
       const timeBreakdown = workflowSteps.map((step: any, index: number) => 
-        `• Step ${index + 1}: ${step.name} - ${step.duration || 'Variable time'}`
+        `• Step ${index + 1} (${step.name}): ${step.duration || 'Variable time'}`
       ).join('\n');
 
-      return `**Timing Breakdown for ${workflowName}:**
+      return `**Timing Analysis for ${workflowName}:**
 
 **Total Estimated Duration:** ${estimatedDuration}
 
 **Individual Step Timings:**
 ${timeBreakdown}
 
-**Factors Affecting Duration:**
-• Complexity of the request
-• Approver availability
-• Documentation completeness
-• Current workload and priorities
+**Duration Factors:**
+• Request complexity and completeness
+• Approver availability and workload
+• Documentation quality and clarity
+• Current system capacity and priorities
+• External dependencies and integrations
 
-The workflow is designed to balance thoroughness with efficiency.`;
+The workflow is optimized to balance thoroughness with operational efficiency.`;
     }
 
     // Responsibility questions
-    if (lowerMessage.includes('who') || lowerMessage.includes('responsible') || lowerMessage.includes('assignee')) {
+    if (lowerMessage.includes('who') || lowerMessage.includes('responsible') || lowerMessage.includes('assignee') || lowerMessage.includes('owner')) {
       const responsibilityMap = workflowSteps.map((step: any, index: number) => 
-        `**Step ${index + 1}: ${step.name}**\n• Responsible: ${step.assignee || 'System/Automated'}\n• Type: ${step.type}`
+        `**Step ${index + 1}: ${step.name}**\n• Responsible: ${step.assignee || 'System/Automated'}\n• Type: ${step.type || 'Standard Process'}\n• Duration: ${step.duration || 'Variable'}`
       ).join('\n\n');
+
+      const uniqueAssignees = Array.from(new Set(workflowSteps.map((s: any) => s.assignee).filter(Boolean)));
 
       return `**Responsibility Matrix for ${workflowName}:**
 
 ${responsibilityMap}
 
 **Key Stakeholders:**
-${Array.from(new Set(workflowSteps.map((s: any) => s.assignee).filter(Boolean))).map(assignee => `• ${assignee}`).join('\n') || '• Various automated systems and approvers'}
+${uniqueAssignees.length > 0 ? uniqueAssignees.map(assignee => `• ${assignee}`).join('\n') : '• Various automated systems and designated approvers'}
 
-Each role has specific responsibilities and authority levels within the workflow process.`;
+**Role Distribution:**
+• Manual Steps: ${workflowSteps.filter((s: any) => s.assignee && s.assignee !== 'System').length}
+• Automated Steps: ${workflowSteps.filter((s: any) => !s.assignee || s.assignee === 'System').length}
+
+Each stakeholder has defined responsibilities and authority levels within the process framework.`;
     }
 
     // Step-specific questions
@@ -153,61 +181,103 @@ Each role has specific responsibilities and authority levels within the workflow
         if (step) {
           return `**Step ${stepNumber}: ${step.name}**
 
-**Type:** ${step.type}
+**Type:** ${step.type || 'Standard Process'}
 **Duration:** ${step.duration || 'Variable time'}
 **Assignee:** ${step.assignee || 'System/Automated'}
 
-**Description:** ${step.description}
+**Description:** ${step.description || 'Standard workflow step'}
 
 ${step.conditions ? `**Conditional Logic:**
-• If approved: ${step.conditions.approved}
-• If rejected: ${step.conditions.rejected}` : ''}
+• If approved: ${step.conditions.approved || 'Proceed to next step'}
+• If rejected: ${step.conditions.rejected || 'Return for revision or terminate'}` : '**Process Flow:**\nThis step follows standard workflow progression rules.'}
 
-This step is ${stepIndex === 0 ? 'the first step' : stepIndex === workflowSteps.length - 1 ? 'the final step' : `step ${stepIndex + 1} of ${workflowSteps.length}`} in the workflow process.`;
+**Position:** This is ${stepIndex === 0 ? 'the initial step' : stepIndex === workflowSteps.length - 1 ? 'the final step' : `step ${stepIndex + 1} of ${workflowSteps.length}`} in the workflow sequence.`;
         }
       }
       
       return `**All Steps in ${workflowName}:**
 
 ${workflowSteps.map((step: any, index: number) => 
-  `${index + 1}. ${step.name} (${step.type}) - ${step.assignee || 'System'}`
+  `${index + 1}. **${step.name}** (${step.type || 'Standard'}) - Assigned to: ${step.assignee || 'System'}`
 ).join('\n')}
 
-Ask about a specific step number for detailed information!`;
+**Step Categories:**
+• Form/Input Steps: ${workflowSteps.filter((s: any) => s.type === 'form').length}
+• Approval Steps: ${approvalSteps.length}
+• Review Steps: ${reviewSteps.length}
+• Validation Steps: ${validationSteps.length}
+• Processing Steps: ${workflowSteps.filter((s: any) => s.type === 'processing').length}
+
+Ask about a specific step number (e.g., "tell me about step 3") for detailed information!`;
     }
 
-    // Status and tracking
-    if (lowerMessage.includes('status') || lowerMessage.includes('track')) {
-      return `**${workflowName} Status & Tracking:**
+    // Legal approval questions
+    if (lowerMessage.includes('legal')) {
+      const legalSteps = workflowSteps.filter((step: any) => 
+        step.name.toLowerCase().includes('legal') || 
+        step.assignee?.toLowerCase().includes('legal') ||
+        step.description?.toLowerCase().includes('legal')
+      );
+      
+      if (legalSteps.length > 0) {
+        return `**Legal Approval Requirements:**
 
-**Current Configuration:**
-• Total Steps: ${workflowSteps.length}
-• Approval Gates: ${approvalSteps.length}
-• Review Stages: ${reviewSteps.length}
-• Estimated Duration: ${estimatedDuration}
+${legalSteps.map((step: any) => 
+  `**${step.name}**\n• Duration: ${step.duration}\n• Assignee: ${step.assignee}\n• Process: ${step.description}`
+).join('\n\n')}
 
-**Workflow Status:** Ready for execution
-**Monitoring:** Each step includes tracking and logging capabilities
+**Why Legal Approval is Required:**
+• Regulatory compliance verification
+• Contract and agreement review
+• Risk assessment and mitigation
+• Policy adherence confirmation
+• Legal liability protection
 
-The workflow provides real-time status updates and maintains an audit trail of all actions and decisions.`;
+Legal review is essential for high-value transactions and strategic decisions to ensure organizational protection.`;
+      } else {
+        return `**Legal Approval Analysis:**
+
+While this workflow doesn't have explicit legal approval steps, legal review may be embedded within other approval stages, particularly in:
+
+${workflowSteps.filter(step => step.type === 'approval' || step.name.includes('Executive')).map(step => `• ${step.name}`).join('\n')}
+
+Legal approval is typically required for:
+• High-value financial commitments
+• Strategic business decisions
+• Regulatory compliance matters
+• Contract negotiations
+• Policy changes
+
+The legal review ensures regulatory compliance and risk mitigation.`;
+      }
     }
 
-    // Default response with actual workflow data
-    return `I'm here to help with your **${workflowName}** workflow.
+    // Default comprehensive response
+    return `**${workflowName} - Workflow Assistant Ready**
 
-**Quick Facts:**
-• ${workflowSteps.length} total steps
-• ${approvalSteps.length} approval checkpoints
-• Estimated duration: ${estimatedDuration}
+I have analyzed your workflow with ${workflowSteps.length} steps. Here's what I can help you with:
 
-**What I can help with:**
-• **"Explain the workflow"** - Get complete step breakdown
-• **"Who is responsible?"** - See all assignees and roles  
-• **"How long does it take?"** - Detailed timing information
-• **"Tell me about step X"** - Specific step details
-• **"What approvals are needed?"** - Approval process details
+**Available Information:**
+• **Total Steps:** ${workflowSteps.length}
+• **Approval Gates:** ${approvalSteps.length}
+• **Review Stages:** ${reviewSteps.length}
+• **Estimated Duration:** ${estimatedDuration}
 
-What specific aspect would you like to explore?`;
+**What You Can Ask:**
+• **"Explain the workflow"** - Complete step-by-step analysis
+• **"Who is responsible for each step?"** - Full responsibility matrix
+• **"How long does this take?"** - Detailed timing breakdown
+• **"Tell me about step [number]"** - Specific step details
+• **"What approvals are needed?"** - Approval process overview
+• **"Why is legal approval needed?"** - Compliance requirements
+
+**Quick Insights:**
+• This workflow involves multiple stakeholders
+• Estimated completion time: ${estimatedDuration}
+• Built-in quality controls and checkpoints
+• Automated tracking and notifications
+
+What specific aspect would you like to explore in detail?`;
   };
 
   const handleSendMessage = async () => {
@@ -253,7 +323,7 @@ What specific aspect would you like to explore?`;
 
   if (isMinimized) {
     return (
-      <div className="fixed bottom-4 right-4 z-50">
+      <div className="fixed bottom-4 left-4 z-50">
         <Button
           onClick={onToggleMinimize}
           className="rounded-full w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 shadow-lg"
@@ -265,7 +335,7 @@ What specific aspect would you like to explore?`;
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 w-96 h-[500px]">
+    <div className="fixed bottom-4 left-4 z-50 w-96 h-[500px]">
       <Card className="h-full flex flex-col shadow-2xl border-0 bg-white/95 backdrop-blur-sm">
         <CardHeader className="bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-t-lg py-3">
           <div className="flex items-center justify-between">
@@ -275,7 +345,7 @@ What specific aspect would you like to explore?`;
             </div>
             <div className="flex items-center space-x-2">
               <Badge className="bg-white/20 text-white border-white/30 text-xs">
-                {workflow?.workflow_name || workflow?.name || 'Workflow'} 
+                {workflow?.name || 'Workflow'} 
               </Badge>
               <Button
                 variant="ghost"
@@ -363,25 +433,25 @@ What specific aspect would you like to explore?`;
                 variant="outline"
                 size="sm"
                 className="text-xs"
-                onClick={() => setInputMessage("Why is the executive approval 24 hours?")}
+                onClick={() => setInputMessage("Explain the workflow")}
               >
-                Executive Time
+                Explain Process
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 className="text-xs"
-                onClick={() => setInputMessage("Who are the approvers for this workflow?")}
+                onClick={() => setInputMessage("Who is responsible?")}
               >
-                Approvers
+                Responsibilities
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 className="text-xs"
-                onClick={() => setInputMessage("What's the current status?")}
+                onClick={() => setInputMessage("How long does this take?")}
               >
-                Status
+                Timing
               </Button>
             </div>
           </div>

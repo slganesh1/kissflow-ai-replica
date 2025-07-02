@@ -37,29 +37,17 @@ serve(async (req) => {
       .single()
 
     if (workflowError || !workflow) {
+      console.error('Workflow fetch error:', workflowError)
       return new Response(
         JSON.stringify({ error: `Failed to fetch workflow: ${workflowError?.message}` }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    // Get workflow template
-    const { data: template, error: templateError } = await supabaseClient
-      .from('workflow_templates')
-      .select('*')
-      .eq('type', workflow.workflow_type)
-      .eq('active', true)
-      .single()
-
-    if (templateError || !template) {
-      return new Response(
-        JSON.stringify({ error: `No template found for workflow type: ${workflow.workflow_type}` }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
+    console.log('Found workflow:', workflow)
 
     // Update workflow status to in_progress
-    await supabaseClient
+    const { error: updateError } = await supabaseClient
       .from('workflow_executions')
       .update({ 
         status: 'in_progress',
@@ -67,72 +55,100 @@ serve(async (req) => {
       })
       .eq('id', workflowId)
 
-    // Process workflow steps
-    const steps = template.definition.steps
-    
-    for (const step of steps) {
-      console.log(`Processing step: ${step.id}`)
-      
-      // Check step conditions
-      if (!evaluateStepConditions(step, workflow.request_data)) {
-        console.log(`Step ${step.id} conditions not met, skipping`)
-        continue
-      }
+    if (updateError) {
+      console.error('Update error:', updateError)
+      return new Response(
+        JSON.stringify({ error: `Failed to update workflow status: ${updateError.message}` }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
 
+    // Process workflow steps from request_data
+    const steps = workflow.request_data?.steps || []
+    
+    console.log('Processing steps:', steps.length)
+    
+    for (let i = 0; i < steps.length; i++) {
+      const step = steps[i]
+      console.log(`Processing step ${i + 1}: ${step.name}`)
+      
       // Create approval task if it's an approval step
-      if (step.type === 'approval') {
+      if (step.type === 'approval' || step.name.toLowerCase().includes('approval')) {
         // Create approval record
         const approvalData = {
           workflow_id: workflowId,
           step_id: step.id,
           step_name: step.name,
-          approver_role: step.role || 'manager',
+          approver_role: step.assignee || 'manager',
           status: 'pending',
-          order_sequence: 1,
+          order_sequence: i + 1,
           assigned_at: new Date().toISOString()
         }
 
-        await supabaseClient
+        const { error: approvalError } = await supabaseClient
           .from('workflow_approvals')
           .insert(approvalData)
+
+        if (approvalError) {
+          console.error('Approval insert error:', approvalError)
+        } else {
+          console.log('Created approval task for step:', step.name)
+        }
 
         // Create task record
         const taskData = {
           workflow_id: workflowId,
           step_id: step.id,
           task_type: 'approval',
-          assigned_role: step.role || 'manager',
+          assigned_role: step.assignee || 'manager',
           status: 'pending',
           priority: 1,
           data: {
             step_name: step.name,
             workflow_name: workflow.workflow_name,
-            request_data: workflow.request_data
+            request_data: workflow.request_data,
+            description: step.description,
+            duration: step.duration
           }
         }
 
-        await supabaseClient
+        const { error: taskError } = await supabaseClient
           .from('workflow_tasks')
           .insert(taskData)
 
+        if (taskError) {
+          console.error('Task insert error:', taskError)
+        }
+
         // Log event
-        await supabaseClient
+        const { error: logError } = await supabaseClient
           .from('workflow_execution_log')
           .insert({
             workflow_id: workflowId,
             step_id: step.id,
             action: 'approval_task_created',
             actor: 'system',
-            details: { approver_role: step.role, step_name: step.name }
+            details: { 
+              approver_role: step.assignee, 
+              step_name: step.name,
+              step_number: i + 1
+            }
           })
+
+        if (logError) {
+          console.error('Log insert error:', logError)
+        }
       }
     }
+
+    console.log('Workflow execution completed successfully')
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Workflow execution started',
-        workflowId 
+        message: 'Workflow execution started successfully',
+        workflowId,
+        stepsProcessed: steps.length
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
@@ -140,37 +156,11 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error executing workflow:', error)
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: `Workflow execution failed: ${error.message}`,
+        details: error.stack
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
 })
-
-function evaluateStepConditions(step: any, requestData: any): boolean {
-  if (!step.conditions || step.conditions.length === 0) {
-    return true
-  }
-
-  return step.conditions.every((condition: any) => {
-    const fieldValue = requestData[condition.field]
-    const conditionValue = condition.value
-
-    switch (condition.operator) {
-      case '>':
-        return Number(fieldValue) > Number(conditionValue)
-      case '<':
-        return Number(fieldValue) < Number(conditionValue)
-      case '>=':
-        return Number(fieldValue) >= Number(conditionValue)
-      case '<=':
-        return Number(fieldValue) <= Number(conditionValue)
-      case '==':
-      case '=':
-        return fieldValue == conditionValue
-      case '!=':
-        return fieldValue != conditionValue
-      default:
-        return true
-    }
-  })
-}

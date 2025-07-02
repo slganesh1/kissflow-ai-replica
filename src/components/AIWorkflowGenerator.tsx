@@ -383,6 +383,8 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
     setIsExecuting(true);
     
     try {
+      console.log('Starting workflow execution for:', generatedWorkflow.name);
+      
       // Save workflow to database first
       const { data: workflowExecution, error: insertError } = await supabase
         .from('workflow_executions')
@@ -393,7 +395,8 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
           request_data: {
             description: generatedWorkflow.description,
             steps: generatedWorkflow.steps,
-            estimated_duration: generatedWorkflow.estimated_duration
+            estimated_duration: generatedWorkflow.estimated_duration,
+            workflow_name: generatedWorkflow.name
           },
           status: 'pending'
         })
@@ -401,8 +404,11 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
         .single();
 
       if (insertError) {
+        console.error('Database insert error:', insertError);
         throw new Error(`Failed to save workflow: ${insertError.message}`);
       }
+
+      console.log('Workflow saved to database:', workflowExecution);
 
       // Execute the workflow using edge function
       const { data, error } = await supabase.functions.invoke('execute-workflow', {
@@ -410,10 +416,12 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
       });
 
       if (error) {
+        console.error('Edge function error:', error);
         throw new Error(`Execution failed: ${error.message}`);
       }
 
-      toast.success('Workflow executed successfully!');
+      console.log('Workflow execution response:', data);
+      toast.success(`Workflow executed successfully! ${data.stepsProcessed} steps processed.`);
       
       // Update workflow status
       setGeneratedWorkflow({
@@ -439,6 +447,8 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
     setIsDeploying(true);
     
     try {
+      console.log('Deploying workflow as template:', generatedWorkflow.name);
+      
       // Save as template for future use
       const { error: templateError } = await supabase
         .from('workflow_templates')
@@ -451,6 +461,8 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
               name: step.name,
               type: step.type,
               role: step.assignee,
+              description: step.description,
+              duration: step.duration,
               conditions: step.conditions ? 
                 Object.entries(step.conditions).map(([key, value]) => ({
                   field: key,
@@ -464,6 +476,7 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
         });
 
       if (templateError) {
+        console.error('Template deployment error:', templateError);
         throw new Error(`Failed to deploy template: ${templateError.message}`);
       }
 
@@ -570,7 +583,7 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
           </div>
 
           {/* VISUAL WORKFLOW DIAGRAM ONLY */}
-          <div className="mt-8">
+          <div className="mt-8 mb-32">
             <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
               <Zap className="h-6 w-6 mr-2 text-purple-600" />
               Workflow Process Diagram
@@ -578,7 +591,7 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
             <VisualWorkflowDiagram workflow={generatedWorkflow} />
           </div>
 
-          {/* WORKFLOW CHATBOT - FIXED */}
+          {/* WORKFLOW CHATBOT - POSITIONED ON LEFT */}
           <WorkflowChatbot
             workflow={generatedWorkflow}
             onWorkflowUpdate={setGeneratedWorkflow}
