@@ -17,6 +17,10 @@ serve(async (req) => {
   try {
     const { message, workflow, conversationHistory } = await req.json();
 
+    if (!message || !message.trim()) {
+      throw new Error('Message is required');
+    }
+
     const systemPrompt = `You are an expert workflow assistant. You help users understand and analyze their specific workflows.
 
 WORKFLOW CONTEXT:
@@ -49,6 +53,8 @@ Guidelines:
       }
     ];
 
+    console.log('Calling Anthropic API for workflow chat...');
+
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -64,12 +70,15 @@ Guidelines:
       }),
     });
 
-    const data = await response.json();
-    
     if (!response.ok) {
-      throw new Error(`Anthropic API error: ${data.error?.message || 'Unknown error'}`);
+      const errorData = await response.json();
+      console.error('Anthropic API error:', errorData);
+      throw new Error(`Anthropic API error: ${errorData.error?.message || 'Unknown error'}`);
     }
 
+    const data = await response.json();
+    console.log('Anthropic response received');
+    
     const aiResponse = data.content[0].text;
 
     return new Response(JSON.stringify({ response: aiResponse }), {

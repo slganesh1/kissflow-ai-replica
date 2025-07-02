@@ -2,26 +2,21 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Sparkles, 
   Play, 
   Save, 
-  Download, 
-  ArrowRight, 
+  Upload,
   CheckCircle, 
   Clock, 
   User, 
   FileText,
-  Users,
   Shield,
-  Zap,
-  Upload
+  Zap
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { WorkflowChatbot } from './WorkflowChatbot';
@@ -36,10 +31,6 @@ interface WorkflowStep {
   duration: string;
   description: string;
   level: number;
-  conditions?: {
-    approved: string;
-    rejected: string;
-  };
 }
 
 interface GeneratedWorkflow {
@@ -100,7 +91,7 @@ export const AIWorkflowGenerator = ({
     setIsGenerating(true);
     
     try {
-      console.log('Generating workflow with AI for:', businessProcess);
+      console.log('Generating workflow with OpenAI for:', businessProcess);
       
       const { data, error } = await supabase.functions.invoke('generate-ai-workflow', {
         body: { businessProcess: businessProcess.trim() }
@@ -116,7 +107,7 @@ export const AIWorkflowGenerator = ({
       }
 
       const workflow = data.workflow;
-      console.log('AI Generated workflow:', workflow);
+      console.log('OpenAI Generated workflow:', workflow);
 
       setGeneratedWorkflow(workflow);
       setWorkflowData(workflow);
@@ -127,159 +118,6 @@ export const AIWorkflowGenerator = ({
       toast.error(`Failed to generate workflow: ${error.message}`);
     } finally {
       setIsGenerating(false);
-    }
-  };
-
-  const generateIntelligentWorkflow = (description: string): WorkflowStep[] => {
-    const lowerDesc = description.toLowerCase();
-    const steps: WorkflowStep[] = [];
-    
-    // Initial Request Processing
-    steps.push({
-      id: 'step-1',
-      name: 'Request Initiation',
-      type: 'form',
-      assignee: 'Requester',
-      duration: '15 minutes',
-      description: 'Submit initial request with required documentation',
-      level: 1
-    });
-
-    steps.push({
-      id: 'step-2',
-      name: 'Document Validation',
-      type: 'validation',
-      assignee: 'System',
-      duration: '5 minutes',
-      description: 'Automated validation of submitted documents and data',
-      level: 1
-    });
-
-    steps.push({
-      id: 'step-3',
-      name: 'Initial Review',
-      type: 'review',
-      assignee: 'Supervisor',
-      duration: '2 hours',
-      description: 'Preliminary review for completeness and compliance',
-      level: 2
-    });
-
-    // Conditional approval levels based on complexity
-    if (lowerDesc.includes('high') || lowerDesc.includes('critical') || lowerDesc.includes('executive')) {
-      steps.push({
-        id: 'step-4',
-        name: 'Senior Management Review',
-        type: 'approval',
-        assignee: 'Senior Manager',
-        duration: '1 day',
-        description: 'Senior management approval for high-impact requests',
-        level: 3
-      });
-    }
-
-    if (lowerDesc.includes('financial') || lowerDesc.includes('budget') || lowerDesc.includes('expense')) {
-      steps.push({
-        id: 'step-5',
-        name: 'Financial Approval',
-        type: 'approval',
-        assignee: 'Finance Manager',
-        duration: '4 hours',
-        description: 'Financial review and budget approval',
-        level: 3
-      });
-    }
-
-    if (lowerDesc.includes('legal') || lowerDesc.includes('contract') || lowerDesc.includes('compliance')) {
-      steps.push({
-        id: 'step-6',
-        name: 'Legal Compliance Review',
-        type: 'approval',
-        assignee: 'Legal Team',
-        duration: '2 days',
-        description: 'Legal compliance and risk assessment',
-        level: 4
-      });
-    }
-
-    // Final approval and processing
-    steps.push({
-      id: `step-${steps.length + 1}`,
-      name: 'Final Approval',
-      type: 'approval',
-      assignee: 'Department Head',
-      duration: '1 day',
-      description: 'Final authorization and approval decision',
-      level: 4
-    });
-
-    steps.push({
-      id: `step-${steps.length + 1}`,
-      name: 'Implementation Planning',
-      type: 'processing',
-      assignee: 'Project Manager',
-      duration: '4 hours',
-      description: 'Create implementation plan and timeline',
-      level: 5
-    });
-
-    steps.push({
-      id: `step-${steps.length + 1}`,
-      name: 'Process Execution',
-      type: 'processing',
-      assignee: 'Operations Team',
-      duration: '1-5 days',
-      description: 'Execute the approved process or request',
-      level: 6
-    });
-
-    steps.push({
-      id: `step-${steps.length + 1}`,
-      name: 'Quality Assurance',
-      type: 'validation',
-      assignee: 'QA Team',
-      duration: '4 hours',
-      description: 'Quality check and validation of completed work',
-      level: 6
-    });
-
-    steps.push({
-      id: `step-${steps.length + 1}`,
-      name: 'Documentation & Closure',
-      type: 'processing',
-      assignee: 'Administrator',
-      duration: '1 hour',
-      description: 'Complete documentation and close the workflow',
-      level: 7
-    });
-
-    return steps;
-  };
-
-  const calculateEstimatedDuration = (steps: WorkflowStep[]): string => {
-    let totalHours = 0;
-    
-    steps.forEach(step => {
-      const duration = step.duration.toLowerCase();
-      if (duration.includes('minute')) {
-        const minutes = parseInt(duration.match(/\d+/)?.[0] || '0');
-        totalHours += minutes / 60;
-      } else if (duration.includes('hour')) {
-        const hours = parseInt(duration.match(/\d+/)?.[0] || '0');
-        totalHours += hours;
-      } else if (duration.includes('day')) {
-        const days = parseInt(duration.match(/\d+/)?.[0] || '0');
-        totalHours += days * 8;
-      }
-    });
-
-    if (totalHours < 1) {
-      return `${Math.round(totalHours * 60)} minutes`;
-    } else if (totalHours < 24) {
-      return `${Math.round(totalHours)} hours`;
-    } else {
-      const days = Math.round(totalHours / 8);
-      return `${days} business days`;
     }
   };
 
@@ -471,7 +309,7 @@ export const AIWorkflowGenerator = ({
                 {isGenerating ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                    Generating with AI...
+                    Generating with OpenAI...
                   </>
                 ) : (
                   <>

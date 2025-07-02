@@ -17,6 +17,10 @@ serve(async (req) => {
   try {
     const { businessProcess } = await req.json();
 
+    if (!businessProcess || !businessProcess.trim()) {
+      throw new Error('Business process description is required');
+    }
+
     const systemPrompt = `You are an expert workflow designer. Create a detailed, intelligent workflow based on the business process description. 
 
 IMPORTANT: Respond with ONLY a JSON object in this exact format:
@@ -47,6 +51,8 @@ Guidelines:
 - Consider approval hierarchies for financial/critical processes
 - Include validation and quality checks where appropriate`;
 
+    console.log('Calling OpenAI API for workflow generation...');
+
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -64,12 +70,15 @@ Guidelines:
       }),
     });
 
-    const data = await response.json();
-    
     if (!response.ok) {
-      throw new Error(`OpenAI API error: ${data.error?.message || 'Unknown error'}`);
+      const errorData = await response.json();
+      console.error('OpenAI API error:', errorData);
+      throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
     }
 
+    const data = await response.json();
+    console.log('OpenAI response received');
+    
     const aiResponse = data.choices[0].message.content;
     
     // Parse the JSON response
