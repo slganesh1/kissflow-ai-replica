@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -99,29 +100,31 @@ export const AIWorkflowGenerator = ({
     setIsGenerating(true);
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      console.log('Generating workflow with AI for:', businessProcess);
       
-      const processName = businessProcess.substring(0, 50) + (businessProcess.length > 50 ? '...' : '');
-      const steps = generateIntelligentWorkflow(businessProcess);
-      
-      const workflow: GeneratedWorkflow = {
-        id: `workflow-${Date.now()}`,
-        name: `${processName} - AI Workflow`,
-        description: `AI-generated workflow for: ${businessProcess}`,
-        type: 'ai-generated',
-        estimated_duration: calculateEstimatedDuration(steps),
-        steps: steps,
-        created_at: new Date().toISOString(),
-        status: 'draft'
-      };
+      const { data, error } = await supabase.functions.invoke('generate-ai-workflow', {
+        body: { businessProcess: businessProcess.trim() }
+      });
+
+      if (error) {
+        console.error('Supabase function error:', error);
+        throw new Error(error.message || 'Failed to generate workflow');
+      }
+
+      if (!data || !data.workflow) {
+        throw new Error('No workflow data received from AI');
+      }
+
+      const workflow = data.workflow;
+      console.log('AI Generated workflow:', workflow);
 
       setGeneratedWorkflow(workflow);
       setWorkflowData(workflow);
-      toast.success('Workflow generated successfully!');
+      toast.success('AI-powered workflow generated successfully!');
       
     } catch (error) {
       console.error('Error generating workflow:', error);
-      toast.error('Failed to generate workflow');
+      toast.error(`Failed to generate workflow: ${error.message}`);
     } finally {
       setIsGenerating(false);
     }
@@ -442,7 +445,7 @@ export const AIWorkflowGenerator = ({
             <span>AI Workflow Generator</span>
           </CardTitle>
           <CardDescription className="text-pink-100">
-            Describe your business process and let AI generate an intelligent workflow
+            Describe your business process and let real AI generate an intelligent workflow
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6 p-6">
@@ -468,12 +471,12 @@ export const AIWorkflowGenerator = ({
                 {isGenerating ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                    Generating...
+                    Generating with AI...
                   </>
                 ) : (
                   <>
                     <Sparkles className="h-4 w-4 mr-2" />
-                    Generate Workflow
+                    Generate with AI
                   </>
                 )}
               </Button>
@@ -492,7 +495,7 @@ export const AIWorkflowGenerator = ({
               
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold">Generated Workflow</h3>
+                  <h3 className="text-lg font-semibold">AI-Generated Workflow</h3>
                   <div className="flex space-x-2">
                     <Button
                       variant="outline"
@@ -551,7 +554,7 @@ export const AIWorkflowGenerator = ({
                   </div>
                 </div>
 
-                {/* Visual Workflow Diagram instead of text-based flow */}
+                {/* Visual Workflow Diagram */}
                 <div className="mt-6">
                   <VisualWorkflowDiagram workflow={generatedWorkflow} />
                 </div>
