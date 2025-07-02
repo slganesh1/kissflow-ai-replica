@@ -5,6 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Sparkles, Bot, Clock, CheckCircle, AlertCircle, Users, FileText, Shield, Calculator, CreditCard, Building, Search, Zap, Eye, Send, Mail, UserCheck, ClipboardCheck, Phone, Star, Award, TrendingUp, DollarSign } from 'lucide-react';
 import { toast } from 'sonner';
+import { VisualWorkflowDiagram } from './VisualWorkflowDiagram';
 
 interface WorkflowStep {
   id: string;
@@ -397,24 +398,25 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
       </Card>
 
       {generatedWorkflow && (
-        <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-indigo-50">
-          <CardHeader className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-t-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-lg">{generatedWorkflow.name}</CardTitle>
-                <CardDescription className="text-indigo-100">
-                  {generatedWorkflow.steps?.length || 0} intelligent steps • Est. {generatedWorkflow.estimated_duration}
-                </CardDescription>
+        <>
+          {/* Workflow Summary Card */}
+          <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-indigo-50">
+            <CardHeader className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-t-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg">{generatedWorkflow.name}</CardTitle>
+                  <CardDescription className="text-indigo-100">
+                    {generatedWorkflow.steps?.length || 0} intelligent steps • Est. {generatedWorkflow.estimated_duration}
+                  </CardDescription>
+                </div>
+                <Badge className="bg-white/20 text-white border-white/30">
+                  Universal AI Generated
+                </Badge>
               </div>
-              <Badge className="bg-white/20 text-white border-white/30">
-                Universal AI Generated
-              </Badge>
-            </div>
-          </CardHeader>
-          
-          <CardContent className="p-6">
-            <div className="space-y-4">
-              <p className="text-gray-700 text-sm">{generatedWorkflow.description}</p>
+            </CardHeader>
+            
+            <CardContent className="p-6">
+              <p className="text-gray-700 text-sm mb-4">{generatedWorkflow.description}</p>
               
               <div className="space-y-3">
                 {generatedWorkflow.steps?.map((step: WorkflowStep, index: number) => {
@@ -471,9 +473,18 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
                   );
                 })}
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+
+          {/* VISUAL WORKFLOW DIAGRAM - THIS WAS MISSING! */}
+          <div className="mt-8">
+            <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
+              <Zap className="h-6 w-6 mr-2 text-purple-600" />
+              Visual Workflow Diagram
+            </h3>
+            <VisualWorkflowDiagram workflow={generatedWorkflow} />
+          </div>
+        </>
       )}
     </div>
   );
