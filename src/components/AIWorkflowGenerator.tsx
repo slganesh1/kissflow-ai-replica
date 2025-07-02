@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -63,6 +64,31 @@ export const AIWorkflowGenerator = ({
   const [isSaving, setIsSaving] = useState(false);
   const [isDeploying, setIsDeploying] = useState(false);
   const [isChatbotMinimized, setIsChatbotMinimized] = useState(true);
+  const [savedWorkflowId, setSavedWorkflowId] = useState<string | null>(null);
+
+  // Load saved workflow from localStorage on component mount
+  useEffect(() => {
+    const savedWorkflow = localStorage.getItem('aiGeneratedWorkflow');
+    if (savedWorkflow && !generatedWorkflow) {
+      try {
+        const parsedWorkflow = JSON.parse(savedWorkflow);
+        setGeneratedWorkflow(parsedWorkflow);
+        setWorkflowData(parsedWorkflow);
+        console.log('Loaded saved workflow from localStorage:', parsedWorkflow);
+      } catch (error) {
+        console.error('Error loading saved workflow:', error);
+        localStorage.removeItem('aiGeneratedWorkflow');
+      }
+    }
+  }, []);
+
+  // Save workflow to localStorage whenever it changes
+  useEffect(() => {
+    if (generatedWorkflow) {
+      localStorage.setItem('aiGeneratedWorkflow', JSON.stringify(generatedWorkflow));
+      console.log('Saved workflow to localStorage:', generatedWorkflow);
+    }
+  }, [generatedWorkflow]);
 
   const generateWorkflow = async () => {
     if (!businessProcess.trim()) {
@@ -76,13 +102,11 @@ export const AIWorkflowGenerator = ({
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       const processName = businessProcess.substring(0, 50) + (businessProcess.length > 50 ? '...' : '');
-      
-      // Analyze the business process to determine complexity and generate appropriate workflow
       const steps = generateIntelligentWorkflow(businessProcess);
       
       const workflow: GeneratedWorkflow = {
         id: `workflow-${Date.now()}`,
-        name: `${processName} - Workflow`,
+        name: `${processName} - AI Workflow`,
         description: `AI-generated workflow for: ${businessProcess}`,
         type: 'ai-generated',
         estimated_duration: calculateEstimatedDuration(steps),
@@ -198,16 +222,6 @@ export const AIWorkflowGenerator = ({
 
     steps.push({
       id: `step-${steps.length + 1}`,
-      name: 'Resource Allocation',
-      type: 'processing',
-      assignee: 'Resource Manager',
-      duration: '2 hours',
-      description: 'Allocate necessary resources and personnel',
-      level: 5
-    });
-
-    steps.push({
-      id: `step-${steps.length + 1}`,
       name: 'Process Execution',
       type: 'processing',
       assignee: 'Operations Team',
@@ -283,13 +297,15 @@ export const AIWorkflowGenerator = ({
             description: generatedWorkflow.description,
             estimated_duration: generatedWorkflow.estimated_duration,
             steps: generatedWorkflow.steps
-          }
+          },
+          active: false
         })
         .select()
         .single();
 
       if (error) throw error;
 
+      setSavedWorkflowId(data.id);
       toast.success('Workflow saved to templates!');
       console.log('Saved workflow:', data);
       
@@ -326,6 +342,7 @@ export const AIWorkflowGenerator = ({
 
       if (error) throw error;
 
+      setSavedWorkflowId(data.id);
       toast.success('Workflow deployed and activated!');
       console.log('Deployed workflow:', data);
       
@@ -356,13 +373,16 @@ export const AIWorkflowGenerator = ({
             description: generatedWorkflow.description,
             steps: generatedWorkflow.steps,
             estimated_duration: generatedWorkflow.estimated_duration,
-            business_process: businessProcess
+            business_process: businessProcess,
+            ai_generated: true
           }
         })
         .select()
         .single();
 
       if (execError) throw execError;
+
+      console.log('Created workflow execution:', execution);
 
       // Execute the workflow via edge function
       const { data: result, error: functionError } = await supabase.functions.invoke('execute-workflow', {
@@ -371,7 +391,7 @@ export const AIWorkflowGenerator = ({
 
       if (functionError) throw functionError;
 
-      toast.success('Workflow executed successfully!');
+      toast.success('Workflow executed successfully! Check Active Workflows tab.');
       console.log('Execution result:', result);
       
     } catch (error) {
@@ -380,6 +400,15 @@ export const AIWorkflowGenerator = ({
     } finally {
       setIsExecuting(false);
     }
+  };
+
+  const clearWorkflow = () => {
+    setGeneratedWorkflow(null);
+    setWorkflowData(null);
+    localStorage.removeItem('aiGeneratedWorkflow');
+    setSavedWorkflowId(null);
+    setBusinessProcess('');
+    toast.success('Workflow cleared');
   };
 
   const getStepIcon = (type: string) => {
@@ -422,7 +451,7 @@ export const AIWorkflowGenerator = ({
               <Label htmlFor="business-process">Describe Your Business Process</Label>
               <Textarea
                 id="business-process"
-                placeholder="Example: When an employee joins, process their onboarding including document verification, system access setup, and manager approval..."
+                placeholder="Example: Employee onboarding process including document verification, system access setup, and manager approval..."
                 value={businessProcess}
                 onChange={(e) => setBusinessProcess(e.target.value)}
                 rows={4}
@@ -430,23 +459,31 @@ export const AIWorkflowGenerator = ({
               />
             </div>
             
-            <Button 
-              onClick={generateWorkflow} 
-              disabled={isGenerating || !businessProcess.trim()}
-              className="w-full bg-gradient-to-r from-pink-500 to-violet-500 hover:from-pink-600 hover:to-violet-600"
-            >
-              {isGenerating ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                  Generating Workflow...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Generate AI Workflow
-                </>
+            <div className="flex space-x-2">
+              <Button 
+                onClick={generateWorkflow} 
+                disabled={isGenerating || !businessProcess.trim()}
+                className="flex-1 bg-gradient-to-r from-pink-500 to-violet-500 hover:from-pink-600 hover:to-violet-600"
+              >
+                {isGenerating ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Generate Workflow
+                  </>
+                )}
+              </Button>
+              
+              {generatedWorkflow && (
+                <Button variant="outline" onClick={clearWorkflow}>
+                  Clear
+                </Button>
               )}
-            </Button>
+            </div>
           </div>
 
           {generatedWorkflow && (
@@ -514,36 +551,42 @@ export const AIWorkflowGenerator = ({
                   </div>
                 </div>
 
-                <ScrollArea className="h-96 w-full rounded-md border p-4">
-                  <div className="space-y-4">
+                <div className="bg-white border rounded-lg p-4">
+                  <h4 className="font-medium mb-4">Workflow Flow Diagram</h4>
+                  <div className="space-y-2">
                     {generatedWorkflow.steps.map((step, index) => (
-                      <div key={step.id}>
-                        <div className={`p-4 rounded-lg bg-gradient-to-r ${getStepColor(step.type)} text-white shadow-md`}>
-                          <div className="flex items-center justify-between mb-2">
+                      <div key={step.id} className="flex items-center space-x-3">
+                        <div className={`w-8 h-8 rounded-full bg-gradient-to-r ${getStepColor(step.type)} flex items-center justify-center text-white`}>
+                          {getStepIcon(step.type)}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium">{step.name}</span>
                             <div className="flex items-center space-x-2">
-                              {getStepIcon(step.type)}
-                              <span className="font-medium">Step {index + 1}: {step.name}</span>
+                              <Badge variant="secondary" className="text-xs">{step.type}</Badge>
+                              <span className="text-xs text-gray-500">{step.duration}</span>
                             </div>
-                            <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
-                              {step.type}
-                            </Badge>
                           </div>
-                          <p className="text-sm mb-2">{step.description}</p>
-                          <div className="flex items-center justify-between text-xs">
-                            <span>👤 {step.assignee}</span>
-                            <span>⏱️ {step.duration}</span>
+                          <div className="text-sm text-gray-600">
+                            <span className="font-medium">Assignee:</span> {step.assignee} | 
+                            <span className="font-medium"> Description:</span> {step.description}
                           </div>
                         </div>
-                        
                         {index < generatedWorkflow.steps.length - 1 && (
-                          <div className="flex justify-center py-2">
-                            <ArrowRight className="h-6 w-6 text-gray-400" />
-                          </div>
+                          <ArrowRight className="h-4 w-4 text-gray-400" />
                         )}
                       </div>
                     ))}
                   </div>
-                </ScrollArea>
+                </div>
+
+                {savedWorkflowId && (
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <p className="text-sm text-green-700">
+                      ✅ Workflow saved with ID: {savedWorkflowId}
+                    </p>
+                  </div>
+                )}
               </div>
             </>
           )}
