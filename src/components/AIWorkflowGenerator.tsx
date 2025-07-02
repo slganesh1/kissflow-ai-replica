@@ -1,858 +1,465 @@
 
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { VisualWorkflowDiagram } from './VisualWorkflowDiagram';
+import { Badge } from '@/components/ui/badge';
+import { Sparkles, Bot, Clock, CheckCircle, AlertCircle, Users, FileText, Shield, Calculator, CreditCard, Building } from 'lucide-react';
 import { toast } from 'sonner';
-import { Plus, Play, Save, Settings, Bot, Mail, FileText, Database, Zap, ArrowRight, Clock, Sparkles, Activity, Users, Brain, TrendingUp, BarChart3, UserCheck, File, Package, CheckCircle, XCircle, Shield, GitBranch, DollarSign } from 'lucide-react';
-import { WorkflowChatbot } from './WorkflowChatbot';
 
 interface WorkflowStep {
   id: string;
   name: string;
-  type: string;
+  type: 'form' | 'ai_analysis' | 'review' | 'approval' | 'assessment' | 'validation' | 'processing' | 'notification' | 'automated_check';
   description: string;
-  icon: any;
-  status: string;
-  approver_role?: string;
-  estimatedTime?: string;
-  condition?: string;
-}
-
-interface WorkflowData {
-  id: string;
-  name: string;
-  description: string;
-  type: string;
-  category: string;
-  steps: number;
-  agents: string[];
-  created_at: string;
-  status: string;
-  updated_at?: string;
+  assignee?: string;
+  duration: string;
+  icon: string;
+  conditions?: {
+    approved?: string;
+    rejected?: string;
+  };
 }
 
 interface AIWorkflowGeneratorProps {
   generatedWorkflow: any;
   setGeneratedWorkflow: (workflow: any) => void;
-  workflowData: WorkflowData | null;
-  setWorkflowData: (data: WorkflowData | null) => void;
+  workflowData: any;
+  setWorkflowData: (data: any) => void;
 }
 
-export const AIWorkflowGenerator = ({ generatedWorkflow, setGeneratedWorkflow, workflowData, setWorkflowData }) => {
-  const [aiDescription, setAiDescription] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [workflowName, setWorkflowName] = useState('');
-  const [workflowDescription, setWorkflowDescription] = useState('');
-  const [isDeploying, setIsDeploying] = useState(false);
-  
-  const [showChatbot, setShowChatbot] = useState(false);
-  const [isChatMinimized, setIsChatMinimized] = useState(false);
+export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
+  generatedWorkflow,
+  setGeneratedWorkflow,
+  workflowData,
+  setWorkflowData
+}) => {
+  const [prompt, setPrompt] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
 
-  const generateDetailedWorkflow = (description: string) => {
+  const analyzeWorkflowType = (description: string): string => {
     const lowerDesc = description.toLowerCase();
     
-    // Employee/HR Workflows
-    if (lowerDesc.includes('employee') || lowerDesc.includes('hr') || lowerDesc.includes('hiring') || lowerDesc.includes('onboard')) {
-      return [
-        {
-          id: '1',
-          name: 'Application Submission',
-          type: 'form_input',
-          description: 'Candidate submits job application with resume and cover letter',
-          icon: FileText,
-          status: 'complete',
-          estimatedTime: '5 minutes'
-        },
-        {
-          id: '2',
-          name: 'AI Resume Screening',
-          type: 'ai_analysis',
-          description: 'AI analyzes resume for keyword matching, experience level, and qualification scoring',
-          icon: Bot,
-          status: 'complete',
-          estimatedTime: '2 minutes'
-        },
-        {
-          id: '3',
-          name: 'HR Initial Review',
-          type: 'review',
-          description: 'HR team reviews AI recommendations and candidate profile for culture fit',
-          icon: Users,
-          status: 'pending',
-          approver_role: 'HR Recruiter',
-          estimatedTime: '24 hours'
-        },
-        {
-          id: '4',
-          name: 'Technical Assessment',
-          type: 'assessment',
-          description: 'Candidate completes role-specific technical evaluation and skills test',
-          icon: Brain,
-          status: 'pending',
-          estimatedTime: '2 hours'
-        },
-        {
-          id: '5',
-          name: 'Manager Interview',
-          type: 'approval',
-          description: 'Hiring manager conducts behavioral and technical interview session',
-          icon: UserCheck,
-          status: 'pending',
-          approver_role: 'Hiring Manager',
-          estimatedTime: '48 hours'
-        },
-        {
-          id: '6',
-          name: 'Background Check',
-          type: 'validation',
-          description: 'Third-party verification of employment history, education, and references',
-          icon: Shield,
-          status: 'pending',
-          estimatedTime: '72 hours'
-        },
-        {
-          id: '7',
-          name: 'Offer Generation',
-          type: 'processing',
-          description: 'HR generates offer letter with salary, benefits, and start date details',
-          icon: FileText,
-          status: 'pending',
-          estimatedTime: '12 hours'
-        },
-        {
-          id: '8',
-          name: 'Executive Approval',
-          type: 'approval',
-          description: 'Senior leadership approves compensation package and hiring decision',
-          icon: CheckCircle,
-          status: 'pending',
-          approver_role: 'VP/Director',
-          estimatedTime: '24 hours'
-        },
-        {
-          id: '9',
-          name: 'Offer Communication',
-          type: 'notification',
-          description: 'Formal offer extended to candidate with acceptance deadline',
-          icon: Mail,
-          status: 'pending',
-          estimatedTime: '2 hours'
-        }
-      ];
+    if (lowerDesc.includes('loan') || lowerDesc.includes('credit') || lowerDesc.includes('bank') || lowerDesc.includes('lending')) {
+      return 'loan_approval';
+    }
+    if (lowerDesc.includes('expense') || lowerDesc.includes('purchase') || lowerDesc.includes('budget')) {
+      return 'expense_approval';
+    }
+    if (lowerDesc.includes('hire') || lowerDesc.includes('recruit') || lowerDesc.includes('interview') || lowerDesc.includes('candidate')) {
+      return 'hiring_process';
+    }
+    if (lowerDesc.includes('campaign') || lowerDesc.includes('marketing') || lowerDesc.includes('advertisement')) {
+      return 'campaign_approval';
+    }
+    if (lowerDesc.includes('contract') || lowerDesc.includes('vendor') || lowerDesc.includes('supplier')) {
+      return 'contract_approval';
     }
     
-    // Order/Purchase Workflows
-    if (lowerDesc.includes('order') || lowerDesc.includes('purchase') || lowerDesc.includes('buy') || lowerDesc.includes('procurement')) {
-      return [
-        {
-          id: '1',
-          name: 'Order Placement',
-          type: 'form_input',
-          description: 'Customer submits order with product selection, quantity, and shipping details',
-          icon: Package,
-          status: 'complete',
-          estimatedTime: '3 minutes'
-        },
-        {
-          id: '2',
-          name: 'Inventory Validation',
-          type: 'validation',
-          description: 'System checks product availability, stock levels, and delivery constraints',
-          icon: Database,
-          status: 'complete',
-          estimatedTime: '30 seconds'
-        },
-        {
-          id: '3',
-          name: 'Pricing Calculation',
-          type: 'ai_analysis',
-          description: 'AI calculates total cost including taxes, shipping, discounts, and promotional offers',
-          icon: Bot,
-          status: 'complete',
-          estimatedTime: '1 minute'
-        },
-        {
-          id: '4',
-          name: 'Payment Processing',
-          type: 'processing',
-          description: 'Secure payment gateway processes credit card or digital payment method',
-          icon: DollarSign,
-          status: 'pending',
-          estimatedTime: '2 minutes'
-        },
-        {
-          id: '5',
-          name: 'Fraud Detection',
-          type: 'validation',
-          description: 'AI-powered fraud detection analyzes payment patterns and risk factors',
-          icon: Shield,
-          status: 'pending',
-          estimatedTime: '5 minutes'
-        },
-        {
-          id: '6',
-          name: 'Order Confirmation',
-          type: 'notification',
-          description: 'Customer receives detailed order confirmation with tracking information',
-          icon: Mail,
-          status: 'pending',
-          estimatedTime: '1 minute'
-        },
-        {
-          id: '7',
-          name: 'Warehouse Processing',
-          type: 'processing',
-          description: 'Warehouse team picks, packs, and prepares order for shipment',
-          icon: Package,
-          status: 'pending',
-          approver_role: 'Warehouse Manager',
-          estimatedTime: '4 hours'
-        },
-        {
-          id: '8',
-          name: 'Quality Control',
-          type: 'review',
-          description: 'Quality assurance team inspects packaged order for accuracy and condition',
-          icon: CheckCircle,
-          status: 'pending',
-          estimatedTime: '30 minutes'
-        },
-        {
-          id: '9',
-          name: 'Shipping Dispatch',
-          type: 'processing',
-          description: 'Courier pickup and delivery tracking activation with customer notifications',
-          icon: ArrowRight,
-          status: 'pending',
-          estimatedTime: '24-48 hours'
-        }
-      ];
-    }
-    
-    // Financial/Expense Workflows
-    if (lowerDesc.includes('expense') || lowerDesc.includes('reimburs') || lowerDesc.includes('financial') || lowerDesc.includes('budget')) {
-      return [
-        {
-          id: '1',
-          name: 'Expense Submission',
-          type: 'form_input',
-          description: 'Employee submits expense report with receipts, categories, and business justification',
-          icon: FileText,
-          status: 'complete',
-          estimatedTime: '10 minutes'
-        },
-        {
-          id: '2',
-          name: 'Receipt OCR Processing',
-          type: 'ai_analysis',
-          description: 'AI extracts data from receipt images including amounts, dates, vendors, and categories',
-          icon: Bot,
-          status: 'complete',
-          estimatedTime: '1 minute'
-        },
-        {
-          id: '3',
-          name: 'Policy Compliance Check',
-          type: 'validation',
-          description: 'System validates expenses against company policy limits and approved categories',
-          icon: Shield,
-          status: 'pending',
-          estimatedTime: '2 minutes'
-        },
-        {
-          id: '4',
-          name: 'Manager Pre-Approval',
-          type: 'approval',
-          description: 'Direct manager reviews and approves expense legitimacy and business necessity',
-          icon: UserCheck,
-          status: 'pending',
-          approver_role: 'Direct Manager',
-          estimatedTime: '24 hours'
-        },
-        {
-          id: '5',
-          name: 'Finance Review',
-          type: 'review',
-          description: 'Finance team conducts detailed review of high-value or flagged expenses',
-          icon: TrendingUp,
-          status: 'pending',
-          approver_role: 'Finance Analyst',
-          estimatedTime: '48 hours'
-        },
-        {
-          id: '6',
-          name: 'Budget Impact Analysis',
-          type: 'ai_analysis',
-          description: 'AI analyzes impact on department budget and generates spending insights',
-          icon: BarChart3,
-          status: 'pending',
-          estimatedTime: '5 minutes'
-        },
-        {
-          id: '7',
-          name: 'Accounting Integration',
-          type: 'processing',
-          description: 'Approved expenses automatically sync with accounting system and general ledger',
-          icon: Database,
-          status: 'pending',
-          estimatedTime: '30 minutes'
-        },
-        {
-          id: '8',
-          name: 'Reimbursement Processing',
-          type: 'processing',
-          description: 'Payroll system processes reimbursement for next pay cycle or direct deposit',
-          icon: DollarSign,
-          status: 'pending',
-          estimatedTime: '72 hours'
-        },
-        {
-          id: '9',
-          name: 'Completion Notification',
-          type: 'notification',
-          description: 'Employee receives confirmation of reimbursement with payment details and timeline',
-          icon: Mail,
-          status: 'pending',
-          estimatedTime: '5 minutes'
-        }
-      ];
-    }
-    
-    // Customer Support Workflows
-    if (lowerDesc.includes('support') || lowerDesc.includes('ticket') || lowerDesc.includes('customer') || lowerDesc.includes('help')) {
-      return [
-        {
-          id: '1',
-          name: 'Ticket Creation',
-          type: 'form_input',
-          description: 'Customer submits support request with issue description, priority level, and contact info',
-          icon: FileText,
-          status: 'complete',
-          estimatedTime: '5 minutes'
-        },
-        {
-          id: '2',
-          name: 'AI Categorization',
-          type: 'ai_analysis',
-          description: 'AI analyzes ticket content to categorize issue type, urgency, and required expertise',
-          icon: Bot,
-          status: 'complete',
-          estimatedTime: '30 seconds'
-        },
-        {
-          id: '3',
-          name: 'Knowledge Base Search',
-          type: 'ai_analysis',
-          description: 'AI searches existing solutions and suggests automated responses for common issues',
-          icon: Brain,
-          status: 'pending',
-          estimatedTime: '1 minute'
-        },
-        {
-          id: '4',
-          name: 'Agent Assignment',
-          type: 'processing',
-          description: 'Intelligent routing assigns ticket to available agent with relevant expertise',
-          icon: Users,
-          status: 'pending',
-          estimatedTime: '15 minutes'
-        },
-        {
-          id: '5',
-          name: 'Initial Response',
-          type: 'notification',
-          description: 'Agent provides acknowledgment and initial assessment with expected resolution timeline',
-          icon: Mail,
-          status: 'pending',
-          approver_role: 'Support Agent',
-          estimatedTime: '2 hours'
-        },
-        {
-          id: '6',
-          name: 'Issue Investigation',
-          type: 'review',
-          description: 'Agent investigates issue using customer data, logs, and diagnostic tools',
-          icon: Activity,
-          status: 'pending',
-          estimatedTime: '4 hours'
-        },
-        {
-          id: '7',
-          name: 'Escalation Review',
-          type: 'approval',
-          description: 'Complex issues escalated to senior support or engineering teams for resolution',
-          icon: ArrowRight,
-          status: 'pending',
-          approver_role: 'Senior Support',
-          estimatedTime: '8 hours',
-          condition: 'If complex technical issue'
-        },
-        {
-          id: '8',
-          name: 'Solution Implementation',
-          type: 'processing',
-          description: 'Agent implements solution and verifies issue resolution with customer',
-          icon: CheckCircle,
-          status: 'pending',
-          estimatedTime: '2 hours'
-        },
-        {
-          id: '9',
-          name: 'Customer Satisfaction',
-          type: 'review',
-          description: 'Customer feedback survey sent to measure satisfaction and identify improvements',
-          icon: TrendingUp,
-          status: 'pending',
-          estimatedTime: '24 hours'
-        }
-      ];
-    }
-    
-    // Default Generic Workflow
+    return 'custom_workflow';
+  };
+
+  const generateLoanApprovalWorkflow = (): WorkflowStep[] => {
     return [
       {
-        id: '1',
-        name: 'Request Initiation',
-        type: 'form_input',
-        description: 'User submits initial request with detailed requirements and supporting documentation',
-        icon: FileText,
-        status: 'complete',
-        estimatedTime: '10 minutes'
+        id: 'application_submission',
+        name: 'Loan Application Submission',
+        type: 'form',
+        description: 'Customer submits loan application with required documents (ID, salary slips, tax returns)',
+        duration: '10 minutes',
+        icon: 'FileText'
       },
       {
-        id: '2',
-        name: 'AI Content Analysis',
+        id: 'document_verification',
+        name: 'AI Document Verification',
         type: 'ai_analysis',
-        description: 'Advanced AI processes request content, extracts key data points, and identifies patterns',
-        icon: Bot,
-        status: 'complete',
-        estimatedTime: '3 minutes'
+        description: 'AI validates document authenticity, completeness, and extracts key information',
+        duration: '3 minutes',
+        icon: 'Bot'
       },
       {
-        id: '3',
-        name: 'Automated Validation',
-        type: 'validation',
-        description: 'System performs comprehensive validation checks against business rules and compliance requirements',
-        icon: Shield,
-        status: 'pending',
-        estimatedTime: '5 minutes'
+        id: 'credit_score_check',
+        name: 'Credit Score Assessment',
+        type: 'automated_check',
+        description: 'System pulls credit score from CIBIL and checks loan history and affordability',
+        duration: '5 minutes',
+        icon: 'CreditCard'
       },
       {
-        id: '4',
-        name: 'Risk Assessment',
+        id: 'fraud_risk_analysis',
+        name: 'Fraud & Risk Detection',
         type: 'ai_analysis',
-        description: 'AI evaluates potential risks, impact assessment, and recommends appropriate approval path',
-        icon: Brain,
-        status: 'pending',
-        estimatedTime: '10 minutes'
+        description: 'AI analyzes application patterns, location data, and assigns risk score (low/medium/high)',
+        duration: '2 minutes',
+        icon: 'Shield'
       },
       {
-        id: '5',
-        name: 'Primary Approval',
+        id: 'automated_approval_check',
+        name: 'Automated Pre-Approval',
+        type: 'automated_check',
+        description: 'System determines if loan qualifies for automatic approval based on risk score',
+        duration: '1 minute',
+        icon: 'CheckCircle',
+        conditions: {
+          approved: 'Low Risk - Auto Approve',
+          rejected: 'Medium/High Risk - Manual Review'
+        }
+      },
+      {
+        id: 'manager_review',
+        name: 'Manager Quick Review',
         type: 'approval',
-        description: 'Designated approver reviews request details, AI recommendations, and makes approval decision',
-        icon: UserCheck,
-        status: 'pending',
-        approver_role: 'Department Manager',
-        estimatedTime: '24 hours'
+        description: 'Branch manager reviews low-risk applications for final sign-off',
+        assignee: 'Branch Manager',
+        duration: '2 hours',
+        icon: 'Users'
       },
       {
-        id: '6',
-        name: 'Compliance Review',
+        id: 'committee_review',
+        name: 'Loan Committee Review',
         type: 'review',
-        description: 'Specialized compliance team ensures adherence to regulatory requirements and internal policies',
-        icon: CheckCircle,
-        status: 'pending',
-        approver_role: 'Compliance Officer',
-        estimatedTime: '48 hours'
+        description: 'Risk officer, compliance officer, and loan manager review medium/high risk applications',
+        assignee: 'Loan Committee',
+        duration: '24-48 hours',
+        icon: 'Users'
       },
       {
-        id: '7',
-        name: 'Executive Authorization',
+        id: 'final_decision',
+        name: 'Final Loan Decision',
         type: 'approval',
-        description: 'Senior leadership provides final authorization for high-impact or high-value requests',
-        icon: Users,
-        status: 'pending',
-        approver_role: 'Executive Team',
-        estimatedTime: '72 hours',
-        condition: 'If request value > $10,000'
+        description: 'Committee makes final approval/rejection decision with terms',
+        assignee: 'Loan Committee',
+        duration: '1 hour',
+        icon: 'CheckCircle',
+        conditions: {
+          approved: 'Generate Offer',
+          rejected: 'Send Rejection Notice'
+        }
       },
       {
-        id: '8',
-        name: 'Implementation Processing',
+        id: 'offer_generation',
+        name: 'Loan Offer Preparation',
         type: 'processing',
-        description: 'Automated systems execute approved request with real-time monitoring and status updates',
-        icon: Zap,
-        status: 'pending',
-        estimatedTime: '2-6 hours'
+        description: 'System generates formal loan offer with amount, interest rate, and repayment terms',
+        duration: '30 minutes',
+        icon: 'FileText'
       },
       {
-        id: '9',
-        name: 'Completion Notification',
-        type: 'notification',
-        description: 'All stakeholders receive detailed completion notification with results and next steps',
-        icon: Mail,
-        status: 'pending',
-        estimatedTime: '5 minutes'
+        id: 'customer_acceptance',
+        name: 'Customer Digital Signature',
+        type: 'form',
+        description: 'Customer reviews and digitally signs the loan agreement',
+        duration: '15 minutes',
+        icon: 'FileText'
       },
       {
-        id: '10',
-        name: 'Performance Analytics',
-        type: 'ai_analysis',
-        description: 'AI generates performance metrics, identifies optimization opportunities, and updates workflow intelligence',
-        icon: BarChart3,
-        status: 'pending',
-        estimatedTime: '15 minutes'
+        id: 'account_creation',
+        name: 'Loan Account Setup',
+        type: 'processing',
+        description: 'Bank creates loan account and prepares for disbursement',
+        duration: '1 hour',
+        icon: 'Building'
+      },
+      {
+        id: 'disbursement',
+        name: 'Loan Disbursement',
+        type: 'processing',
+        description: 'Funds transferred to customer account with SMS/email confirmation',
+        duration: '2 hours',
+        icon: 'CreditCard'
+      },
+      {
+        id: 'regulatory_reporting',
+        name: 'Regulatory Compliance',
+        type: 'automated_check',
+        description: 'System reports loan details to government agencies and tax authorities',
+        duration: '24 hours',
+        icon: 'Shield'
       }
     ];
   };
 
+  const generateWorkflowSteps = (description: string, workflowType: string): WorkflowStep[] => {
+    switch (workflowType) {
+      case 'loan_approval':
+        return generateLoanApprovalWorkflow();
+      
+      case 'expense_approval':
+        return [
+          {
+            id: 'expense_submission',
+            name: 'Expense Request Submission',
+            type: 'form',
+            description: 'Employee submits expense request with receipts and justification',
+            duration: '5 minutes',
+            icon: 'FileText'
+          },
+          {
+            id: 'manager_approval',
+            name: 'Manager Approval',
+            type: 'approval',
+            description: 'Direct manager reviews and approves/rejects expense request',
+            assignee: 'Direct Manager',
+            duration: '24 hours',
+            icon: 'Users'
+          },
+          {
+            id: 'finance_review',
+            name: 'Finance Department Review',
+            type: 'review',
+            description: 'Finance team validates expense policy compliance and processes payment',
+            assignee: 'Finance Team',
+            duration: '48 hours',
+            icon: 'Calculator'
+          }
+        ];
+      
+      default:
+        // Generic workflow based on description analysis
+        return [
+          {
+            id: 'request_submission',
+            name: 'Request Submission',
+            type: 'form',
+            description: 'User submits request with required information',
+            duration: '5 minutes',
+            icon: 'FileText'
+          },
+          {
+            id: 'initial_review',
+            name: 'Initial Review',
+            type: 'review',
+            description: 'System or reviewer performs initial validation',
+            duration: '1 hour',
+            icon: 'Bot'
+          },
+          {
+            id: 'approval_decision',
+            name: 'Approval Decision',
+            type: 'approval',
+            description: 'Authorized person makes final decision',
+            assignee: 'Approver',
+            duration: '24 hours',
+            icon: 'CheckCircle'
+          }
+        ];
+    }
+  };
+
   const generateWorkflow = async () => {
-    if (!aiDescription.trim()) {
-      toast.error('Please enter a description for the AI to generate a workflow.');
+    if (!prompt.trim()) {
+      toast.error('Please describe the workflow you want to create');
       return;
     }
 
-    setIsLoading(true);
+    setIsGenerating(true);
+    
     try {
-      // Simulate AI processing time
+      // Simulate AI processing delay
       await new Promise(resolve => setTimeout(resolve, 2000));
-
-      const generatedSteps = generateDetailedWorkflow(aiDescription);
-
-      // Create intelligent workflow name if not provided
-      const intelligentName = workflowName || (() => {
-        const desc = aiDescription.toLowerCase();
-        if (desc.includes('employee') || desc.includes('hr')) return 'Employee Management Workflow';
-        if (desc.includes('order') || desc.includes('purchase')) return 'Order Processing Workflow';
-        if (desc.includes('expense') || desc.includes('reimburs')) return 'Expense Reimbursement Workflow';
-        if (desc.includes('support') || desc.includes('ticket')) return 'Customer Support Workflow';
-        return 'Smart Business Process Workflow';
-      })();
-
-      const newWorkflowData = {
-        id: `workflow-${Date.now()}`,
-        name: intelligentName,
-        description: workflowDescription || `Intelligent workflow: ${aiDescription}`,
-        type: 'ai-generated',
-        category: 'Business Process',
-        steps: generatedSteps.length,
-        agents: ['AI Processor', 'Smart Validator', 'Decision Engine'],
+      
+      const workflowType = analyzeWorkflowType(prompt);
+      const steps = generateWorkflowSteps(prompt, workflowType);
+      
+      const workflow = {
+        id: `ai-generated-${Date.now()}`,
+        name: workflowType === 'loan_approval' ? 'Bank Loan Approval Process' : 
+              workflowType === 'expense_approval' ? 'Expense Approval Workflow' :
+              'Custom Workflow',
+        description: prompt.slice(0, 200) + (prompt.length > 200 ? '...' : ''),
+        type: workflowType,
+        steps: steps,
         created_at: new Date().toISOString(),
-        status: 'draft'
+        status: 'draft',
+        estimated_duration: calculateTotalDuration(steps)
       };
-
-      setGeneratedWorkflow({ steps: generatedSteps });
-      setWorkflowData(newWorkflowData);
-      toast.success(`Detailed ${generatedSteps.length}-step workflow generated successfully!`);
+      
+      setGeneratedWorkflow(workflow);
+      setWorkflowData(workflow);
+      
+      toast.success(`Generated ${workflowType.replace('_', ' ')} workflow with ${steps.length} steps!`);
+      
     } catch (error) {
       console.error('Error generating workflow:', error);
       toast.error('Failed to generate workflow. Please try again.');
     } finally {
-      setIsLoading(false);
+      setIsGenerating(false);
     }
   };
 
-  const saveWorkflow = () => {
-    if (!workflowName) {
-      toast.error('Please enter a workflow name');
-      return;
+  const calculateTotalDuration = (steps: WorkflowStep[]): string => {
+    // Simple duration calculation - in reality this would be more sophisticated
+    const totalMinutes = steps.length * 30; // Rough estimate
+    if (totalMinutes < 60) {
+      return `${totalMinutes} minutes`;
+    } else if (totalMinutes < 1440) {
+      return `${Math.round(totalMinutes / 60)} hours`;
+    } else {
+      return `${Math.round(totalMinutes / 1440)} days`;
     }
+  };
 
-    if (!workflowDescription) {
-      toast.error('Please enter a workflow description');
-      return;
-    }
-
-    if (!generatedWorkflow) {
-      toast.error('Please generate a workflow first');
-      return;
-    }
-
-    // Update the current workflow data
-    const updatedWorkflow = {
-      ...workflowData,
-      name: workflowName,
-      description: workflowDescription,
-      updated_at: new Date().toISOString(),
-      status: 'saved'
+  const getStepIcon = (iconName: string) => {
+    const icons = {
+      FileText,
+      Bot,
+      Users,
+      CheckCircle,
+      AlertCircle,
+      Clock,
+      Shield,
+      Calculator,
+      CreditCard,
+      Building
     };
-
-    setWorkflowData(updatedWorkflow);
-    setGeneratedWorkflow(updatedWorkflow);
-
-    toast.success('Workflow saved successfully!');
+    return icons[iconName as keyof typeof icons] || FileText;
   };
 
-  const deployWorkflow = async () => {
-    if (!generatedWorkflow) {
-      toast.error('Please generate a workflow first');
-      return;
-    }
-
-    if (!workflowName || !workflowDescription) {
-      toast.error('Please save the workflow first before deploying');
-      return;
-    }
-
-    setIsDeploying(true);
-    try {
-      // Simulate real deployment process
-      toast.info('Starting deployment process...');
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      toast.info('Validating workflow steps...');
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      toast.info('Activating workflow agents...');
-      await new Promise(resolve => setTimeout(resolve, 1200));
-      
-      // Update workflow status to deployed
-      const deployedWorkflow = {
-        ...workflowData,
-        status: 'deployed',
-        deployed_at: new Date().toISOString(),
-        is_active: true,
-        deployment_id: `deploy-${Date.now()}`
-      };
-      
-      setWorkflowData(deployedWorkflow);
-      setGeneratedWorkflow({ ...generatedWorkflow, ...deployedWorkflow });
-      
-      toast.success('🚀 Workflow deployed successfully and is now active!');
-    } catch (error) {
-      console.error('Error deploying workflow:', error);
-      toast.error('Failed to deploy workflow. Please try again.');
-    } finally {
-      setIsDeploying(false);
-    }
-  };
-
-  const handleWorkflowUpdate = (updatedWorkflow: any) => {
-    setGeneratedWorkflow(updatedWorkflow);
-    setWorkflowData(updatedWorkflow);
+  const getTypeColor = (type: string) => {
+    const colors = {
+      form: 'bg-blue-100 text-blue-800',
+      ai_analysis: 'bg-purple-100 text-purple-800',
+      review: 'bg-yellow-100 text-yellow-800',
+      approval: 'bg-green-100 text-green-800',
+      assessment: 'bg-orange-100 text-orange-800',
+      validation: 'bg-red-100 text-red-800',
+      processing: 'bg-indigo-100 text-indigo-800',
+      notification: 'bg-pink-100 text-pink-800',
+      automated_check: 'bg-cyan-100 text-cyan-800'
+    };
+    return colors[type as keyof typeof colors] || 'bg-gray-100 text-gray-800';
   };
 
   return (
     <div className="space-y-6">
-      <div className="p-6 bg-gradient-to-r from-pink-500 to-violet-600 rounded-xl text-white shadow-lg">
-        <h2 className="text-2xl font-bold">✨ AI Workflow Generator</h2>
-        <p className="text-pink-100">Describe your ideal workflow and let AI build it for you</p>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* AI Description Input */}
-        <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-pink-50">
-          <CardHeader className="bg-gradient-to-r from-pink-500 to-violet-500 text-white rounded-t-lg">
-            <CardTitle className="text-lg flex items-center space-x-2">
-              <Brain className="h-5 w-5" />
-              <span>Describe Your Workflow</span>
-            </CardTitle>
-            <CardDescription className="text-pink-100">Enter a detailed description to generate your workflow</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4 p-4">
+      <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-purple-50">
+        <CardHeader className="bg-gradient-to-r from-pink-500 to-violet-500 text-white rounded-t-lg">
+          <div className="flex items-center space-x-3">
+            <Sparkles className="h-6 w-6" />
             <div>
-              <Label htmlFor="ai-description">AI Description</Label>
+              <CardTitle className="text-xl">🤖 AI Workflow Generator</CardTitle>
+              <CardDescription className="text-pink-100">
+                Describe your business process and I'll create an intelligent workflow
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        
+        <CardContent className="p-6">
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Describe your workflow process:
+              </label>
               <Textarea
-                id="ai-description"
-                placeholder="e.g., 'Process a customer order from submission to delivery, including validation, payment, and shipping'"
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="Example: A person applying for a loan at a bank. The customer fills out an online form, uploads documents like ID proof and salary slips. The bank then verifies documents, checks credit score, performs fraud detection, and routes to appropriate approvers based on risk level..."
                 rows={4}
-                value={aiDescription}
-                onChange={(e) => setAiDescription(e.target.value)}
+                className="w-full"
               />
             </div>
+            
             <Button
               onClick={generateWorkflow}
-              disabled={isLoading}
-              className="w-full bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 text-white"
+              disabled={isGenerating || !prompt.trim()}
+              className="w-full bg-gradient-to-r from-pink-500 to-violet-500 hover:from-pink-600 hover:to-violet-600 text-white"
             >
-              {isLoading ? (
+              {isGenerating ? (
                 <>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-                    <div className="w-2 h-2 bg-white rounded-full animate-pulse delay-75"></div>
-                    <div className="w-2 h-2 bg-white rounded-full animate-pulse delay-150"></div>
-                  </div>
-                  <span>Generating...</span>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Generating Workflow...
                 </>
               ) : (
                 <>
                   <Sparkles className="h-4 w-4 mr-2" />
-                  Generate Workflow
+                  Generate Smart Workflow
                 </>
               )}
             </Button>
-          </CardContent>
-        </Card>
-
-        {/* Workflow Configuration */}
-        {generatedWorkflow && (
-          <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-blue-50">
-            <CardHeader className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-t-lg">
-              <CardTitle className="text-lg flex items-center space-x-2">
-                <Settings className="h-5 w-5" />
-                <span>Workflow Configuration</span>
-              </CardTitle>
-              <CardDescription className="text-blue-100">Configure your workflow settings</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 p-4">
-              <div>
-                <Label htmlFor="workflow-name">Workflow Name</Label>
-                <Input
-                  id="workflow-name"
-                  placeholder="Enter workflow name"
-                  value={workflowName}
-                  onChange={(e) => setWorkflowName(e.target.value)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="workflow-description">Workflow Description</Label>
-                <Textarea
-                  id="workflow-description"
-                  placeholder="Enter workflow description"
-                  rows={3}
-                  value={workflowDescription}
-                  onChange={(e) => setWorkflowDescription(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <h4 className="text-sm font-medium">Generated Steps ({generatedWorkflow.steps.length})</h4>
-                <div className="max-h-32 overflow-y-auto">
-                  <ul className="list-disc pl-4 space-y-1">
-                    {generatedWorkflow.steps.map((step, index) => (
-                      <li key={step.id} className="text-xs">
-                        <span className="font-medium">{step.name}</span>
-                        {step.estimatedTime && (
-                          <span className="text-gray-500 ml-1">({step.estimatedTime})</span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {generatedWorkflow && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Visual Workflow Diagram - Now shown by default */}
-          <div className="lg:col-span-2">
-            <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-indigo-50">
-              <CardHeader className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-t-lg">
-                <CardTitle className="text-lg flex items-center space-x-2">
-                  <BarChart3 className="h-5 w-5" />
-                  <span>Visual Workflow Diagram</span>
-                </CardTitle>
-                <CardDescription className="text-indigo-100">Interactive workflow visualization</CardDescription>
-              </CardHeader>
-              <CardContent className="p-0">
-                <VisualWorkflowDiagram workflow={generatedWorkflow} />
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Workflow Actions */}
-          <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-green-50">
-            <CardHeader className="bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-t-lg">
-              <CardTitle className="text-lg flex items-center space-x-2">
-                <Zap className="h-5 w-5" />
-                <span>Actions</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 p-4">
-              <Button
-                onClick={saveWorkflow}
-                className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white"
-              >
-                <Save className="h-4 w-4 mr-2" />
-                Save Workflow
-              </Button>
-              <Button
-                onClick={deployWorkflow}
-                disabled={isDeploying}
-                className="w-full bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white"
-              >
-                {isDeploying ? (
-                  <>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-                      <div className="w-2 h-2 bg-white rounded-full animate-pulse delay-75"></div>
-                      <div className="w-2 h-2 bg-white rounded-full animate-pulse delay-150"></div>
-                    </div>
-                    <span>Deploying...</span>
-                  </>
-                ) : (
-                  <>
-                    <Package className="h-4 w-4 mr-2" />
-                    Deploy Workflow
-                  </>
-                )}
-              </Button>
-              {/* AI Chatbot Button - Fixed */}
-              <Button
-                onClick={() => {
-                  setShowChatbot(true);
-                  setIsChatMinimized(false);
-                  console.log('Opening chatbot:', { showChatbot: true, isChatMinimized: false });
-                }}
-                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
-              >
-                <Bot className="h-4 w-4 mr-2" />
-                Chat with AI Assistant
-              </Button>
-              <Button variant="outline" className="w-full">
-                <Settings className="h-4 w-4 mr-2" />
-                Advanced Settings
-              </Button>
+        <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-indigo-50">
+          <CardHeader className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-t-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg">{generatedWorkflow.name}</CardTitle>
+                <CardDescription className="text-indigo-100">
+                  {generatedWorkflow.steps?.length || 0} steps • Est. {generatedWorkflow.estimated_duration}
+                </CardDescription>
+              </div>
+              <Badge className="bg-white/20 text-white border-white/30">
+                {generatedWorkflow.type?.replace('_', ' ')}
+              </Badge>
+            </div>
+          </CardHeader>
+          
+          <CardContent className="p-6">
+            <div className="space-y-4">
+              <p className="text-gray-700 text-sm">{generatedWorkflow.description}</p>
               
-              {/* Workflow Status Display */}
-              {workflowData && (
-                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                  <h4 className="font-medium text-sm mb-2">Workflow Status</h4>
-                  <div className="space-y-2">
-                    <Badge className={
-                      workflowData.status === 'deployed' ? 'bg-green-500 text-white' :
-                      workflowData.status === 'saved' ? 'bg-blue-500 text-white' :
-                      'bg-gray-500 text-white'
-                    }>
-                      {workflowData.status === 'deployed' ? '🚀 Deployed' :
-                       workflowData.status === 'saved' ? '💾 Saved' : '📝 Draft'}
-                    </Badge>
-                    {workflowData.deployed_at && (
-                      <div className="text-xs text-gray-600">
-                        Deployed: {new Date(workflowData.deployed_at).toLocaleString()}
+              <div className="space-y-3">
+                {generatedWorkflow.steps?.map((step: WorkflowStep, index: number) => {
+                  const StepIcon = getStepIcon(step.icon);
+                  
+                  return (
+                    <div key={step.id} className="flex items-start space-x-4 p-4 bg-white rounded-lg border shadow-sm">
+                      <div className="flex-shrink-0">
+                        <div className="w-8 h-8 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                          {index + 1}
+                        </div>
                       </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-3 mb-2">
+                          <StepIcon className="h-5 w-5 text-gray-600" />
+                          <h4 className="font-medium text-gray-900">{step.name}</h4>
+                          <Badge className={getTypeColor(step.type)}>
+                            {step.type.replace('_', ' ')}
+                          </Badge>
+                        </div>
+                        
+                        <p className="text-sm text-gray-600 mb-2">{step.description}</p>
+                        
+                        <div className="flex items-center space-x-4 text-xs text-gray-500">
+                          <div className="flex items-center space-x-1">
+                            <Clock className="h-3 w-3" />
+                            <span>{step.duration}</span>
+                          </div>
+                          {step.assignee && (
+                            <div className="flex items-center space-x-1">
+                              <Users className="h-3 w-3" />
+                              <span>{step.assignee}</span>
+                            </div>
+                          )}
+                        </div>
 
-      {/* AI Chatbot - Fixed functionality */}
-      {showChatbot && generatedWorkflow && (
-        <WorkflowChatbot
-          workflow={generatedWorkflow}
-          onWorkflowUpdate={handleWorkflowUpdate}
-          isMinimized={isChatMinimized}
-          onToggleMinimize={() => {
-            setIsChatMinimized(!isChatMinimized);
-            console.log('Toggling chatbot minimize:', !isChatMinimized);
-          }}
-        />
+                        {step.conditions && (
+                          <div className="mt-2 flex space-x-2">
+                            {step.conditions.approved && (
+                              <Badge className="bg-green-100 text-green-800 text-xs">
+                                ✓ {step.conditions.approved}
+                              </Badge>
+                            )}
+                            {step.conditions.rejected && (
+                              <Badge className="bg-red-100 text-red-800 text-xs">
+                                ✗ {step.conditions.rejected}
+                              </Badge>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
 };
-
