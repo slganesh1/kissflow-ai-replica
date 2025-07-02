@@ -15,10 +15,31 @@ serve(async (req) => {
   }
 
   try {
-    const { message, workflow, conversationHistory } = await req.json();
+    console.log('Workflow chat function called');
+
+    if (!anthropicApiKey) {
+      console.error('ANTHROPIC_API_KEY not found');
+      return new Response(JSON.stringify({ 
+        error: 'ANTHROPIC_API_KEY not configured' 
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const requestBody = await req.json();
+    console.log('Request body:', requestBody);
+
+    const { message, workflow, conversationHistory } = requestBody;
 
     if (!message || !message.trim()) {
-      throw new Error('Message is required');
+      console.error('Message is required');
+      return new Response(JSON.stringify({ 
+        error: 'Message is required' 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const systemPrompt = `You are an expert workflow assistant. You help users understand and analyze their specific workflows.
@@ -54,6 +75,7 @@ Guidelines:
     ];
 
     console.log('Calling Anthropic API for workflow chat...');
+    console.log('Messages:', messages);
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -70,14 +92,33 @@ Guidelines:
       }),
     });
 
+    console.log('Anthropic API response status:', response.status);
+
     if (!response.ok) {
-      const errorData = await response.json();
-      console.error('Anthropic API error:', errorData);
-      throw new Error(`Anthropic API error: ${errorData.error?.message || 'Unknown error'}`);
+      const errorText = await response.text();
+      console.error('Anthropic API error:', errorText);
+      
+      return new Response(JSON.stringify({ 
+        error: 'Failed to get AI response', 
+        details: `Anthropic API returned ${response.status}: ${errorText}` 
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const data = await response.json();
-    console.log('Anthropic response received');
+    console.log('Anthropic response received successfully');
+    
+    if (!data || !data.content || !data.content[0] || !data.content[0].text) {
+      console.error('Invalid response format from Anthropic:', data);
+      return new Response(JSON.stringify({ 
+        error: 'Invalid response format from AI service' 
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     
     const aiResponse = data.content[0].text;
 
