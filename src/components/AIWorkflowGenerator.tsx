@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -39,19 +40,18 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
   const [isGenerating, setIsGenerating] = useState(false);
   const [isChatbotMinimized, setIsChatbotMinimized] = useState(true);
 
-  // Enhanced workflow analysis with intelligent amount detection and multi-level approvals
+  // UNIVERSAL INTELLIGENT WORKFLOW ANALYZER - Works for ANY scenario
   const analyzeWorkflowFromDescription = (description: string): WorkflowStep[] => {
     const steps: WorkflowStep[] = [];
     let stepCounter = 1;
     
     const text = description.toLowerCase();
-    const sentences = description.split(/[.!?]+/).filter(s => s.trim().length > 0);
     const words = text.split(/\s+/);
+    const sentences = description.split(/[.!?]+/).filter(s => s.trim().length > 0);
 
-    console.log('Analyzing workflow description:', description);
-    console.log('Detected sentences:', sentences.length);
+    console.log('Universal AI Analysis - Processing any business scenario:', description);
 
-    // Helper to create steps
+    // Helper to create comprehensive steps
     const createStep = (name: string, type: WorkflowStep['type'], description: string, duration: string, icon: string, assignee?: string) => {
       const step: WorkflowStep = {
         id: `step_${stepCounter++}`,
@@ -65,160 +65,192 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
       
       if (type === 'approval') {
         step.conditions = {
-          approved: 'Continue to next step',
-          rejected: 'Return to submitter for revision or end process'
+          approved: 'Proceed to next approval level',
+          rejected: 'Return for revision or terminate process'
         };
       }
       
       return step;
     };
 
-    // ENHANCED AMOUNT DETECTION - Extract dollar amounts
+    // UNIVERSAL DETECTION - Extract amounts and complexity indicators
     const amountMatches = description.match(/\$[\d,]+(?:\.\d{2})?/g);
     let detectedAmount = 0;
     if (amountMatches && amountMatches.length > 0) {
       const amountStr = amountMatches[0].replace(/[\$,]/g, '');
       detectedAmount = parseInt(amountStr);
-      console.log('Detected amount:', detectedAmount);
     }
 
-    // 1. INITIAL SUBMISSION
-    if (words.some(w => ['need', 'request', 'approval', 'campaign', 'project', 'purchase'].includes(w))) {
-      steps.push(createStep(
-        'Request Submission',
-        'form',
-        'Submit detailed request with all required documentation and justification',
-        '15-30 minutes',
-        'FileText'
-      ));
-    }
+    // Complexity scoring for any scenario
+    const complexityScore = sentences.length + 
+      (words.filter(w => ['urgent', 'critical', 'important', 'major', 'significant'].includes(w)).length * 2) +
+      (detectedAmount > 0 ? Math.log10(detectedAmount) : 0);
 
-    // 2. DOCUMENT REVIEW & VALIDATION
+    console.log('Complexity Score:', complexityScore, 'Amount:', detectedAmount);
+
+    // 1. UNIVERSAL INITIAL SUBMISSION
     steps.push(createStep(
-      'Document Review',
-      'verification',
-      'Verify all required documents, budgets, and supporting materials are complete',
-      '30-60 minutes',
-      'Shield'
+      'Request Initiation & Documentation',
+      'form',
+      'Submit comprehensive request with all supporting documentation, business justification, and required details',
+      '30-45 minutes',
+      'FileText'
     ));
 
-    // 3. INITIAL ASSESSMENT
-    if (detectedAmount > 1000 || words.some(w => ['campaign', 'marketing', 'project', 'initiative'].includes(w))) {
+    // 2. UNIVERSAL DOCUMENT VALIDATION
+    steps.push(createStep(
+      'Documentation Review & Validation',
+      'verification',
+      'Verify completeness of all required documents, validate data accuracy, and ensure compliance with submission requirements',
+      '1-2 hours',
+      'Shield',
+      'Document Review Team'
+    ));
+
+    // 3. UNIVERSAL INITIAL ASSESSMENT
+    steps.push(createStep(
+      'Initial Impact Assessment',
+      'assessment',
+      'Preliminary evaluation of request feasibility, resource requirements, risk factors, and alignment with organizational objectives',
+      '2-4 hours',
+      'Eye',
+      'Process Analyst'
+    ));
+
+    // 4. UNIVERSAL TECHNICAL/OPERATIONAL REVIEW
+    steps.push(createStep(
+      'Technical & Operational Review',
+      'review',
+      'Detailed technical evaluation, operational impact analysis, and resource availability assessment',
+      '1-2 days',
+      'Search',
+      'Technical Review Team'
+    ));
+
+    // 5-8. UNIVERSAL MULTI-LEVEL APPROVAL HIERARCHY
+    // Level 1: Immediate Supervisor/Department Head
+    steps.push(createStep(
+      'Supervisor/Department Approval',
+      'approval',
+      'First-level management review and approval within departmental authority limits',
+      '4-24 hours',
+      'Users',
+      'Department Manager'
+    ));
+
+    // Level 2: Senior Management (for complex requests or higher amounts)
+    if (complexityScore > 5 || detectedAmount >= 5000) {
       steps.push(createStep(
-        'Initial Assessment',
-        'review',
-        'Preliminary review of request feasibility, alignment with company goals, and risk assessment',
-        '2-4 hours',
-        'Eye'
+        'Senior Management Review',
+        'approval',
+        'Senior management evaluation of strategic implications, budget impact, and cross-departmental coordination',
+        '1-3 days',
+        'Award',
+        'Senior Management'
       ));
     }
 
-    // 4. INTELLIGENT MULTI-LEVEL APPROVAL HIERARCHY based on amount and context
-    if (detectedAmount > 0 || words.some(w => ['approval', 'approve', 'budget', 'spend', 'investment'].includes(w))) {
-      
-      // Level 1: Department/Team Lead (for amounts > $1,000)
-      if (detectedAmount >= 1000 || sentences.length > 2) {
-        steps.push(createStep(
-          'Department Manager Approval',
-          'approval',
-          'Department head reviews and approves within departmental authority limits',
-          '4-24 hours',
-          'Users',
-          'Department Manager'
-        ));
-      }
-
-      // Level 2: Senior Management (for amounts > $10,000)
-      if (detectedAmount >= 10000 || words.some(w => ['senior', 'major', 'significant', 'important'].includes(w))) {
-        steps.push(createStep(
-          'Senior Management Review',
-          'approval',
-          'Senior management evaluates strategic impact and budget implications',
-          '1-3 days',
-          'Award',
-          'Senior Management'
-        ));
-      }
-
-      // Level 3: Executive/C-Level (for amounts > $50,000)
-      if (detectedAmount >= 50000 || words.some(w => ['executive', 'ceo', 'urgent', 'critical', 'major campaign'].includes(w))) {
-        steps.push(createStep(
-          'Executive Leadership Approval',
-          'approval',
-          'C-level executive approval for high-value expenditures and strategic initiatives',
-          '2-5 days',
-          'Star',
-          'Executive Leadership'
-        ));
-      }
-
-      // Level 4: Board Approval (for amounts > $500,000)
-      if (detectedAmount >= 500000) {
-        steps.push(createStep(
-          'Board of Directors Approval',
-          'approval',
-          'Board approval required for major capital expenditures and strategic investments',
-          '1-2 weeks',
-          'Building',
-          'Board of Directors'
-        ));
-      }
+    // Level 3: Executive Leadership (for high-value or strategic requests)
+    if (complexityScore > 8 || detectedAmount >= 25000) {
+      steps.push(createStep(
+        'Executive Leadership Approval',
+        'approval',
+        'C-level executive review for high-impact decisions, strategic initiatives, and significant resource allocation',
+        '2-5 days',
+        'Star',
+        'Executive Leadership'
+      ));
     }
 
-    // 5. FINANCE REVIEW (for budget requests)
-    if (detectedAmount > 5000 || words.some(w => ['budget', 'finance', 'cost', 'expense', 'investment'].includes(w))) {
+    // Level 4: Board/Governance (for major strategic decisions)
+    if (complexityScore > 12 || detectedAmount >= 100000) {
       steps.push(createStep(
-        'Finance Department Review',
+        'Board/Governance Approval',
+        'approval',
+        'Board-level approval for major strategic decisions, large capital expenditures, and organizational changes',
+        '1-2 weeks',
+        'Building',
+        'Board of Directors'
+      ));
+    }
+
+    // 9. UNIVERSAL FINANCE REVIEW (for any financial impact)
+    if (detectedAmount > 0 || words.some(w => ['budget', 'cost', 'expense', 'financial', 'money'].includes(w))) {
+      steps.push(createStep(
+        'Financial Analysis & Approval',
         'validation',
-        'Finance team validates budget allocation, cash flow impact, and accounting procedures',
-        '1-2 days',
+        'Comprehensive financial review including budget impact, cash flow analysis, and accounting procedures',
+        '1-3 days',
         'Calculator',
-        'Finance Team'
+        'Finance Department'
       ));
     }
 
-    // 6. LEGAL/COMPLIANCE REVIEW (for high-value or regulated activities)
-    if (detectedAmount > 25000 || words.some(w => ['legal', 'compliance', 'contract', 'agreement', 'marketing', 'campaign'].includes(w))) {
+    // 10. UNIVERSAL LEGAL/COMPLIANCE REVIEW (for regulated activities)
+    if (complexityScore > 6 || words.some(w => ['contract', 'agreement', 'legal', 'compliance', 'regulation', 'policy'].includes(w))) {
       steps.push(createStep(
         'Legal & Compliance Review',
         'validation',
-        'Legal review for compliance, contracts, and regulatory requirements',
-        '1-3 days',
+        'Legal assessment for regulatory compliance, contractual obligations, and risk mitigation',
+        '2-5 days',
         'Shield',
-        'Legal Department'
+        'Legal & Compliance'
       ));
     }
 
-    // 7. FINAL PROCESSING
-    steps.push(createStep(
-      'Implementation Setup',
-      'processing',
-      'Set up approved processes, allocate resources, and initiate execution',
-      '2-5 days',
-      'Zap'
-    ));
-
-    // 8. STAKEHOLDER NOTIFICATION
-    steps.push(createStep(
-      'Stakeholder Notification',
-      'notification',
-      'Notify all relevant parties of approval decision and next steps',
-      '30 minutes',
-      'Mail'
-    ));
-
-    // 9. PROGRESS MONITORING (for ongoing projects)
-    if (words.some(w => ['campaign', 'project', 'initiative', 'launch'].includes(w))) {
+    // 11. UNIVERSAL RISK ASSESSMENT (for complex requests)
+    if (complexityScore > 7) {
       steps.push(createStep(
-        'Progress Monitoring',
-        'automated_check',
-        'Ongoing monitoring of project milestones and budget utilization',
-        'Ongoing',
-        'TrendingUp'
+        'Risk Assessment & Mitigation',
+        'evaluation',
+        'Comprehensive risk analysis, mitigation strategy development, and contingency planning',
+        '1-2 days',
+        'AlertCircle',
+        'Risk Management'
       ));
     }
 
-    console.log(`Generated ${steps.length} workflow steps for amount: $${detectedAmount}`);
+    // 12. UNIVERSAL IMPLEMENTATION PLANNING
+    steps.push(createStep(
+      'Implementation Planning & Setup',
+      'processing',
+      'Detailed implementation planning, resource allocation, milestone definition, and execution preparation',
+      '2-5 days',
+      'Zap',
+      'Implementation Team'
+    ));
+
+    // 13. UNIVERSAL STAKEHOLDER COMMUNICATION
+    steps.push(createStep(
+      'Stakeholder Notification & Communication',
+      'notification',
+      'Comprehensive communication to all affected parties, status updates, and next step coordination',
+      '2-4 hours',
+      'Mail',
+      'Communications Team'
+    ));
+
+    // 14. UNIVERSAL EXECUTION MONITORING
+    steps.push(createStep(
+      'Execution Monitoring & Tracking',
+      'automated_check',
+      'Ongoing monitoring of implementation progress, milestone tracking, and performance measurement',
+      'Ongoing',
+      'TrendingUp',
+      'Project Management Office'
+    ));
+
+    // 15. UNIVERSAL COMPLETION VERIFICATION
+    steps.push(createStep(
+      'Completion Verification & Sign-off',
+      'verification',
+      'Final verification of deliverables, stakeholder sign-off, and process completion documentation',
+      '1-2 days',
+      'CheckCircle',
+      'Quality Assurance'
+    ));
+
+    console.log(`Generated ${steps.length} universal workflow steps for complexity score: ${complexityScore}`);
     return steps;
   };
 
@@ -347,9 +379,9 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
           <div className="flex items-center space-x-3">
             <Sparkles className="h-6 w-6" />
             <div>
-              <CardTitle className="text-xl">🚀 Universal AI Workflow Generator</CardTitle>
+              <CardTitle className="text-xl">🧠 Universal AI Workflow Generator</CardTitle>
               <CardDescription className="text-pink-100">
-                Describe ANY business process - I'll intelligently create detailed workflows with proper approvals
+                Intelligent workflow creation for ANY business scenario - automatically generates comprehensive multi-level approval processes
               </CardDescription>
             </div>
           </div>
@@ -359,12 +391,12 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium mb-2">
-                Describe your business process (any industry, any scenario):
+                Describe ANY business process or scenario:
               </label>
               <Textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Examples - ANY business process works:&#10;&#10;• I need approval for a $150,000 marketing campaign for Q4 launch...&#10;• A customer wants to return a $500 product they bought online...&#10;• An employee is requesting 2 weeks vacation time...&#10;• A vendor wants to register with our company for $50K contract...&#10;• We're hiring a new senior developer with $120K salary...&#10;&#10;Just describe it naturally - I'll figure out the workflow steps, approvals, and create a detailed visual diagram!"
+                placeholder="Examples - ANY business process works:&#10;&#10;• Marketing campaign approval for $150,000&#10;• New employee onboarding process&#10;• Equipment purchase request&#10;• Policy change implementation&#10;• Contract negotiation workflow&#10;• Budget allocation process&#10;• Vendor selection and approval&#10;&#10;I'll create a comprehensive workflow with proper approval levels, stakeholder involvement, and detailed steps!"
                 rows={8}
                 className="w-full"
               />
@@ -378,12 +410,12 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
               {isGenerating ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  🧠 Analyzing Process & Generating Workflow...
+                  🧠 AI Analyzing & Creating Universal Workflow...
                 </>
               ) : (
                 <>
                   <Sparkles className="h-4 w-4 mr-2" />
-                  🚀 Generate Universal Workflow
+                  🚀 Generate Intelligent Workflow
                 </>
               )}
             </Button>
@@ -479,7 +511,7 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
             <VisualWorkflowDiagram workflow={generatedWorkflow} />
           </div>
 
-          {/* WORKFLOW CHATBOT - FIXED DISPLAY */}
+          {/* WORKFLOW CHATBOT - Always show when workflow exists */}
           <div className="mt-8">
             <WorkflowChatbot
               workflow={generatedWorkflow}
