@@ -1,13 +1,13 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Sparkles, Bot, Clock, CheckCircle, AlertCircle, Users, FileText, Shield, Calculator, CreditCard, Building, Search, Zap, Eye, Send, Mail, UserCheck, ClipboardCheck, Phone, Star, Award, TrendingUp, DollarSign } from 'lucide-react';
+import { Sparkles, Bot, Clock, CheckCircle, AlertCircle, Users, FileText, Shield, Calculator, CreditCard, Building, Search, Zap, Eye, Send, Mail, UserCheck, ClipboardCheck, Phone, Star, Award, TrendingUp, DollarSign, Play, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { VisualWorkflowDiagram } from './VisualWorkflowDiagram';
 import { WorkflowChatbot } from './WorkflowChatbot';
+import { supabase } from '@/integrations/supabase/client';
 
 interface WorkflowStep {
   id: string;
@@ -39,6 +39,8 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isChatbotMinimized, setIsChatbotMinimized] = useState(true);
+  const [isExecuting, setIsExecuting] = useState(false);
+  const [isDeploying, setIsDeploying] = useState(false);
 
   // UNIVERSAL INTELLIGENT WORKFLOW ANALYZER - Works for ANY scenario
   const analyzeWorkflowFromDescription = (description: string): WorkflowStep[] => {
@@ -372,6 +374,109 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
     return colors[type as keyof typeof colors] || 'bg-gray-100 text-gray-800';
   };
 
+  const executeWorkflow = async () => {
+    if (!generatedWorkflow) {
+      toast.error('No workflow to execute');
+      return;
+    }
+
+    setIsExecuting(true);
+    
+    try {
+      // Save workflow to database first
+      const { data: workflowExecution, error: insertError } = await supabase
+        .from('workflow_executions')
+        .insert({
+          workflow_name: generatedWorkflow.name,
+          workflow_type: generatedWorkflow.type || 'universal_workflow',
+          submitter_name: 'System User',
+          request_data: {
+            description: generatedWorkflow.description,
+            steps: generatedWorkflow.steps,
+            estimated_duration: generatedWorkflow.estimated_duration
+          },
+          status: 'pending'
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        throw new Error(`Failed to save workflow: ${insertError.message}`);
+      }
+
+      // Execute the workflow using edge function
+      const { data, error } = await supabase.functions.invoke('execute-workflow', {
+        body: { workflowId: workflowExecution.id }
+      });
+
+      if (error) {
+        throw new Error(`Execution failed: ${error.message}`);
+      }
+
+      toast.success('Workflow executed successfully!');
+      
+      // Update workflow status
+      setGeneratedWorkflow({
+        ...generatedWorkflow,
+        status: 'in_progress',
+        id: workflowExecution.id
+      });
+
+    } catch (error) {
+      console.error('Workflow execution error:', error);
+      toast.error(`Failed to execute workflow: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsExecuting(false);
+    }
+  };
+
+  const deployWorkflow = async () => {
+    if (!generatedWorkflow) {
+      toast.error('No workflow to deploy');
+      return;
+    }
+
+    setIsDeploying(true);
+    
+    try {
+      // Save as template for future use
+      const { error: templateError } = await supabase
+        .from('workflow_templates')
+        .insert({
+          name: generatedWorkflow.name,
+          type: generatedWorkflow.type || 'universal_workflow',
+          definition: {
+            steps: generatedWorkflow.steps.map(step => ({
+              id: step.id,
+              name: step.name,
+              type: step.type,
+              role: step.assignee,
+              conditions: step.conditions ? 
+                Object.entries(step.conditions).map(([key, value]) => ({
+                  field: key,
+                  operator: '==',
+                  value: value
+                })) : []
+            }))
+          },
+          active: true,
+          version: 1
+        });
+
+      if (templateError) {
+        throw new Error(`Failed to deploy template: ${templateError.message}`);
+      }
+
+      toast.success('Workflow deployed as template successfully!');
+      
+    } catch (error) {
+      console.error('Workflow deployment error:', error);
+      toast.error(`Failed to deploy workflow: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsDeploying(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-purple-50">
@@ -425,101 +530,61 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
 
       {generatedWorkflow && (
         <>
-          {/* Workflow Summary Card */}
-          <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-indigo-50">
-            <CardHeader className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-t-lg">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-lg">{generatedWorkflow.name}</CardTitle>
-                  <CardDescription className="text-indigo-100">
-                    {generatedWorkflow.steps?.length || 0} intelligent steps • Est. {generatedWorkflow.estimated_duration}
-                  </CardDescription>
-                </div>
-                <Badge className="bg-white/20 text-white border-white/30">
-                  Universal AI Generated
-                </Badge>
-              </div>
-            </CardHeader>
+          {/* Action Buttons */}
+          <div className="flex gap-4 mb-6">
+            <Button
+              onClick={executeWorkflow}
+              disabled={isExecuting}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              {isExecuting ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Executing...
+                </>
+              ) : (
+                <>
+                  <Play className="h-4 w-4 mr-2" />
+                  Execute Workflow
+                </>
+              )}
+            </Button>
             
-            <CardContent className="p-6">
-              <p className="text-gray-700 text-sm mb-4">{generatedWorkflow.description}</p>
-              
-              <div className="space-y-3">
-                {generatedWorkflow.steps?.map((step: WorkflowStep, index: number) => {
-                  const StepIcon = getStepIcon(step.icon);
-                  
-                  return (
-                    <div key={step.id} className="flex items-start space-x-4 p-4 bg-white rounded-lg border shadow-sm">
-                      <div className="flex-shrink-0">
-                        <div className="w-8 h-8 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                          {index + 1}
-                        </div>
-                      </div>
-                      
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-3 mb-2">
-                          <StepIcon className="h-5 w-5 text-gray-600" />
-                          <h4 className="font-medium text-gray-900">{step.name}</h4>
-                          <Badge className={getTypeColor(step.type)}>
-                            {step.type.replace('_', ' ')}
-                          </Badge>
-                        </div>
-                        
-                        <p className="text-sm text-gray-600 mb-2">{step.description}</p>
-                        
-                        <div className="flex items-center space-x-4 text-xs text-gray-500">
-                          <div className="flex items-center space-x-1">
-                            <Clock className="h-3 w-3" />
-                            <span>{step.duration}</span>
-                          </div>
-                          {step.assignee && (
-                            <div className="flex items-center space-x-1">
-                              <Users className="h-3 w-3" />
-                              <span>{step.assignee}</span>
-                            </div>
-                          )}
-                        </div>
+            <Button
+              onClick={deployWorkflow}
+              disabled={isDeploying}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {isDeploying ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Deploying...
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Deploy as Template
+                </>
+              )}
+            </Button>
+          </div>
 
-                        {step.conditions && (
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            {step.conditions.approved && (
-                              <Badge className="bg-green-100 text-green-800 text-xs">
-                                ✓ {step.conditions.approved}
-                              </Badge>
-                            )}
-                            {step.conditions.rejected && (
-                              <Badge className="bg-red-100 text-red-800 text-xs">
-                                ✗ {step.conditions.rejected}
-                              </Badge>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* VISUAL WORKFLOW DIAGRAM */}
+          {/* VISUAL WORKFLOW DIAGRAM ONLY */}
           <div className="mt-8">
             <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
               <Zap className="h-6 w-6 mr-2 text-purple-600" />
-              Visual Workflow Diagram
+              Workflow Process Diagram
             </h3>
             <VisualWorkflowDiagram workflow={generatedWorkflow} />
           </div>
 
-          {/* WORKFLOW CHATBOT - Always show when workflow exists */}
-          <div className="mt-8">
-            <WorkflowChatbot
-              workflow={generatedWorkflow}
-              onWorkflowUpdate={setGeneratedWorkflow}
-              isMinimized={isChatbotMinimized}
-              onToggleMinimize={() => setIsChatbotMinimized(!isChatbotMinimized)}
-            />
-          </div>
+          {/* WORKFLOW CHATBOT - FIXED */}
+          <WorkflowChatbot
+            workflow={generatedWorkflow}
+            onWorkflowUpdate={setGeneratedWorkflow}
+            isMinimized={isChatbotMinimized}
+            onToggleMinimize={() => setIsChatbotMinimized(!isChatbotMinimized)}
+          />
         </>
       )}
     </div>

@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -33,7 +32,7 @@ export const WorkflowChatbot: React.FC<WorkflowChatbotProps> = ({
     {
       id: '1',
       role: 'assistant',
-      content: `Hi! I'm your workflow assistant for "${workflow?.workflow_name || workflow?.name || 'your workflow'}". I can analyze your specific workflow, answer questions about approval times, responsibilities, and suggest improvements based on your actual process. What would you like to know?`,
+      content: `Hi! I'm your workflow assistant for "${workflow?.name || 'your workflow'}". I can analyze this specific workflow and answer questions about its ${workflow?.steps?.length || 0} steps, approval processes, and execution details. What would you like to know?`,
       timestamp: new Date(),
       type: 'question'
     }
@@ -50,184 +49,165 @@ export const WorkflowChatbot: React.FC<WorkflowChatbotProps> = ({
     scrollToBottom();
   }, [messages]);
 
-  const analyzeWorkflowData = () => {
-    // Extract workflow details for context-aware responses
-    const workflowData = {
-      name: workflow?.workflow_name || workflow?.name || 'Unknown',
-      type: workflow?.workflow_type || workflow?.type || 'Unknown',
-      status: workflow?.status || 'Unknown',
-      requestData: workflow?.request_data || {},
-      steps: workflow?.steps || [],
-      approvals: workflow?.approvals || [],
-      createdAt: workflow?.created_at,
-      submitter: workflow?.submitter_name
-    };
-
-    // Get approval information
-    const approvalSteps = workflowData.approvals.length > 0 ? workflowData.approvals : 
-      (workflowData.steps.filter((step: any) => step.type === 'approval') || []);
-
-    return {
-      ...workflowData,
-      approvalSteps,
-      totalApprovals: approvalSteps.length,
-      executiveApproval: approvalSteps.find((step: any) => 
-        step.approver_role?.toLowerCase().includes('executive') || 
-        step.approver_role?.toLowerCase().includes('ceo') ||
-        step.step_name?.toLowerCase().includes('executive')
-      )
-    };
-  };
-
   const generateAIResponse = async (userMessage: string): Promise<string> => {
-    // Simulate AI processing
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     const lowerMessage = userMessage.toLowerCase();
-    const workflowAnalysis = analyzeWorkflowData();
+    const workflowSteps = workflow?.steps || [];
+    const workflowName = workflow?.name || 'Unknown Workflow';
+    const estimatedDuration = workflow?.estimated_duration || 'Not specified';
     
-    // Context-aware responses about executive approval
-    if (lowerMessage.includes('executive') && (lowerMessage.includes('24') || lowerMessage.includes('hour') || lowerMessage.includes('time'))) {
-      if (workflowAnalysis.executiveApproval) {
-        return `Based on your ${workflowAnalysis.name} workflow, the executive approval step has a 24-hour timeframe for several important reasons:
+    // Get approval steps
+    const approvalSteps = workflowSteps.filter((step: any) => step.type === 'approval');
+    const reviewSteps = workflowSteps.filter((step: any) => step.type === 'review');
+    const validationSteps = workflowSteps.filter((step: any) => step.type === 'validation');
+    
+    // Workflow explanation
+    if (lowerMessage.includes('explain') || lowerMessage.includes('about') || lowerMessage.includes('overview')) {
+      const stepBreakdown = workflowSteps.map((step: any, index: number) => 
+        `${index + 1}. **${step.name}** (${step.type}) - ${step.duration || 'Variable time'}\n   ${step.description}`
+      ).join('\n\n');
 
-**Business Justification:**
-• **Strategic Review**: Executive decisions require comprehensive analysis of business impact
-• **Risk Assessment**: Higher-level approvals need time for thorough risk evaluation
-• **Stakeholder Consultation**: Executives often need to consult with other departments
-• **Due Diligence**: Complex approvals require careful consideration of compliance and policy
+      return `**${workflowName} - Complete Workflow Explanation:**
 
-**Your Workflow Context:**
-• Workflow Type: ${workflowAnalysis.type}
-• Current Status: ${workflowAnalysis.status}
-• Amount: ${workflowAnalysis.requestData.amount ? '$' + workflowAnalysis.requestData.amount : 'Not specified'}
+**Overview:**
+This workflow has ${workflowSteps.length} sequential steps designed to ensure comprehensive processing and approval.
 
-**Optimization Options:**
-• For amounts under $5,000: Consider delegating to department heads
-• For urgent requests: Add escalation rules for same-day approval
-• For routine expenses: Create pre-approved categories
+**Estimated Total Duration:** ${estimatedDuration}
 
-Would you like me to suggest ways to optimize this approval time for your specific use case?`;
-      } else {
-        return `I don't see an executive approval step in your current ${workflowAnalysis.name} workflow. Your workflow has ${workflowAnalysis.totalApprovals} approval step(s):
+**Step-by-Step Breakdown:**
 
-${workflowAnalysis.approvalSteps.map((step: any, index: number) => 
-  `• ${step.step_name || `Step ${index + 1}`}: ${step.approver_role || 'Unassigned role'}`
-).join('\n')}
+${stepBreakdown}
 
-If you need to add an executive approval step with specific timing, I can help you modify the workflow structure.`;
-      }
+**Key Features:**
+• ${approvalSteps.length} approval checkpoints
+• ${reviewSteps.length} review stages  
+• ${validationSteps.length} validation processes
+• Automated notifications and tracking
+
+Would you like me to explain any specific step in more detail?`;
     }
 
-    // Workflow-specific timing questions
-    if (lowerMessage.includes('how long') || lowerMessage.includes('duration') || lowerMessage.includes('time')) {
-      const approvalDetails = workflowAnalysis.approvalSteps.map((step: any, index: number) => {
-        const stepName = step.step_name || `Step ${index + 1}`;
-        const role = step.approver_role || 'Unassigned';
-        const estimatedTime = step.deadline ? 
-          `${Math.ceil((new Date(step.deadline).getTime() - Date.now()) / (1000 * 60 * 60))} hours` : 
-          'Variable time based on complexity';
-        return `• ${stepName} (${role}): ${estimatedTime}`;
-      }).join('\n');
+    // Approval-related questions
+    if (lowerMessage.includes('approval') || lowerMessage.includes('approve')) {
+      const approvalDetails = approvalSteps.map((step: any, index: number) => 
+        `**${step.name}**\n• Assignee: ${step.assignee || 'Not specified'}\n• Duration: ${step.duration || 'Variable'}\n• Description: ${step.description}`
+      ).join('\n\n');
 
-      return `Here's the timing breakdown for your ${workflowAnalysis.name} workflow:
+      return `**Approval Process in ${workflowName}:**
 
-**Approval Timeline:**
-${approvalDetails || '• No specific approval steps configured'}
+This workflow includes ${approvalSteps.length} approval step(s):
 
-**Current Status:** ${workflowAnalysis.status}
-**Submitted:** ${workflowAnalysis.createdAt ? new Date(workflowAnalysis.createdAt).toLocaleDateString() : 'Unknown'}
-**Submitted by:** ${workflowAnalysis.submitter || 'Unknown'}
+${approvalDetails || 'No specific approval steps configured.'}
 
-**Factors Affecting Processing Time:**
-• Request complexity and amount
+**Approval Flow:**
+${approvalSteps.length > 1 ? 'Multi-level approval system with escalation' : 'Single approval required'}
+
+Each approval step includes conditions for both approval and rejection paths to ensure proper workflow routing.`;
+    }
+
+    // Time/duration questions
+    if (lowerMessage.includes('time') || lowerMessage.includes('duration') || lowerMessage.includes('long')) {
+      const timeBreakdown = workflowSteps.map((step: any, index: number) => 
+        `• Step ${index + 1}: ${step.name} - ${step.duration || 'Variable time'}`
+      ).join('\n');
+
+      return `**Timing Breakdown for ${workflowName}:**
+
+**Total Estimated Duration:** ${estimatedDuration}
+
+**Individual Step Timings:**
+${timeBreakdown}
+
+**Factors Affecting Duration:**
+• Complexity of the request
 • Approver availability
 • Documentation completeness
-• Peak processing periods
+• Current workload and priorities
 
-Would you like me to suggest ways to optimize the processing time?`;
+The workflow is designed to balance thoroughness with efficiency.`;
     }
 
-    // Who is responsible questions
-    if (lowerMessage.includes('who') || lowerMessage.includes('responsible') || lowerMessage.includes('approver')) {
-      const responsibilityMap = workflowAnalysis.approvalSteps.map((step: any, index: number) => {
-        return `**${step.step_name || `Step ${index + 1}`}**
-   • Role: ${step.approver_role || 'Unassigned'}
-   • Status: ${step.status || 'Pending'}
-   • Assigned: ${step.assigned_at ? new Date(step.assigned_at).toLocaleDateString() : 'Not yet assigned'}`;
-      }).join('\n\n');
+    // Responsibility questions
+    if (lowerMessage.includes('who') || lowerMessage.includes('responsible') || lowerMessage.includes('assignee')) {
+      const responsibilityMap = workflowSteps.map((step: any, index: number) => 
+        `**Step ${index + 1}: ${step.name}**\n• Responsible: ${step.assignee || 'System/Automated'}\n• Type: ${step.type}`
+      ).join('\n\n');
 
-      return `Here are the responsible parties for your ${workflowAnalysis.name} workflow:
+      return `**Responsibility Matrix for ${workflowName}:**
 
-${responsibilityMap || 'No specific approvers assigned yet.'}
+${responsibilityMap}
 
-**Workflow Details:**
-• Type: ${workflowAnalysis.type}
-• Current Status: ${workflowAnalysis.status}
-• Total Approval Steps: ${workflowAnalysis.totalApprovals}
+**Key Stakeholders:**
+${Array.from(new Set(workflowSteps.map((s: any) => s.assignee).filter(Boolean))).map(assignee => `• ${assignee}`).join('\n') || '• Various automated systems and approvers'}
 
-Need to reassign any roles or add additional approvers? I can help modify the workflow structure.`;
+Each role has specific responsibilities and authority levels within the workflow process.`;
     }
 
-    // Cost and budget questions
-    if (lowerMessage.includes('cost') || lowerMessage.includes('budget') || lowerMessage.includes('amount')) {
-      const amount = workflowAnalysis.requestData.amount;
-      const category = workflowAnalysis.requestData.category || workflowAnalysis.requestData.business_purpose;
+    // Step-specific questions
+    if (lowerMessage.includes('step')) {
+      const stepNumber = lowerMessage.match(/step (\d+)/)?.[1];
+      if (stepNumber) {
+        const stepIndex = parseInt(stepNumber) - 1;
+        const step = workflowSteps[stepIndex];
+        if (step) {
+          return `**Step ${stepNumber}: ${step.name}**
+
+**Type:** ${step.type}
+**Duration:** ${step.duration || 'Variable time'}
+**Assignee:** ${step.assignee || 'System/Automated'}
+
+**Description:** ${step.description}
+
+${step.conditions ? `**Conditional Logic:**
+• If approved: ${step.conditions.approved}
+• If rejected: ${step.conditions.rejected}` : ''}
+
+This step is ${stepIndex === 0 ? 'the first step' : stepIndex === workflowSteps.length - 1 ? 'the final step' : `step ${stepIndex + 1} of ${workflowSteps.length}`} in the workflow process.`;
+        }
+      }
       
-      return `Here's the financial information for your ${workflowAnalysis.name} workflow:
+      return `**All Steps in ${workflowName}:**
 
-**Request Details:**
-• Amount: ${amount ? '$' + amount.toLocaleString() : 'Not specified'}
-• Category: ${category || 'Not specified'}
-• Purpose: ${workflowAnalysis.requestData.business_purpose || workflowAnalysis.requestData.description || 'Not specified'}
+${workflowSteps.map((step: any, index: number) => 
+  `${index + 1}. ${step.name} (${step.type}) - ${step.assignee || 'System'}`
+).join('\n')}
 
-**Approval Thresholds in Your Workflow:**
-${workflowAnalysis.approvalSteps.map((step: any) => 
-  `• ${step.step_name}: ${step.approver_role} (handles amounts in this range)`
-).join('\n') || '• No specific thresholds configured'}
-
-**Cost Optimization Suggestions:**
-• Pre-approved vendor lists can streamline processing
-• Bulk purchasing agreements for recurring expenses
-• Automated approval for amounts under $1,000
-
-Would you like me to analyze the cost-efficiency of your current approval process?`;
+Ask about a specific step number for detailed information!`;
     }
 
-    // General workflow questions
-    if (lowerMessage.includes('status') || lowerMessage.includes('progress')) {
-      return `**Current Status of ${workflowAnalysis.name}:**
+    // Status and tracking
+    if (lowerMessage.includes('status') || lowerMessage.includes('track')) {
+      return `**${workflowName} Status & Tracking:**
 
-Status: **${workflowAnalysis.status.toUpperCase()}**
-Created: ${workflowAnalysis.createdAt ? new Date(workflowAnalysis.createdAt).toLocaleDateString() : 'Unknown'}
-Submitter: ${workflowAnalysis.submitter || 'Unknown'}
+**Current Configuration:**
+• Total Steps: ${workflowSteps.length}
+• Approval Gates: ${approvalSteps.length}
+• Review Stages: ${reviewSteps.length}
+• Estimated Duration: ${estimatedDuration}
 
-**Progress Details:**
-${workflowAnalysis.approvalSteps.map((step: any, index: number) => {
-  const stepStatus = step.status || 'pending';
-  const icon = stepStatus === 'approved' ? '✅' : stepStatus === 'rejected' ? '❌' : '⏳';
-  return `${icon} ${step.step_name || `Step ${index + 1}`} - ${stepStatus}`;
-}).join('\n') || '• No approval steps configured'}
+**Workflow Status:** Ready for execution
+**Monitoring:** Each step includes tracking and logging capabilities
 
-Need help moving this workflow forward or addressing any bottlenecks?`;
+The workflow provides real-time status updates and maintains an audit trail of all actions and decisions.`;
     }
 
-    // Default context-aware response
-    return `I can help you with your ${workflowAnalysis.name} workflow. Here's what I know about it:
+    // Default response with actual workflow data
+    return `I'm here to help with your **${workflowName}** workflow.
 
-**Workflow Overview:**
-• Name: ${workflowAnalysis.name}
-• Type: ${workflowAnalysis.type}
-• Status: ${workflowAnalysis.status}
-• Approval Steps: ${workflowAnalysis.totalApprovals}
+**Quick Facts:**
+• ${workflowSteps.length} total steps
+• ${approvalSteps.length} approval checkpoints
+• Estimated duration: ${estimatedDuration}
 
 **What I can help with:**
-• **Specific Questions**: Ask about approval times, responsibilities, or status
-• **Process Optimization**: Suggest improvements based on your workflow data
-• **Modifications**: Add, remove, or modify steps
-• **Troubleshooting**: Help resolve bottlenecks or issues
+• **"Explain the workflow"** - Get complete step breakdown
+• **"Who is responsible?"** - See all assignees and roles  
+• **"How long does it take?"** - Detailed timing information
+• **"Tell me about step X"** - Specific step details
+• **"What approvals are needed?"** - Approval process details
 
-What specific aspect of your workflow would you like to explore?`;
+What specific aspect would you like to explore?`;
   };
 
   const handleSendMessage = async () => {
