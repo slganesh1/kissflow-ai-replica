@@ -63,6 +63,9 @@ export const WorkflowChatbot: React.FC<WorkflowChatbotProps> = ({
     const estimatedDuration = workflow.estimated_duration || 'Not specified';
     const workflowDescription = workflow.description || 'No description available';
     
+    // Extract unique assignees
+    const uniqueAssignees = Array.from(new Set(workflowSteps.map((s: any) => s.assignee)));
+    
     console.log('Processing chatbot question:', userMessage);
     console.log('Workflow context:', { 
       workflowName, 
@@ -206,7 +209,6 @@ ${timeBreakdown}
         `**Step ${index + 1}: ${step.name}**\n• Responsible: ${step.assignee}\n• Type: ${step.type}\n• Duration: ${step.duration}\n• Level: ${step.level || 'N/A'}`
       ).join('\n\n');
 
-      const uniqueAssignees = Array.from(new Set(workflowSteps.map((s: any) => s.assignee)));
       const assigneeWorkload = uniqueAssignees.map(assignee => {
         const steps = workflowSteps.filter((s: any) => s.assignee === assignee);
         return `• **${assignee}**: ${steps.length} step(s) - ${steps.map((s: any) => s.name).join(', ')}`;
