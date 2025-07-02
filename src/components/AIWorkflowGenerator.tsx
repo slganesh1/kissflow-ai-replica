@@ -39,19 +39,17 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
   const [isGenerating, setIsGenerating] = useState(false);
   const [isChatbotMinimized, setIsChatbotMinimized] = useState(true);
 
-  // Universal step analysis - intelligently detects patterns from ANY description
+  // Enhanced workflow analysis with intelligent amount detection and multi-level approvals
   const analyzeWorkflowFromDescription = (description: string): WorkflowStep[] => {
     const steps: WorkflowStep[] = [];
     let stepCounter = 1;
     
-    // Normalize text for analysis
     const text = description.toLowerCase();
     const sentences = description.split(/[.!?]+/).filter(s => s.trim().length > 0);
     const words = text.split(/\s+/);
 
     console.log('Analyzing workflow description:', description);
     console.log('Detected sentences:', sentences.length);
-    console.log('Key words found:', words.slice(0, 20));
 
     // Helper to create steps
     const createStep = (name: string, type: WorkflowStep['type'], description: string, duration: string, icon: string, assignee?: string) => {
@@ -75,158 +73,152 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
       return step;
     };
 
-    // 1. UNIVERSAL INPUT DETECTION - Any process starts with some form of input
-    if (words.some(w => ['apply', 'application', 'applying', 'submit', 'request', 'asking', 'need', 'want'].includes(w))) {
-      const inputVerbs = words.filter(w => ['apply', 'submit', 'request', 'register', 'book', 'schedule', 'order'].includes(w));
-      const inputAction = inputVerbs[0] || 'submit';
-      
+    // ENHANCED AMOUNT DETECTION - Extract dollar amounts
+    const amountMatches = description.match(/\$[\d,]+(?:\.\d{2})?/g);
+    let detectedAmount = 0;
+    if (amountMatches && amountMatches.length > 0) {
+      const amountStr = amountMatches[0].replace(/[\$,]/g, '');
+      detectedAmount = parseInt(amountStr);
+      console.log('Detected amount:', detectedAmount);
+    }
+
+    // 1. INITIAL SUBMISSION
+    if (words.some(w => ['need', 'request', 'approval', 'campaign', 'project', 'purchase'].includes(w))) {
       steps.push(createStep(
-        `${inputAction.charAt(0).toUpperCase() + inputAction.slice(1)} Request`,
+        'Request Submission',
         'form',
-        'User provides initial information and submits their request',
-        '5-15 minutes',
+        'Submit detailed request with all required documentation and justification',
+        '15-30 minutes',
         'FileText'
       ));
     }
 
-    // 2. DOCUMENT/INFORMATION VERIFICATION - Universal for most processes
-    if (words.some(w => ['document', 'documents', 'information', 'details', 'proof', 'evidence', 'certificate', 'verify', 'check'].includes(w))) {
-      steps.push(createStep(
-        'Information Verification',
-        'verification',
-        'Verify submitted information and documents for completeness and authenticity',
-        '10-30 minutes',
-        'Shield'
-      ));
-    }
+    // 2. DOCUMENT REVIEW & VALIDATION
+    steps.push(createStep(
+      'Document Review',
+      'verification',
+      'Verify all required documents, budgets, and supporting materials are complete',
+      '30-60 minutes',
+      'Shield'
+    ));
 
-    // 3. ELIGIBILITY/CRITERIA CHECKING - Universal validation
-    if (words.some(w => ['eligible', 'eligibility', 'qualify', 'criteria', 'requirements', 'policy', 'rules', 'standards'].includes(w))) {
+    // 3. INITIAL ASSESSMENT
+    if (detectedAmount > 1000 || words.some(w => ['campaign', 'marketing', 'project', 'initiative'].includes(w))) {
       steps.push(createStep(
-        'Eligibility Assessment',
-        'automated_check',
-        'System checks if request meets predefined criteria and requirements',
-        '5-15 minutes',
-        'CheckCircle'
-      ));
-    }
-
-    // 4. RISK/COMPLIANCE ANALYSIS - Universal for business processes
-    if (words.some(w => ['risk', 'compliance', 'regulation', 'policy', 'legal', 'audit', 'security', 'safety'].includes(w))) {
-      steps.push(createStep(
-        'Risk & Compliance Review',
-        'ai_analysis',
-        'Automated analysis of risk factors and compliance requirements',
-        '15-45 minutes',
-        'AlertCircle'
-      ));
-    }
-
-    // 5. INITIAL REVIEW - Universal first-level human review
-    if (sentences.length > 2 || words.length > 20) { // Complex processes need review
-      steps.push(createStep(
-        'Initial Review',
+        'Initial Assessment',
         'review',
-        'Comprehensive review of the request and supporting information',
-        '1-4 hours',
+        'Preliminary review of request feasibility, alignment with company goals, and risk assessment',
+        '2-4 hours',
         'Eye'
       ));
     }
 
-    // 6. INTELLIGENT APPROVAL DETECTION - Detects approval hierarchy from context
-    const approvalIndicators = words.filter(w => 
-      ['approve', 'approval', 'manager', 'supervisor', 'boss', 'director', 'committee', 'board', 'senior', 'executive', 'authorize', 'sign'].includes(w)
-    );
-
-    if (approvalIndicators.length > 0 || sentences.length > 3) {
-      // Determine approval levels based on complexity and keywords
-      const hasHighValue = words.some(w => ['high', 'large', 'significant', 'major', 'important', 'critical'].includes(w));
-      const hasCommittee = words.some(w => ['committee', 'board', 'group', 'team', 'panel'].includes(w));
-      const hasSenior = words.some(w => ['senior', 'executive', 'director', 'vp', 'ceo', 'head'].includes(w));
+    // 4. INTELLIGENT MULTI-LEVEL APPROVAL HIERARCHY based on amount and context
+    if (detectedAmount > 0 || words.some(w => ['approval', 'approve', 'budget', 'spend', 'investment'].includes(w))) {
       
-      // Add appropriate approval levels
-      if (words.some(w => ['manager', 'supervisor', 'lead'].includes(w)) || !hasHighValue) {
+      // Level 1: Department/Team Lead (for amounts > $1,000)
+      if (detectedAmount >= 1000 || sentences.length > 2) {
         steps.push(createStep(
-          'Manager Approval',
+          'Department Manager Approval',
           'approval',
-          'Manager reviews and makes approval decision',
+          'Department head reviews and approves within departmental authority limits',
           '4-24 hours',
           'Users',
-          'Manager'
+          'Department Manager'
         ));
       }
-      
-      if (hasCommittee) {
+
+      // Level 2: Senior Management (for amounts > $10,000)
+      if (detectedAmount >= 10000 || words.some(w => ['senior', 'major', 'significant', 'important'].includes(w))) {
         steps.push(createStep(
-          'Committee Review',
+          'Senior Management Review',
           'approval',
-          'Committee evaluates and makes collective decision',
-          '2-5 days',
-          'Users',
-          'Committee'
-        ));
-      }
-      
-      if (hasSenior || hasHighValue) {
-        steps.push(createStep(
-          'Senior Leadership Approval',
-          'approval',
-          'Senior management final approval for high-value or critical requests',
-          '3-7 days',
+          'Senior management evaluates strategic impact and budget implications',
+          '1-3 days',
           'Award',
           'Senior Management'
         ));
       }
+
+      // Level 3: Executive/C-Level (for amounts > $50,000)
+      if (detectedAmount >= 50000 || words.some(w => ['executive', 'ceo', 'urgent', 'critical', 'major campaign'].includes(w))) {
+        steps.push(createStep(
+          'Executive Leadership Approval',
+          'approval',
+          'C-level executive approval for high-value expenditures and strategic initiatives',
+          '2-5 days',
+          'Star',
+          'Executive Leadership'
+        ));
+      }
+
+      // Level 4: Board Approval (for amounts > $500,000)
+      if (detectedAmount >= 500000) {
+        steps.push(createStep(
+          'Board of Directors Approval',
+          'approval',
+          'Board approval required for major capital expenditures and strategic investments',
+          '1-2 weeks',
+          'Building',
+          'Board of Directors'
+        ));
+      }
     }
 
-    // 7. ASSESSMENT/TESTING - For processes requiring evaluation
-    if (words.some(w => ['test', 'assessment', 'evaluation', 'interview', 'exam', 'check', 'inspect', 'review'].includes(w))) {
-      const assessmentType = words.find(w => ['interview', 'test', 'exam', 'inspection'].includes(w)) || 'assessment';
-      
+    // 5. FINANCE REVIEW (for budget requests)
+    if (detectedAmount > 5000 || words.some(w => ['budget', 'finance', 'cost', 'expense', 'investment'].includes(w))) {
       steps.push(createStep(
-        `${assessmentType.charAt(0).toUpperCase() + assessmentType.slice(1)} Process`,
-        'assessment',
-        `Conduct ${assessmentType} to evaluate suitability and requirements`,
-        '30 minutes - 2 hours',
-        'ClipboardCheck'
+        'Finance Department Review',
+        'validation',
+        'Finance team validates budget allocation, cash flow impact, and accounting procedures',
+        '1-2 days',
+        'Calculator',
+        'Finance Team'
       ));
     }
 
-    // 8. PROCESSING/EXECUTION - Universal action step
-    if (words.some(w => ['process', 'execute', 'implement', 'setup', 'create', 'generate', 'prepare', 'issue', 'provide'].includes(w))) {
-      const actionWords = words.filter(w => ['setup', 'create', 'generate', 'issue', 'prepare', 'process'].includes(w));
-      const action = actionWords[0] || 'process';
-      
+    // 6. LEGAL/COMPLIANCE REVIEW (for high-value or regulated activities)
+    if (detectedAmount > 25000 || words.some(w => ['legal', 'compliance', 'contract', 'agreement', 'marketing', 'campaign'].includes(w))) {
       steps.push(createStep(
-        `${action.charAt(0).toUpperCase() + action.slice(1)} Implementation`,
-        'processing',
-        'Execute the approved request and complete necessary setup or processing',
-        '30 minutes - 4 hours',
-        'Zap'
+        'Legal & Compliance Review',
+        'validation',
+        'Legal review for compliance, contracts, and regulatory requirements',
+        '1-3 days',
+        'Shield',
+        'Legal Department'
       ));
     }
 
-    // 9. NOTIFICATION/COMMUNICATION - Universal completion step
+    // 7. FINAL PROCESSING
     steps.push(createStep(
-      'Final Communication',
+      'Implementation Setup',
+      'processing',
+      'Set up approved processes, allocate resources, and initiate execution',
+      '2-5 days',
+      'Zap'
+    ));
+
+    // 8. STAKEHOLDER NOTIFICATION
+    steps.push(createStep(
+      'Stakeholder Notification',
       'notification',
-      'Notify relevant parties of the outcome and provide next steps',
-      '5-15 minutes',
+      'Notify all relevant parties of approval decision and next steps',
+      '30 minutes',
       'Mail'
     ));
 
-    // 10. FOLLOW-UP/MONITORING - For ongoing processes
-    if (words.some(w => ['monitor', 'track', 'follow', 'ongoing', 'continuous', 'regular', 'periodic'].includes(w))) {
+    // 9. PROGRESS MONITORING (for ongoing projects)
+    if (words.some(w => ['campaign', 'project', 'initiative', 'launch'].includes(w))) {
       steps.push(createStep(
-        'Ongoing Monitoring',
+        'Progress Monitoring',
         'automated_check',
-        'Continuous monitoring and periodic review of the implemented solution',
+        'Ongoing monitoring of project milestones and budget utilization',
         'Ongoing',
         'TrendingUp'
       ));
     }
 
-    console.log(`Generated ${steps.length} workflow steps`);
+    console.log(`Generated ${steps.length} workflow steps for amount: $${detectedAmount}`);
     return steps;
   };
 
@@ -372,7 +364,7 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
               <Textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Examples - ANY business process works:&#10;&#10;• A customer wants to return a product they bought online...&#10;• An employee is requesting time off for vacation...&#10;• A patient needs to schedule surgery with multiple doctors...&#10;• A student is applying for financial aid at university...&#10;• A vendor wants to register with our company...&#10;• A restaurant is opening a new location requiring permits...&#10;• A freelancer is invoicing a client for completed work...&#10;&#10;Just describe it naturally - I'll figure out the workflow steps, approvals, and create a detailed visual diagram!"
+                placeholder="Examples - ANY business process works:&#10;&#10;• I need approval for a $150,000 marketing campaign for Q4 launch...&#10;• A customer wants to return a $500 product they bought online...&#10;• An employee is requesting 2 weeks vacation time...&#10;• A vendor wants to register with our company for $50K contract...&#10;• We're hiring a new senior developer with $120K salary...&#10;&#10;Just describe it naturally - I'll figure out the workflow steps, approvals, and create a detailed visual diagram!"
                 rows={8}
                 className="w-full"
               />
@@ -487,13 +479,15 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
             <VisualWorkflowDiagram workflow={generatedWorkflow} />
           </div>
 
-          {/* WORKFLOW CHATBOT */}
-          <WorkflowChatbot
-            workflow={generatedWorkflow}
-            onWorkflowUpdate={setGeneratedWorkflow}
-            isMinimized={isChatbotMinimized}
-            onToggleMinimize={() => setIsChatbotMinimized(!isChatbotMinimized)}
-          />
+          {/* WORKFLOW CHATBOT - FIXED DISPLAY */}
+          <div className="mt-8">
+            <WorkflowChatbot
+              workflow={generatedWorkflow}
+              onWorkflowUpdate={setGeneratedWorkflow}
+              isMinimized={isChatbotMinimized}
+              onToggleMinimize={() => setIsChatbotMinimized(!isChatbotMinimized)}
+            />
+          </div>
         </>
       )}
     </div>
