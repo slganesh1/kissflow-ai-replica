@@ -2,7 +2,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
+const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,10 +17,10 @@ serve(async (req) => {
   try {
     console.log('Workflow chat function called');
 
-    if (!anthropicApiKey) {
-      console.error('ANTHROPIC_API_KEY not found');
+    if (!openAIApiKey) {
+      console.error('OPENAI_API_KEY not found');
       return new Response(JSON.stringify({ 
-        error: 'ANTHROPIC_API_KEY not configured' 
+        error: 'OPENAI_API_KEY not configured' 
       }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -62,8 +62,9 @@ Guidelines:
 - Keep responses focused and practical
 - If asked about modifications, explain what changes would mean`;
 
-    // Prepare conversation history for Claude
+    // Prepare conversation history for ChatGPT
     const messages = [
+      { role: 'system', content: systemPrompt },
       ...(conversationHistory || []).map((msg: any) => ({
         role: msg.role === 'assistant' ? 'assistant' : 'user',
         content: msg.content
@@ -74,33 +75,32 @@ Guidelines:
       }
     ];
 
-    console.log('Calling Anthropic API for workflow chat...');
+    console.log('Calling OpenAI API for workflow chat...');
     console.log('Messages:', messages);
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${anthropicApiKey}`,
+        'Authorization': `Bearer ${openAIApiKey}`,
         'Content-Type': 'application/json',
-        'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-3-haiku-20240307',
+        model: 'gpt-4o-mini',
+        messages: messages,
         max_tokens: 1000,
-        system: systemPrompt,
-        messages: messages
+        temperature: 0.7,
       }),
     });
 
-    console.log('Anthropic API response status:', response.status);
+    console.log('OpenAI API response status:', response.status);
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Anthropic API error:', errorText);
+      console.error('OpenAI API error:', errorText);
       
       return new Response(JSON.stringify({ 
         error: 'Failed to get AI response', 
-        details: `Anthropic API returned ${response.status}: ${errorText}` 
+        details: `OpenAI API returned ${response.status}: ${errorText}` 
       }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -108,10 +108,10 @@ Guidelines:
     }
 
     const data = await response.json();
-    console.log('Anthropic response received successfully');
+    console.log('OpenAI response received successfully');
     
-    if (!data || !data.content || !data.content[0] || !data.content[0].text) {
-      console.error('Invalid response format from Anthropic:', data);
+    if (!data || !data.choices || !data.choices[0] || !data.choices[0].message || !data.choices[0].message.content) {
+      console.error('Invalid response format from OpenAI:', data);
       return new Response(JSON.stringify({ 
         error: 'Invalid response format from AI service' 
       }), {
@@ -120,7 +120,7 @@ Guidelines:
       });
     }
     
-    const aiResponse = data.content[0].text;
+    const aiResponse = data.choices[0].message.content;
 
     return new Response(JSON.stringify({ response: aiResponse }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

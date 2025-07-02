@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,7 +33,7 @@ export const WorkflowChatbot: React.FC<WorkflowChatbotProps> = ({
     {
       id: '1',
       role: 'assistant',
-      content: `Hi! I'm your AI workflow assistant powered by Claude for "${workflow?.name || 'your workflow'}". I can analyze this workflow's ${workflow?.steps?.length || 0} steps and help you understand the process, timing, responsibilities, and potential optimizations. What would you like to know?`,
+      content: `Hi! I'm your AI workflow assistant powered by ChatGPT for "${workflow?.name || 'your workflow'}". I can analyze this workflow's ${workflow?.steps?.length || 0} steps and help you understand the process, timing, responsibilities, and potential optimizations. What would you like to know?`,
       timestamp: new Date(),
       type: 'question'
     }
@@ -54,7 +53,7 @@ export const WorkflowChatbot: React.FC<WorkflowChatbotProps> = ({
 
   const generateAIResponse = async (userMessage: string): Promise<string> => {
     try {
-      console.log('Sending message to Claude:', userMessage);
+      console.log('Sending message to ChatGPT:', userMessage);
       console.log('Workflow context:', workflow?.name);
 
       const { data, error } = await supabase.functions.invoke('workflow-chat', {
@@ -71,13 +70,13 @@ export const WorkflowChatbot: React.FC<WorkflowChatbotProps> = ({
       }
 
       if (!data || !data.response) {
-        throw new Error('No response received from Claude');
+        throw new Error('No response received from ChatGPT');
       }
 
-      console.log('Claude response received:', data.response);
+      console.log('ChatGPT response received:', data.response);
       return data.response;
     } catch (error) {
-      console.error('Error getting Claude response:', error);
+      console.error('Error getting ChatGPT response:', error);
       throw error;
     }
   };
@@ -111,14 +110,14 @@ export const WorkflowChatbot: React.FC<WorkflowChatbotProps> = ({
       setMessages(prev => [...prev, assistantMessage]);
       setConversationHistory(prev => [...prev, assistantMessage]);
     } catch (error) {
-      console.error('Error generating Claude response:', error);
-      toast.error(`Failed to get Claude response: ${error.message}`);
+      console.error('Error generating ChatGPT response:', error);
+      toast.error(`Failed to get ChatGPT response: ${error.message}`);
       
       // Add error message to chat
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: 'I apologize, but I encountered an error processing your request. Please try again or check if the Claude API service is properly configured.',
+        content: 'I apologize, but I encountered an error processing your request. Please try again or check if the OpenAI API service is properly configured.',
         timestamp: new Date(),
         type: 'question'
       };
@@ -155,7 +154,7 @@ export const WorkflowChatbot: React.FC<WorkflowChatbotProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <Bot className="h-5 w-5" />
-              <CardTitle className="text-sm">Claude AI Assistant</CardTitle>
+              <CardTitle className="text-sm">ChatGPT AI Assistant</CardTitle>
             </div>
             <div className="flex items-center space-x-2">
               <Badge className="bg-white/20 text-white border-white/30 text-xs">
