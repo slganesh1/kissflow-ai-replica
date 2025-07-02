@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -258,6 +257,8 @@ export const ActiveWorkflows = () => {
                       {workflow.request_data.amount && <div>Amount: ${workflow.request_data.amount}</div>}
                       {workflow.request_data.campaign_name && <div>Campaign: {workflow.request_data.campaign_name}</div>}
                       {workflow.request_data.business_purpose && <div>Purpose: {workflow.request_data.business_purpose}</div>}
+                      {workflow.request_data.description && <div>Description: {workflow.request_data.description}</div>}
+                      {workflow.request_data.estimated_duration && <div>Duration: {workflow.request_data.estimated_duration}</div>}
                     </div>
                   )}
 

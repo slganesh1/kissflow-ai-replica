@@ -1,440 +1,303 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Sparkles, Bot, Clock, CheckCircle, AlertCircle, Users, FileText, Shield, Calculator, CreditCard, Building, Search, Zap, Eye, Send, Mail, UserCheck, ClipboardCheck, Phone, Star, Award, TrendingUp, DollarSign, Play, Upload } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { 
+  Sparkles, 
+  Play, 
+  Save, 
+  Download, 
+  ArrowRight, 
+  CheckCircle, 
+  Clock, 
+  User, 
+  FileText,
+  Users,
+  Shield,
+  Zap,
+  Upload
+} from 'lucide-react';
 import { toast } from 'sonner';
-import { VisualWorkflowDiagram } from './VisualWorkflowDiagram';
 import { WorkflowChatbot } from './WorkflowChatbot';
 import { supabase } from '@/integrations/supabase/client';
 
 interface WorkflowStep {
   id: string;
   name: string;
-  type: 'form' | 'ai_analysis' | 'review' | 'approval' | 'assessment' | 'validation' | 'processing' | 'notification' | 'automated_check' | 'verification' | 'evaluation';
-  description: string;
-  assignee?: string;
+  type: string;
+  assignee: string;
   duration: string;
-  icon: string;
+  description: string;
+  level: number;
   conditions?: {
-    approved?: string;
-    rejected?: string;
+    approved: string;
+    rejected: string;
   };
 }
 
-interface AIWorkflowGeneratorProps {
-  generatedWorkflow: any;
-  setGeneratedWorkflow: (workflow: any) => void;
-  workflowData: any;
-  setWorkflowData: (data: any) => void;
+interface GeneratedWorkflow {
+  id: string;
+  name: string;
+  description: string;
+  type: string;
+  estimated_duration: string;
+  steps: WorkflowStep[];
+  created_at: string;
+  status: string;
 }
 
-export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
-  generatedWorkflow,
-  setGeneratedWorkflow,
-  workflowData,
-  setWorkflowData
-}) => {
-  const [prompt, setPrompt] = useState('');
+export const AIWorkflowGenerator = ({ 
+  generatedWorkflow, 
+  setGeneratedWorkflow, 
+  workflowData, 
+  setWorkflowData 
+}: any) => {
+  const [businessProcess, setBusinessProcess] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isChatbotMinimized, setIsChatbotMinimized] = useState(true);
   const [isExecuting, setIsExecuting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [isDeploying, setIsDeploying] = useState(false);
-
-  // UNIVERSAL INTELLIGENT WORKFLOW ANALYZER - Works for ANY scenario
-  const analyzeWorkflowFromDescription = (description: string): WorkflowStep[] => {
-    const steps: WorkflowStep[] = [];
-    let stepCounter = 1;
-    
-    const text = description.toLowerCase();
-    const words = text.split(/\s+/);
-    const sentences = description.split(/[.!?]+/).filter(s => s.trim().length > 0);
-
-    console.log('Universal AI Analysis - Processing any business scenario:', description);
-
-    // Helper to create comprehensive steps
-    const createStep = (name: string, type: WorkflowStep['type'], description: string, duration: string, icon: string, assignee?: string) => {
-      const step: WorkflowStep = {
-        id: `step_${stepCounter++}`,
-        name,
-        type,
-        description,
-        duration,
-        icon,
-        assignee
-      };
-      
-      if (type === 'approval') {
-        step.conditions = {
-          approved: 'Proceed to next approval level',
-          rejected: 'Return for revision or terminate process'
-        };
-      }
-      
-      return step;
-    };
-
-    // UNIVERSAL DETECTION - Extract amounts and complexity indicators
-    const amountMatches = description.match(/\$[\d,]+(?:\.\d{2})?/g);
-    let detectedAmount = 0;
-    if (amountMatches && amountMatches.length > 0) {
-      const amountStr = amountMatches[0].replace(/[\$,]/g, '');
-      detectedAmount = parseInt(amountStr);
-    }
-
-    // Complexity scoring for any scenario
-    const complexityScore = sentences.length + 
-      (words.filter(w => ['urgent', 'critical', 'important', 'major', 'significant'].includes(w)).length * 2) +
-      (detectedAmount > 0 ? Math.log10(detectedAmount) : 0);
-
-    console.log('Complexity Score:', complexityScore, 'Amount:', detectedAmount);
-
-    // 1. UNIVERSAL INITIAL SUBMISSION
-    steps.push(createStep(
-      'Request Initiation & Documentation',
-      'form',
-      'Submit comprehensive request with all supporting documentation, business justification, and required details',
-      '30-45 minutes',
-      'FileText'
-    ));
-
-    // 2. UNIVERSAL DOCUMENT VALIDATION
-    steps.push(createStep(
-      'Documentation Review & Validation',
-      'verification',
-      'Verify completeness of all required documents, validate data accuracy, and ensure compliance with submission requirements',
-      '1-2 hours',
-      'Shield',
-      'Document Review Team'
-    ));
-
-    // 3. UNIVERSAL INITIAL ASSESSMENT
-    steps.push(createStep(
-      'Initial Impact Assessment',
-      'assessment',
-      'Preliminary evaluation of request feasibility, resource requirements, risk factors, and alignment with organizational objectives',
-      '2-4 hours',
-      'Eye',
-      'Process Analyst'
-    ));
-
-    // 4. UNIVERSAL TECHNICAL/OPERATIONAL REVIEW
-    steps.push(createStep(
-      'Technical & Operational Review',
-      'review',
-      'Detailed technical evaluation, operational impact analysis, and resource availability assessment',
-      '1-2 days',
-      'Search',
-      'Technical Review Team'
-    ));
-
-    // 5-8. UNIVERSAL MULTI-LEVEL APPROVAL HIERARCHY
-    // Level 1: Immediate Supervisor/Department Head
-    steps.push(createStep(
-      'Supervisor/Department Approval',
-      'approval',
-      'First-level management review and approval within departmental authority limits',
-      '4-24 hours',
-      'Users',
-      'Department Manager'
-    ));
-
-    // Level 2: Senior Management (for complex requests or higher amounts)
-    if (complexityScore > 5 || detectedAmount >= 5000) {
-      steps.push(createStep(
-        'Senior Management Review',
-        'approval',
-        'Senior management evaluation of strategic implications, budget impact, and cross-departmental coordination',
-        '1-3 days',
-        'Award',
-        'Senior Management'
-      ));
-    }
-
-    // Level 3: Executive Leadership (for high-value or strategic requests)
-    if (complexityScore > 8 || detectedAmount >= 25000) {
-      steps.push(createStep(
-        'Executive Leadership Approval',
-        'approval',
-        'C-level executive review for high-impact decisions, strategic initiatives, and significant resource allocation',
-        '2-5 days',
-        'Star',
-        'Executive Leadership'
-      ));
-    }
-
-    // Level 4: Board/Governance (for major strategic decisions)
-    if (complexityScore > 12 || detectedAmount >= 100000) {
-      steps.push(createStep(
-        'Board/Governance Approval',
-        'approval',
-        'Board-level approval for major strategic decisions, large capital expenditures, and organizational changes',
-        '1-2 weeks',
-        'Building',
-        'Board of Directors'
-      ));
-    }
-
-    // 9. UNIVERSAL FINANCE REVIEW (for any financial impact)
-    if (detectedAmount > 0 || words.some(w => ['budget', 'cost', 'expense', 'financial', 'money'].includes(w))) {
-      steps.push(createStep(
-        'Financial Analysis & Approval',
-        'validation',
-        'Comprehensive financial review including budget impact, cash flow analysis, and accounting procedures',
-        '1-3 days',
-        'Calculator',
-        'Finance Department'
-      ));
-    }
-
-    // 10. UNIVERSAL LEGAL/COMPLIANCE REVIEW (for regulated activities)
-    if (complexityScore > 6 || words.some(w => ['contract', 'agreement', 'legal', 'compliance', 'regulation', 'policy'].includes(w))) {
-      steps.push(createStep(
-        'Legal & Compliance Review',
-        'validation',
-        'Legal assessment for regulatory compliance, contractual obligations, and risk mitigation',
-        '2-5 days',
-        'Shield',
-        'Legal & Compliance'
-      ));
-    }
-
-    // 11. UNIVERSAL RISK ASSESSMENT (for complex requests)
-    if (complexityScore > 7) {
-      steps.push(createStep(
-        'Risk Assessment & Mitigation',
-        'evaluation',
-        'Comprehensive risk analysis, mitigation strategy development, and contingency planning',
-        '1-2 days',
-        'AlertCircle',
-        'Risk Management'
-      ));
-    }
-
-    // 12. UNIVERSAL IMPLEMENTATION PLANNING
-    steps.push(createStep(
-      'Implementation Planning & Setup',
-      'processing',
-      'Detailed implementation planning, resource allocation, milestone definition, and execution preparation',
-      '2-5 days',
-      'Zap',
-      'Implementation Team'
-    ));
-
-    // 13. UNIVERSAL STAKEHOLDER COMMUNICATION
-    steps.push(createStep(
-      'Stakeholder Notification & Communication',
-      'notification',
-      'Comprehensive communication to all affected parties, status updates, and next step coordination',
-      '2-4 hours',
-      'Mail',
-      'Communications Team'
-    ));
-
-    // 14. UNIVERSAL EXECUTION MONITORING
-    steps.push(createStep(
-      'Execution Monitoring & Tracking',
-      'automated_check',
-      'Ongoing monitoring of implementation progress, milestone tracking, and performance measurement',
-      'Ongoing',
-      'TrendingUp',
-      'Project Management Office'
-    ));
-
-    // 15. UNIVERSAL COMPLETION VERIFICATION
-    steps.push(createStep(
-      'Completion Verification & Sign-off',
-      'verification',
-      'Final verification of deliverables, stakeholder sign-off, and process completion documentation',
-      '1-2 days',
-      'CheckCircle',
-      'Quality Assurance'
-    ));
-
-    console.log(`Generated ${steps.length} universal workflow steps for complexity score: ${complexityScore}`);
-    return steps;
-  };
+  const [isChatbotMinimized, setIsChatbotMinimized] = useState(true);
 
   const generateWorkflow = async () => {
-    if (!prompt.trim()) {
-      toast.error('Please describe the workflow you want to create');
+    if (!businessProcess.trim()) {
+      toast.error('Please describe your business process');
       return;
     }
 
     setIsGenerating(true);
     
     try {
-      // Simulate AI processing delay
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Use the universal analyzer
-      const steps = analyzeWorkflowFromDescription(prompt);
+      const processName = businessProcess.substring(0, 50) + (businessProcess.length > 50 ? '...' : '');
       
-      // Generate intelligent workflow name from the description
-      const sentences = prompt.split(/[.!?]/);
-      let workflowName = 'Custom Business Process';
+      // Analyze the business process to determine complexity and generate appropriate workflow
+      const steps = generateIntelligentWorkflow(businessProcess);
       
-      if (sentences.length > 0) {
-        const firstSentence = sentences[0].trim();
-        if (firstSentence.length < 60) {
-          workflowName = firstSentence.charAt(0).toUpperCase() + firstSentence.slice(1);
-        } else {
-          // Extract key nouns for naming
-          const words = firstSentence.toLowerCase().split(/\s+/);
-          const keyWords = words.filter(w => w.length > 3 && !['that', 'with', 'from', 'they', 'this', 'have', 'will', 'been'].includes(w));
-          if (keyWords.length > 0) {
-            workflowName = keyWords.slice(0, 3).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') + ' Process';
-          }
-        }
-      }
-      
-      const workflow = {
-        id: `ai-generated-${Date.now()}`,
-        name: workflowName,
-        description: prompt.slice(0, 200) + (prompt.length > 200 ? '...' : ''),
-        type: 'universal_workflow',
+      const workflow: GeneratedWorkflow = {
+        id: `workflow-${Date.now()}`,
+        name: `${processName} - Workflow`,
+        description: `AI-generated workflow for: ${businessProcess}`,
+        type: 'ai-generated',
+        estimated_duration: calculateEstimatedDuration(steps),
         steps: steps,
         created_at: new Date().toISOString(),
-        status: 'draft',
-        estimated_duration: calculateTotalDuration(steps)
+        status: 'draft'
       };
-      
+
       setGeneratedWorkflow(workflow);
       setWorkflowData(workflow);
-      
-      toast.success(`Generated intelligent workflow with ${steps.length} steps!`);
+      toast.success('Workflow generated successfully!');
       
     } catch (error) {
       console.error('Error generating workflow:', error);
-      toast.error('Failed to generate workflow. Please try again.');
+      toast.error('Failed to generate workflow');
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const calculateTotalDuration = (steps: WorkflowStep[]): string => {
-    // Intelligent duration calculation based on step complexity
-    let totalMinutes = 0;
+  const generateIntelligentWorkflow = (description: string): WorkflowStep[] => {
+    const lowerDesc = description.toLowerCase();
+    const steps: WorkflowStep[] = [];
+    
+    // Initial Request Processing
+    steps.push({
+      id: 'step-1',
+      name: 'Request Initiation',
+      type: 'form',
+      assignee: 'Requester',
+      duration: '15 minutes',
+      description: 'Submit initial request with required documentation',
+      level: 1
+    });
+
+    steps.push({
+      id: 'step-2',
+      name: 'Document Validation',
+      type: 'validation',
+      assignee: 'System',
+      duration: '5 minutes',
+      description: 'Automated validation of submitted documents and data',
+      level: 1
+    });
+
+    steps.push({
+      id: 'step-3',
+      name: 'Initial Review',
+      type: 'review',
+      assignee: 'Supervisor',
+      duration: '2 hours',
+      description: 'Preliminary review for completeness and compliance',
+      level: 2
+    });
+
+    // Conditional approval levels based on complexity
+    if (lowerDesc.includes('high') || lowerDesc.includes('critical') || lowerDesc.includes('executive')) {
+      steps.push({
+        id: 'step-4',
+        name: 'Senior Management Review',
+        type: 'approval',
+        assignee: 'Senior Manager',
+        duration: '1 day',
+        description: 'Senior management approval for high-impact requests',
+        level: 3
+      });
+    }
+
+    if (lowerDesc.includes('financial') || lowerDesc.includes('budget') || lowerDesc.includes('expense')) {
+      steps.push({
+        id: 'step-5',
+        name: 'Financial Approval',
+        type: 'approval',
+        assignee: 'Finance Manager',
+        duration: '4 hours',
+        description: 'Financial review and budget approval',
+        level: 3
+      });
+    }
+
+    if (lowerDesc.includes('legal') || lowerDesc.includes('contract') || lowerDesc.includes('compliance')) {
+      steps.push({
+        id: 'step-6',
+        name: 'Legal Compliance Review',
+        type: 'approval',
+        assignee: 'Legal Team',
+        duration: '2 days',
+        description: 'Legal compliance and risk assessment',
+        level: 4
+      });
+    }
+
+    // Final approval and processing
+    steps.push({
+      id: `step-${steps.length + 1}`,
+      name: 'Final Approval',
+      type: 'approval',
+      assignee: 'Department Head',
+      duration: '1 day',
+      description: 'Final authorization and approval decision',
+      level: 4
+    });
+
+    steps.push({
+      id: `step-${steps.length + 1}`,
+      name: 'Implementation Planning',
+      type: 'processing',
+      assignee: 'Project Manager',
+      duration: '4 hours',
+      description: 'Create implementation plan and timeline',
+      level: 5
+    });
+
+    steps.push({
+      id: `step-${steps.length + 1}`,
+      name: 'Resource Allocation',
+      type: 'processing',
+      assignee: 'Resource Manager',
+      duration: '2 hours',
+      description: 'Allocate necessary resources and personnel',
+      level: 5
+    });
+
+    steps.push({
+      id: `step-${steps.length + 1}`,
+      name: 'Process Execution',
+      type: 'processing',
+      assignee: 'Operations Team',
+      duration: '1-5 days',
+      description: 'Execute the approved process or request',
+      level: 6
+    });
+
+    steps.push({
+      id: `step-${steps.length + 1}`,
+      name: 'Quality Assurance',
+      type: 'validation',
+      assignee: 'QA Team',
+      duration: '4 hours',
+      description: 'Quality check and validation of completed work',
+      level: 6
+    });
+
+    steps.push({
+      id: `step-${steps.length + 1}`,
+      name: 'Documentation & Closure',
+      type: 'processing',
+      assignee: 'Administrator',
+      duration: '1 hour',
+      description: 'Complete documentation and close the workflow',
+      level: 7
+    });
+
+    return steps;
+  };
+
+  const calculateEstimatedDuration = (steps: WorkflowStep[]): string => {
+    let totalHours = 0;
     
     steps.forEach(step => {
-      const durationStr = step.duration.toLowerCase();
-      
-      if (durationStr.includes('minute')) {
-        const minutes = parseInt(durationStr.match(/\d+/)?.[0] || '15');
-        totalMinutes += minutes;
-      } else if (durationStr.includes('hour')) {
-        const hours = parseInt(durationStr.match(/\d+/)?.[0] || '2');
-        totalMinutes += hours * 60;
-      } else if (durationStr.includes('day')) {
-        const days = parseInt(durationStr.match(/\d+/)?.[0] || '1');
-        totalMinutes += days * 24 * 60;
-      } else if (durationStr.includes('ongoing')) {
-        // Don't add to total for ongoing processes
-        return;
-      } else {
-        // Default fallback
-        totalMinutes += 60; // 1 hour
+      const duration = step.duration.toLowerCase();
+      if (duration.includes('minute')) {
+        const minutes = parseInt(duration.match(/\d+/)?.[0] || '0');
+        totalHours += minutes / 60;
+      } else if (duration.includes('hour')) {
+        const hours = parseInt(duration.match(/\d+/)?.[0] || '0');
+        totalHours += hours;
+      } else if (duration.includes('day')) {
+        const days = parseInt(duration.match(/\d+/)?.[0] || '0');
+        totalHours += days * 8;
       }
     });
 
-    if (totalMinutes < 60) {
-      return `${totalMinutes} minutes`;
-    } else if (totalMinutes < 1440) { // Less than a day
-      const hours = Math.round(totalMinutes / 60);
-      return `${hours} hour${hours !== 1 ? 's' : ''}`;
+    if (totalHours < 1) {
+      return `${Math.round(totalHours * 60)} minutes`;
+    } else if (totalHours < 24) {
+      return `${Math.round(totalHours)} hours`;
     } else {
-      const days = Math.round(totalMinutes / 1440);
-      return `${days} day${days !== 1 ? 's' : ''}`;
+      const days = Math.round(totalHours / 8);
+      return `${days} business days`;
     }
   };
 
-  const getStepIcon = (iconName: string) => {
-    const icons = {
-      FileText, Bot, Users, CheckCircle, AlertCircle, Clock, Shield, Calculator, CreditCard, Building,
-      Search, Zap, Eye, Send, Mail, UserCheck, ClipboardCheck, Phone, Star, Award, TrendingUp, DollarSign
-    };
-    return icons[iconName as keyof typeof icons] || FileText;
-  };
-
-  const getTypeColor = (type: string) => {
-    const colors = {
-      form: 'bg-blue-100 text-blue-800',
-      ai_analysis: 'bg-purple-100 text-purple-800',
-      review: 'bg-yellow-100 text-yellow-800',
-      approval: 'bg-green-100 text-green-800',
-      assessment: 'bg-orange-100 text-orange-800',
-      validation: 'bg-red-100 text-red-800',
-      verification: 'bg-cyan-100 text-cyan-800',
-      processing: 'bg-indigo-100 text-indigo-800',
-      notification: 'bg-pink-100 text-pink-800',
-      automated_check: 'bg-teal-100 text-teal-800',
-      evaluation: 'bg-amber-100 text-amber-800'
-    };
-    return colors[type as keyof typeof colors] || 'bg-gray-100 text-gray-800';
-  };
-
-  const executeWorkflow = async () => {
+  const saveWorkflow = async () => {
     if (!generatedWorkflow) {
-      toast.error('No workflow to execute');
+      toast.error('No workflow to save');
       return;
     }
 
-    setIsExecuting(true);
-    
+    setIsSaving(true);
     try {
-      console.log('Starting workflow execution for:', generatedWorkflow.name);
-      
-      // Save workflow to database first
-      const { data: workflowExecution, error: insertError } = await supabase
-        .from('workflow_executions')
+      const { data, error } = await supabase
+        .from('workflow_templates')
         .insert({
-          workflow_name: generatedWorkflow.name,
-          workflow_type: generatedWorkflow.type || 'universal_workflow',
-          submitter_name: 'System User',
-          request_data: {
+          name: generatedWorkflow.name,
+          type: generatedWorkflow.type,
+          definition: {
             description: generatedWorkflow.description,
-            steps: generatedWorkflow.steps,
             estimated_duration: generatedWorkflow.estimated_duration,
-            workflow_name: generatedWorkflow.name
-          },
-          status: 'pending'
+            steps: generatedWorkflow.steps
+          }
         })
         .select()
         .single();
 
-      if (insertError) {
-        console.error('Database insert error:', insertError);
-        throw new Error(`Failed to save workflow: ${insertError.message}`);
-      }
+      if (error) throw error;
 
-      console.log('Workflow saved to database:', workflowExecution);
-
-      // Execute the workflow using edge function
-      const { data, error } = await supabase.functions.invoke('execute-workflow', {
-        body: { workflowId: workflowExecution.id }
-      });
-
-      if (error) {
-        console.error('Edge function error:', error);
-        throw new Error(`Execution failed: ${error.message}`);
-      }
-
-      console.log('Workflow execution response:', data);
-      toast.success(`Workflow executed successfully! ${data.stepsProcessed} steps processed.`);
+      toast.success('Workflow saved to templates!');
+      console.log('Saved workflow:', data);
       
-      // Update workflow status
-      setGeneratedWorkflow({
-        ...generatedWorkflow,
-        status: 'in_progress',
-        id: workflowExecution.id
-      });
-
     } catch (error) {
-      console.error('Workflow execution error:', error);
-      toast.error(`Failed to execute workflow: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('Error saving workflow:', error);
+      toast.error('Failed to save workflow');
     } finally {
-      setIsExecuting(false);
+      setIsSaving(false);
     }
   };
 
@@ -445,160 +308,254 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
     }
 
     setIsDeploying(true);
-    
     try {
-      console.log('Deploying workflow as template:', generatedWorkflow.name);
-      
-      // Save as template for future use
-      const { error: templateError } = await supabase
+      const { data, error } = await supabase
         .from('workflow_templates')
         .insert({
           name: generatedWorkflow.name,
-          type: generatedWorkflow.type || 'universal_workflow',
+          type: generatedWorkflow.type,
           definition: {
-            steps: generatedWorkflow.steps.map(step => ({
-              id: step.id,
-              name: step.name,
-              type: step.type,
-              role: step.assignee,
-              description: step.description,
-              duration: step.duration,
-              conditions: step.conditions ? 
-                Object.entries(step.conditions).map(([key, value]) => ({
-                  field: key,
-                  operator: '==',
-                  value: value
-                })) : []
-            }))
+            description: generatedWorkflow.description,
+            estimated_duration: generatedWorkflow.estimated_duration,
+            steps: generatedWorkflow.steps
           },
-          active: true,
-          version: 1
-        });
+          active: true
+        })
+        .select()
+        .single();
 
-      if (templateError) {
-        console.error('Template deployment error:', templateError);
-        throw new Error(`Failed to deploy template: ${templateError.message}`);
-      }
+      if (error) throw error;
 
-      toast.success('Workflow deployed as template successfully!');
+      toast.success('Workflow deployed and activated!');
+      console.log('Deployed workflow:', data);
       
     } catch (error) {
-      console.error('Workflow deployment error:', error);
-      toast.error(`Failed to deploy workflow: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('Error deploying workflow:', error);
+      toast.error('Failed to deploy workflow');
     } finally {
       setIsDeploying(false);
     }
   };
 
+  const executeWorkflow = async () => {
+    if (!generatedWorkflow) {
+      toast.error('No workflow to execute');
+      return;
+    }
+
+    setIsExecuting(true);
+    try {
+      // Create workflow execution record
+      const { data: execution, error: execError } = await supabase
+        .from('workflow_executions')
+        .insert({
+          workflow_name: generatedWorkflow.name,
+          workflow_type: generatedWorkflow.type,
+          submitter_name: 'AI Generator User', 
+          request_data: {
+            description: generatedWorkflow.description,
+            steps: generatedWorkflow.steps,
+            estimated_duration: generatedWorkflow.estimated_duration,
+            business_process: businessProcess
+          }
+        })
+        .select()
+        .single();
+
+      if (execError) throw execError;
+
+      // Execute the workflow via edge function
+      const { data: result, error: functionError } = await supabase.functions.invoke('execute-workflow', {
+        body: { workflowId: execution.id }
+      });
+
+      if (functionError) throw functionError;
+
+      toast.success('Workflow executed successfully!');
+      console.log('Execution result:', result);
+      
+    } catch (error) {
+      console.error('Error executing workflow:', error);
+      toast.error(`Failed to execute workflow: ${error.message}`);
+    } finally {
+      setIsExecuting(false);
+    }
+  };
+
+  const getStepIcon = (type: string) => {
+    switch (type) {
+      case 'form': return <FileText className="h-4 w-4" />;
+      case 'approval': return <CheckCircle className="h-4 w-4" />;
+      case 'review': return <User className="h-4 w-4" />;
+      case 'validation': return <Shield className="h-4 w-4" />;
+      case 'processing': return <Zap className="h-4 w-4" />;
+      default: return <Clock className="h-4 w-4" />;
+    }
+  };
+
+  const getStepColor = (type: string) => {
+    switch (type) {
+      case 'form': return 'from-blue-400 to-blue-600';
+      case 'approval': return 'from-green-400 to-green-600';
+      case 'review': return 'from-yellow-400 to-yellow-600';
+      case 'validation': return 'from-purple-400 to-purple-600';
+      case 'processing': return 'from-orange-400 to-orange-600';
+      default: return 'from-gray-400 to-gray-600';
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-purple-50">
+      <Card>
         <CardHeader className="bg-gradient-to-r from-pink-500 to-violet-500 text-white rounded-t-lg">
-          <div className="flex items-center space-x-3">
+          <CardTitle className="text-xl flex items-center space-x-2">
             <Sparkles className="h-6 w-6" />
-            <div>
-              <CardTitle className="text-xl">🧠 Universal AI Workflow Generator</CardTitle>
-              <CardDescription className="text-pink-100">
-                Intelligent workflow creation for ANY business scenario - automatically generates comprehensive multi-level approval processes
-              </CardDescription>
-            </div>
-          </div>
+            <span>AI Workflow Generator</span>
+          </CardTitle>
+          <CardDescription className="text-pink-100">
+            Describe your business process and let AI generate an intelligent workflow
+          </CardDescription>
         </CardHeader>
-        
-        <CardContent className="p-6">
+        <CardContent className="space-y-6 p-6">
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-2">
-                Describe ANY business process or scenario:
-              </label>
+              <Label htmlFor="business-process">Describe Your Business Process</Label>
               <Textarea
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Examples - ANY business process works:&#10;&#10;• Marketing campaign approval for $150,000&#10;• New employee onboarding process&#10;• Equipment purchase request&#10;• Policy change implementation&#10;• Contract negotiation workflow&#10;• Budget allocation process&#10;• Vendor selection and approval&#10;&#10;I'll create a comprehensive workflow with proper approval levels, stakeholder involvement, and detailed steps!"
-                rows={8}
-                className="w-full"
+                id="business-process"
+                placeholder="Example: When an employee joins, process their onboarding including document verification, system access setup, and manager approval..."
+                value={businessProcess}
+                onChange={(e) => setBusinessProcess(e.target.value)}
+                rows={4}
+                className="mt-2"
               />
             </div>
             
-            <Button
-              onClick={generateWorkflow}
-              disabled={isGenerating || !prompt.trim()}
-              className="w-full bg-gradient-to-r from-pink-500 to-violet-500 hover:from-pink-600 hover:to-violet-600 text-white"
+            <Button 
+              onClick={generateWorkflow} 
+              disabled={isGenerating || !businessProcess.trim()}
+              className="w-full bg-gradient-to-r from-pink-500 to-violet-500 hover:from-pink-600 hover:to-violet-600"
             >
               {isGenerating ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  🧠 AI Analyzing & Creating Universal Workflow...
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                  Generating Workflow...
                 </>
               ) : (
                 <>
                   <Sparkles className="h-4 w-4 mr-2" />
-                  🚀 Generate Intelligent Workflow
+                  Generate AI Workflow
                 </>
               )}
             </Button>
           </div>
+
+          {generatedWorkflow && (
+            <>
+              <Separator />
+              
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold">Generated Workflow</h3>
+                  <div className="flex space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={saveWorkflow}
+                      disabled={isSaving}
+                    >
+                      {isSaving ? (
+                        <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin mr-2" />
+                      ) : (
+                        <Save className="h-4 w-4 mr-1" />
+                      )}
+                      Save
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={deployWorkflow}
+                      disabled={isDeploying}
+                    >
+                      {isDeploying ? (
+                        <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin mr-2" />
+                      ) : (
+                        <Upload className="h-4 w-4 mr-1" />
+                      )}
+                      Deploy
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={executeWorkflow}
+                      disabled={isExecuting}
+                      className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+                    >
+                      {isExecuting ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                      ) : (
+                        <Play className="h-4 w-4 mr-1" />
+                      )}
+                      Execute
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg">
+                  <div className="text-center">
+                    <h4 className="font-medium text-gray-700">Workflow Name</h4>
+                    <p className="text-sm text-gray-600">{generatedWorkflow.name}</p>
+                  </div>
+                  <div className="text-center">
+                    <h4 className="font-medium text-gray-700">Total Steps</h4>
+                    <p className="text-sm text-gray-600">{generatedWorkflow.steps.length} steps</p>
+                  </div>
+                  <div className="text-center">
+                    <h4 className="font-medium text-gray-700">Estimated Duration</h4>
+                    <p className="text-sm text-gray-600">{generatedWorkflow.estimated_duration}</p>
+                  </div>
+                </div>
+
+                <ScrollArea className="h-96 w-full rounded-md border p-4">
+                  <div className="space-y-4">
+                    {generatedWorkflow.steps.map((step, index) => (
+                      <div key={step.id}>
+                        <div className={`p-4 rounded-lg bg-gradient-to-r ${getStepColor(step.type)} text-white shadow-md`}>
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center space-x-2">
+                              {getStepIcon(step.type)}
+                              <span className="font-medium">Step {index + 1}: {step.name}</span>
+                            </div>
+                            <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
+                              {step.type}
+                            </Badge>
+                          </div>
+                          <p className="text-sm mb-2">{step.description}</p>
+                          <div className="flex items-center justify-between text-xs">
+                            <span>👤 {step.assignee}</span>
+                            <span>⏱️ {step.duration}</span>
+                          </div>
+                        </div>
+                        
+                        {index < generatedWorkflow.steps.length - 1 && (
+                          <div className="flex justify-center py-2">
+                            <ArrowRight className="h-6 w-6 text-gray-400" />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
       {generatedWorkflow && (
-        <>
-          {/* Action Buttons */}
-          <div className="flex gap-4 mb-6">
-            <Button
-              onClick={executeWorkflow}
-              disabled={isExecuting}
-              className="bg-green-600 hover:bg-green-700 text-white"
-            >
-              {isExecuting ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Executing...
-                </>
-              ) : (
-                <>
-                  <Play className="h-4 w-4 mr-2" />
-                  Execute Workflow
-                </>
-              )}
-            </Button>
-            
-            <Button
-              onClick={deployWorkflow}
-              disabled={isDeploying}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              {isDeploying ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Deploying...
-                </>
-              ) : (
-                <>
-                  <Upload className="h-4 w-4 mr-2" />
-                  Deploy as Template
-                </>
-              )}
-            </Button>
-          </div>
-
-          {/* VISUAL WORKFLOW DIAGRAM ONLY */}
-          <div className="mt-8 mb-32">
-            <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-              <Zap className="h-6 w-6 mr-2 text-purple-600" />
-              Workflow Process Diagram
-            </h3>
-            <VisualWorkflowDiagram workflow={generatedWorkflow} />
-          </div>
-
-          {/* WORKFLOW CHATBOT - POSITIONED ON LEFT */}
-          <WorkflowChatbot
-            workflow={generatedWorkflow}
-            onWorkflowUpdate={setGeneratedWorkflow}
-            isMinimized={isChatbotMinimized}
-            onToggleMinimize={() => setIsChatbotMinimized(!isChatbotMinimized)}
-          />
-        </>
+        <WorkflowChatbot
+          workflow={generatedWorkflow}
+          isMinimized={isChatbotMinimized}
+          onToggleMinimize={() => setIsChatbotMinimized(!isChatbotMinimized)}
+        />
       )}
     </div>
   );
