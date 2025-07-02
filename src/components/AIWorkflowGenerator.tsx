@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Sparkles, Bot, Clock, CheckCircle, AlertCircle, Users, FileText, Shield, Calculator, CreditCard, Building, Search, Zap, Eye, Send, Mail, UserCheck, ClipboardCheck, Phone, Star, Award, TrendingUp, DollarSign } from 'lucide-react';
 import { toast } from 'sonner';
 import { VisualWorkflowDiagram } from './VisualWorkflowDiagram';
+import { WorkflowChatbot } from './WorkflowChatbot';
 
 interface WorkflowStep {
   id: string;
@@ -36,6 +37,7 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
 }) => {
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isChatbotMinimized, setIsChatbotMinimized] = useState(true);
 
   // Universal step analysis - intelligently detects patterns from ANY description
   const analyzeWorkflowFromDescription = (description: string): WorkflowStep[] => {
@@ -476,7 +478,7 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
             </CardContent>
           </Card>
 
-          {/* VISUAL WORKFLOW DIAGRAM - THIS WAS MISSING! */}
+          {/* VISUAL WORKFLOW DIAGRAM */}
           <div className="mt-8">
             <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
               <Zap className="h-6 w-6 mr-2 text-purple-600" />
@@ -484,6 +486,14 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
             </h3>
             <VisualWorkflowDiagram workflow={generatedWorkflow} />
           </div>
+
+          {/* WORKFLOW CHATBOT */}
+          <WorkflowChatbot
+            workflow={generatedWorkflow}
+            onWorkflowUpdate={setGeneratedWorkflow}
+            isMinimized={isChatbotMinimized}
+            onToggleMinimize={() => setIsChatbotMinimized(!isChatbotMinimized)}
+          />
         </>
       )}
     </div>
