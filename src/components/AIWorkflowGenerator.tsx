@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,6 +24,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { WorkflowChatbot } from './WorkflowChatbot';
+import { VisualWorkflowDiagram } from './VisualWorkflowDiagram';
 import { supabase } from '@/integrations/supabase/client';
 
 interface WorkflowStep {
@@ -551,33 +551,9 @@ export const AIWorkflowGenerator = ({
                   </div>
                 </div>
 
-                <div className="bg-white border rounded-lg p-4">
-                  <h4 className="font-medium mb-4">Workflow Flow Diagram</h4>
-                  <div className="space-y-2">
-                    {generatedWorkflow.steps.map((step, index) => (
-                      <div key={step.id} className="flex items-center space-x-3">
-                        <div className={`w-8 h-8 rounded-full bg-gradient-to-r ${getStepColor(step.type)} flex items-center justify-center text-white`}>
-                          {getStepIcon(step.type)}
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium">{step.name}</span>
-                            <div className="flex items-center space-x-2">
-                              <Badge variant="secondary" className="text-xs">{step.type}</Badge>
-                              <span className="text-xs text-gray-500">{step.duration}</span>
-                            </div>
-                          </div>
-                          <div className="text-sm text-gray-600">
-                            <span className="font-medium">Assignee:</span> {step.assignee} | 
-                            <span className="font-medium"> Description:</span> {step.description}
-                          </div>
-                        </div>
-                        {index < generatedWorkflow.steps.length - 1 && (
-                          <ArrowRight className="h-4 w-4 text-gray-400" />
-                        )}
-                      </div>
-                    ))}
-                  </div>
+                {/* Visual Workflow Diagram instead of text-based flow */}
+                <div className="mt-6">
+                  <VisualWorkflowDiagram workflow={generatedWorkflow} />
                 </div>
 
                 {savedWorkflowId && (
