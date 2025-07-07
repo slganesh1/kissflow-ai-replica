@@ -35,7 +35,7 @@ export class WorkflowExportService {
 
     // Export database schema if requested
     if (options.includeDatabase) {
-      await this.addDatabaseExport(zip, workflowData.workflow_type);
+      await this.addDatabaseExport(zip, workflowData.workflow.workflow_type);
       manifest.components.push('database-schema');
     }
 
