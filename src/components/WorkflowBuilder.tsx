@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Play, Save, Settings, Bot, Mail, FileText, Database, Zap, ArrowRight, Clock, Sparkles, Activity, Users, Brain, TrendingUp, BarChart3, UserCheck } from 'lucide-react';
+import { Plus, Play, Save, Settings, Bot, Mail, FileText, Database, Zap, ArrowRight, Clock, Sparkles, Activity, Users, Brain, TrendingUp, BarChart3, UserCheck, Download, Package } from 'lucide-react';
 import { toast } from 'sonner';
 import { AIWorkflowGenerator } from './AIWorkflowGenerator';
 import { ActiveWorkflows } from './ActiveWorkflows';
@@ -16,6 +15,7 @@ import { AgentPanel } from './AgentPanel';
 import { AgentCoordinator } from './AgentCoordinator';
 import { ContinuousOptimizer } from './ContinuousOptimizer';
 import { ApproverHierarchy } from './ApproverHierarchy';
+import { WorkflowExportModal } from './WorkflowExportModal';
 
 const workflowTemplates = [
   {
@@ -75,6 +75,8 @@ export const WorkflowBuilder = () => {
   const [generatedWorkflow, setGeneratedWorkflow] = useState(null);
   const [workflowData, setWorkflowData] = useState(null);
   const [activeTab, setActiveTab] = useState('ai-generator');
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [selectedWorkflowForExport, setSelectedWorkflowForExport] = useState<string | null>(null);
 
   const startFromTemplate = (template) => {
     setSelectedTemplate(template);
@@ -152,6 +154,18 @@ export const WorkflowBuilder = () => {
               <Save className="h-4 w-4 mr-2" />
               Save Workflow
             </Button>
+            {workflowData && (
+              <Button 
+                onClick={() => {
+                  setSelectedWorkflowForExport(workflowData.id);
+                  setExportModalOpen(true);
+                }}
+                className="bg-white/20 border-white/30 text-white hover:bg-white/30"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export
+              </Button>
+            )}
             <Button className="bg-gradient-to-r from-green-400 to-green-600 hover:from-green-500 hover:to-green-700 shadow-lg">
               <Play className="h-4 w-4 mr-2" />
               Test Run
@@ -311,6 +325,12 @@ export const WorkflowBuilder = () => {
             </CardContent>
           </Card>
         </div>
+
+        <WorkflowExportModal
+          open={exportModalOpen}
+          onOpenChange={setExportModalOpen}
+          workflowId={selectedWorkflowForExport}
+        />
       </div>
     );
   }
@@ -329,10 +349,20 @@ export const WorkflowBuilder = () => {
             </div>
           )}
         </div>
-        <Button onClick={() => setIsBuilding(true)} className="bg-white/20 border-white/30 text-white hover:bg-white/30 shadow-lg">
-          <Plus className="h-4 w-4 mr-2" />
-          Create New Workflow
-        </Button>
+        <div className="flex space-x-2">
+          <Button onClick={() => setIsBuilding(true)} className="bg-white/20 border-white/30 text-white hover:bg-white/30 shadow-lg">
+            <Plus className="h-4 w-4 mr-2" />
+            Create New Workflow
+          </Button>
+          <Button 
+            onClick={() => setExportModalOpen(true)}
+            variant="outline"
+            className="bg-white/20 border-white/30 text-white hover:bg-white/30"
+          >
+            <Package className="h-4 w-4 mr-2" />
+            Export Workflows
+          </Button>
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
@@ -442,6 +472,12 @@ export const WorkflowBuilder = () => {
           <ApproverHierarchy />
         </TabsContent>
       </Tabs>
+
+      <WorkflowExportModal
+        open={exportModalOpen}
+        onOpenChange={setExportModalOpen}
+        workflowId={selectedWorkflowForExport}
+      />
     </div>
   );
 };
