@@ -1,8 +1,9 @@
+
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Eye, Clock, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
+import { Eye, Clock, CheckCircle, XCircle, AlertTriangle, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { WorkflowDetailsModal } from './WorkflowDetailsModal';
@@ -16,6 +17,8 @@ interface WorkflowExecution {
   created_at: string;
   updated_at: string;
   request_data: any;
+  sla_status?: string;
+  sla_deadline?: string;
 }
 
 interface WorkflowApproval {
@@ -41,7 +44,6 @@ export const ActiveWorkflows = () => {
     try {
       console.log('Fetching workflows...');
       
-      // Fetch workflows based on filter - show all if showCompleted is true, otherwise exclude completed and cancelled
       const query = supabase
         .from('workflow_executions')
         .select('*')
@@ -62,7 +64,6 @@ export const ActiveWorkflows = () => {
       console.log('Fetched workflows:', workflowData);
       setWorkflows(workflowData || []);
 
-      // Fetch approvals for all workflows
       const workflowIds = workflowData?.map(w => w.id) || [];
       if (workflowIds.length > 0) {
         const { data: approvalData, error: approvalError } = await supabase
@@ -74,7 +75,6 @@ export const ActiveWorkflows = () => {
         if (approvalError) {
           console.error('Error fetching approvals:', approvalError);
         } else {
-          // Group approvals by workflow_id
           const groupedApprovals = (approvalData || []).reduce((acc, approval) => {
             if (!acc[approval.workflow_id]) {
               acc[approval.workflow_id] = [];
@@ -97,7 +97,6 @@ export const ActiveWorkflows = () => {
   useEffect(() => {
     fetchWorkflows();
     
-    // Set up real-time subscription for workflow changes
     const channel = supabase
       .channel('workflow_changes')
       .on(
@@ -142,10 +141,20 @@ export const ActiveWorkflows = () => {
     }
   };
 
+  const getSLAStatusColor = (slaStatus: string) => {
+    switch (slaStatus) {
+      case 'on_time': return 'bg-green-100 text-green-700 border-green-300';
+      case 'at_risk': return 'bg-yellow-100 text-yellow-700 border-yellow-300';
+      case 'overdue': return 'bg-red-100 text-red-700 border-red-300';
+      case 'escalated': return 'bg-purple-100 text-purple-700 border-purple-300';
+      default: return 'bg-gray-100 text-gray-700 border-gray-300';
+    }
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'pending': return <Clock className="h-4 w-4" />;
-      case 'in_progress': return <AlertCircle className="h-4 w-4" />;
+      case 'in_progress': return <AlertTriangle className="h-4 w-4" />;
       case 'completed': return <CheckCircle className="h-4 w-4" />;
       case 'failed': return <XCircle className="h-4 w-4" />;
       case 'cancelled': return <XCircle className="h-4 w-4" />;
@@ -166,6 +175,22 @@ export const ActiveWorkflows = () => {
       return `${completedApprovals.length} approval(s) completed`;
     } else {
       return `Status: ${workflow.status.replace('_', ' ')}`;
+    }
+  };
+
+  const getTimeRemaining = (deadline: string) => {
+    const now = new Date();
+    const deadlineDate = new Date(deadline);
+    const diffMs = deadlineDate.getTime() - now.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    
+    if (diffHours < 0) {
+      return `${Math.abs(diffHours)}h overdue`;
+    } else if (diffHours < 24) {
+      return `${diffHours}h remaining`;
+    } else {
+      const diffDays = Math.floor(diffHours / 24);
+      return `${diffDays}d ${diffHours % 24}h remaining`;
     }
   };
 
@@ -199,7 +224,7 @@ export const ActiveWorkflows = () => {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Workflow Monitor</CardTitle>
-              <CardDescription>Monitor and track your workflow executions</CardDescription>
+              <CardDescription>Monitor and track your workflow executions with SLA tracking</CardDescription>
             </div>
             <div className="flex items-center space-x-2">
               <Button
@@ -232,12 +257,19 @@ export const ActiveWorkflows = () => {
                 <div key={workflow.id} className="border rounded-lg p-4 hover:shadow-sm transition-shadow">
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="font-semibold">{workflow.workflow_name}</h4>
-                    <Badge className={getStatusColor(workflow.status)} variant="outline">
-                      <div className="flex items-center space-x-1">
-                        {getStatusIcon(workflow.status)}
-                        <span className="capitalize">{workflow.status.replace('_', ' ')}</span>
-                      </div>
-                    </Badge>
+                    <div className="flex items-center space-x-2">
+                      <Badge className={getStatusColor(workflow.status)} variant="outline">
+                        <div className="flex items-center space-x-1">
+                          {getStatusIcon(workflow.status)}
+                          <span className="capitalize">{workflow.status.replace('_', ' ')}</span>
+                        </div>
+                      </Badge>
+                      {workflow.sla_status && (
+                        <Badge className={getSLAStatusColor(workflow.sla_status)} variant="outline">
+                          SLA: {workflow.sla_status.replace('_', ' ')}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                   
                   <div className="text-sm text-gray-600 mb-3">
@@ -248,6 +280,9 @@ export const ActiveWorkflows = () => {
                       <p><strong>Last Updated:</strong> {new Date(workflow.updated_at).toLocaleTimeString()}</p>
                     )}
                     <p><strong>Status:</strong> {getWorkflowSummary(workflow)}</p>
+                    {workflow.sla_deadline && (
+                      <p><strong>SLA:</strong> {getTimeRemaining(workflow.sla_deadline)}</p>
+                    )}
                   </div>
 
                   {workflow.request_data && (
@@ -274,6 +309,16 @@ export const ActiveWorkflows = () => {
                       {approvals[workflow.id]?.some(a => a.status === 'pending') && (
                         <Badge variant="outline" className="text-orange-600 border-orange-300">
                           Pending Approval
+                        </Badge>
+                      )}
+                      {workflow.sla_status === 'overdue' && (
+                        <Badge variant="outline" className="text-red-600 border-red-300">
+                          SLA Overdue
+                        </Badge>
+                      )}
+                      {workflow.sla_status === 'escalated' && (
+                        <Badge variant="outline" className="text-purple-600 border-purple-300">
+                          Escalated
                         </Badge>
                       )}
                       <Badge variant="secondary" className="text-xs">

@@ -7,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instanciate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "12.2.3 (519615d)"
+  }
   public: {
     Tables: {
       decision_rules: {
@@ -218,6 +223,57 @@ export type Database = {
           },
         ]
       }
+      workflow_escalations: {
+        Row: {
+          approval_id: string | null
+          escalated_at: string
+          escalated_from: string
+          escalated_to: string
+          escalation_reason: string
+          id: string
+          resolved_at: string | null
+          status: string | null
+          workflow_id: string
+        }
+        Insert: {
+          approval_id?: string | null
+          escalated_at?: string
+          escalated_from: string
+          escalated_to: string
+          escalation_reason: string
+          id?: string
+          resolved_at?: string | null
+          status?: string | null
+          workflow_id: string
+        }
+        Update: {
+          approval_id?: string | null
+          escalated_at?: string
+          escalated_from?: string
+          escalated_to?: string
+          escalation_reason?: string
+          id?: string
+          resolved_at?: string | null
+          status?: string | null
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_escalations_approval_id_fkey"
+            columns: ["approval_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_approvals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_escalations_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_executions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workflow_execution_log: {
         Row: {
           action: string
@@ -261,6 +317,8 @@ export type Database = {
           created_at: string | null
           id: string
           request_data: Json
+          sla_deadline: string | null
+          sla_status: string | null
           status: Database["public"]["Enums"]["workflow_status"] | null
           submitter_name: string
           updated_at: string | null
@@ -271,6 +329,8 @@ export type Database = {
           created_at?: string | null
           id?: string
           request_data: Json
+          sla_deadline?: string | null
+          sla_status?: string | null
           status?: Database["public"]["Enums"]["workflow_status"] | null
           submitter_name: string
           updated_at?: string | null
@@ -281,6 +341,8 @@ export type Database = {
           created_at?: string | null
           id?: string
           request_data?: Json
+          sla_deadline?: string | null
+          sla_status?: string | null
           status?: Database["public"]["Enums"]["workflow_status"] | null
           submitter_name?: string
           updated_at?: string | null
@@ -324,6 +386,74 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      workflow_sla_config: {
+        Row: {
+          auto_approve_on_expire: boolean | null
+          created_at: string
+          escalation_hours: number
+          id: string
+          sla_hours: number
+          step_type: string
+          updated_at: string
+          workflow_type: string
+        }
+        Insert: {
+          auto_approve_on_expire?: boolean | null
+          created_at?: string
+          escalation_hours?: number
+          id?: string
+          sla_hours?: number
+          step_type: string
+          updated_at?: string
+          workflow_type: string
+        }
+        Update: {
+          auto_approve_on_expire?: boolean | null
+          created_at?: string
+          escalation_hours?: number
+          id?: string
+          sla_hours?: number
+          step_type?: string
+          updated_at?: string
+          workflow_type?: string
+        }
+        Relationships: []
+      }
+      workflow_sla_notifications: {
+        Row: {
+          id: string
+          message: string
+          notification_type: string
+          recipient_role: string
+          sent_at: string
+          workflow_id: string
+        }
+        Insert: {
+          id?: string
+          message: string
+          notification_type: string
+          recipient_role: string
+          sent_at?: string
+          workflow_id: string
+        }
+        Update: {
+          id?: string
+          message?: string
+          notification_type?: string
+          recipient_role?: string
+          sent_at?: string
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_sla_notifications_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_executions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       workflow_tasks: {
         Row: {
@@ -419,7 +549,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      escalate_overdue_approvals: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      update_workflow_sla_status: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
     }
     Enums: {
       approval_status: "pending" | "approved" | "rejected"
@@ -443,21 +580,25 @@ export type Database = {
   }
 }
 
-type DefaultSchema = Database[Extract<keyof Database, "public">]
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
     ? R
@@ -475,14 +616,16 @@ export type Tables<
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I
     }
     ? I
@@ -498,14 +641,16 @@ export type TablesInsert<
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U
     }
     ? U
@@ -521,14 +666,16 @@ export type TablesUpdate<
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
     : never = never,
-> = DefaultSchemaEnumNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
     : never
@@ -536,14 +683,16 @@ export type Enums<
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
     : never = never,
-> = PublicCompositeTypeNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never

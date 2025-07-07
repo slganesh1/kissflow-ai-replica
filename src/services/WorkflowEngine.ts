@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -42,6 +41,9 @@ export class WorkflowEngine {
         throw new Error(`Failed to fetch workflow: ${workflowError?.message}`);
       }
 
+      // Set SLA deadline if not already set
+      await this.setSLADeadline(workflow);
+
       // Get workflow template
       const template = await this.getWorkflowTemplate(workflow.workflow_type);
       if (!template) {
@@ -62,6 +64,53 @@ export class WorkflowEngine {
     }
   }
 
+  private async setSLADeadline(workflow: any): Promise<void> {
+    // Skip if SLA deadline is already set
+    if (workflow.sla_deadline) return;
+
+    try {
+      // Get SLA configuration for this workflow type
+      const { data: slaConfig, error } = await supabase
+        .from('workflow_sla_config')
+        .select('sla_hours')
+        .eq('workflow_type', workflow.workflow_type)
+        .eq('step_type', 'approval')
+        .single();
+
+      if (error || !slaConfig) {
+        console.log(`No SLA config found for ${workflow.workflow_type}, using default 24 hours`);
+        // Use default 24 hours if no config found
+        const deadline = new Date(workflow.created_at);
+        deadline.setHours(deadline.getHours() + 24);
+        
+        await supabase
+          .from('workflow_executions')
+          .update({ 
+            sla_deadline: deadline.toISOString(),
+            sla_status: 'on_time'
+          })
+          .eq('id', workflow.id);
+        return;
+      }
+
+      // Set deadline based on SLA configuration
+      const deadline = new Date(workflow.created_at);
+      deadline.setHours(deadline.getHours() + slaConfig.sla_hours);
+
+      await supabase
+        .from('workflow_executions')
+        .update({ 
+          sla_deadline: deadline.toISOString(),
+          sla_status: 'on_time'
+        })
+        .eq('id', workflow.id);
+
+      console.log(`SLA deadline set for workflow ${workflow.id}: ${deadline.toISOString()}`);
+    } catch (error) {
+      console.error('Error setting SLA deadline:', error);
+    }
+  }
+
   private async getWorkflowTemplate(workflowType: string): Promise<WorkflowTemplate | null> {
     const { data, error } = await supabase
       .from('workflow_templates')
@@ -75,7 +124,6 @@ export class WorkflowEngine {
       return null;
     }
 
-    // Safely convert the database record to our WorkflowTemplate interface
     const template: WorkflowTemplate = {
       id: data.id,
       name: data.name,
@@ -92,13 +140,11 @@ export class WorkflowEngine {
     for (const step of steps) {
       console.log(`Processing step: ${step.id} for workflow: ${workflow.id}`);
       
-      // Check if step conditions are met
       if (!this.evaluateStepConditions(step, workflow.request_data)) {
         console.log(`Step ${step.id} conditions not met, skipping`);
         continue;
       }
 
-      // Process the step based on its type
       await this.processStep(workflow, step);
     }
   }
@@ -141,7 +187,6 @@ export class WorkflowEngine {
         await this.createNotificationTask(workflow, step);
         break;
       case 'conditional':
-        // Conditional logic is handled in evaluateStepConditions
         break;
       default:
         console.log(`Unknown step type: ${step.type}`);
@@ -167,7 +212,6 @@ export class WorkflowEngine {
       throw new Error(`Failed to create approval task: ${approvalError.message}`);
     }
 
-    // Create corresponding task in task queue
     const taskData = {
       workflow_id: workflow.id,
       step_id: step.id,
@@ -204,7 +248,7 @@ export class WorkflowEngine {
       workflow_id: workflow.id,
       step_id: step.id,
       task_type: 'notification',
-      status: 'completed', // Notifications are immediately "completed"
+      status: 'completed',
       priority: 1,
       data: {
         step_name: step.name,
@@ -235,7 +279,6 @@ export class WorkflowEngine {
     console.log(`Processing approval: ${approvalId}, decision: ${decision}`);
 
     try {
-      // Update approval record
       const { data: approval, error: updateError } = await supabase
         .from('workflow_approvals')
         .update({
@@ -252,7 +295,6 @@ export class WorkflowEngine {
         throw new Error(`Failed to update approval: ${updateError?.message}`);
       }
 
-      // Update corresponding task
       await supabase
         .from('workflow_tasks')
         .update({
@@ -262,7 +304,6 @@ export class WorkflowEngine {
         .eq('workflow_id', approval.workflow_id)
         .eq('step_id', approval.step_id);
 
-      // Log the event
       await this.logWorkflowEvent(
         approval.workflow_id!,
         approval.step_id,
@@ -271,7 +312,6 @@ export class WorkflowEngine {
         { comments, step_name: approval.step_name }
       );
 
-      // Check if workflow is complete
       await this.checkWorkflowCompletion(approval.workflow_id!);
 
     } catch (error) {
@@ -281,7 +321,6 @@ export class WorkflowEngine {
   }
 
   private async checkWorkflowCompletion(workflowId: string): Promise<void> {
-    // Check if all required approvals are completed
     const { data: pendingApprovals, error } = await supabase
       .from('workflow_approvals')
       .select('*')
@@ -293,9 +332,15 @@ export class WorkflowEngine {
       return;
     }
 
-    // If no pending approvals, mark workflow as completed
     if (!pendingApprovals || pendingApprovals.length === 0) {
       await this.updateWorkflowStatus(workflowId, 'completed');
+      
+      // Update SLA status to completed
+      await supabase
+        .from('workflow_executions')
+        .update({ sla_status: 'completed' })
+        .eq('id', workflowId);
+        
       await this.logWorkflowEvent(workflowId, null, 'workflow_completed', 'system', {});
       console.log(`Workflow ${workflowId} completed successfully`);
     }
@@ -362,5 +407,4 @@ export class WorkflowEngine {
   }
 }
 
-// Create singleton instance
 export const workflowEngine = new WorkflowEngine();
