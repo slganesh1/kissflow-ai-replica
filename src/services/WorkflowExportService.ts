@@ -11,6 +11,8 @@ export interface WorkflowExportOptions {
   includeAuth?: boolean;
   includeAPI?: boolean;
   workflowTypes?: string[];
+  zapierWebhook?: string;
+  triggerZapierOnExport?: boolean;
 }
 
 export class WorkflowExportService {
@@ -74,6 +76,11 @@ export class WorkflowExportService {
 
     // Add manifest
     zip.file('manifest.json', JSON.stringify(manifest, null, 2));
+
+    // Trigger Zapier webhook if configured
+    if (options.triggerZapierOnExport && options.zapierWebhook) {
+      await this.triggerZapierWebhook(options.zapierWebhook, workflowData, manifest);
+    }
 
     // Generate and download zip
     const content = await zip.generateAsync({ type: 'blob' });
@@ -409,8 +416,69 @@ For support and questions, refer to TechzFlowAI documentation.
       zip.file(`${workflow.workflow_type}-${workflow.id}.zip`, workflowBlob);
     }
 
+    // Trigger Zapier webhook for batch export if configured
+    if (options.triggerZapierOnExport && options.zapierWebhook) {
+      const allWorkflowsData = await Promise.all(
+        workflows.map(async (workflow) => await this.getWorkflowData(workflow.id))
+      );
+      
+      const batchManifest = {
+        exportedAt: new Date().toISOString(),
+        workflowCount: workflows.length,
+        version: '1.0.0',
+        components: options.includeDatabase ? ['database-schema', 'all-workflows'] : ['all-workflows']
+      };
+
+      await this.triggerZapierWebhook(options.zapierWebhook, { workflows: allWorkflowsData }, batchManifest);
+    }
+
     const content = await zip.generateAsync({ type: 'blob' });
     saveAs(content, `techzflow-all-workflows-export.zip`);
+  }
+
+  private async triggerZapierWebhook(webhookUrl: string, workflowData: any, manifest: any) {
+    try {
+      const payload = {
+        timestamp: new Date().toISOString(),
+        source: 'TechzFlowAI',
+        event: 'workflow_exported',
+        workflow: {
+          id: workflowData.workflow.id,
+          name: workflowData.workflow.workflow_name,
+          type: workflowData.workflow.workflow_type,
+          status: workflowData.workflow.status,
+          submitter: workflowData.workflow.submitter_name,
+          created_at: workflowData.workflow.created_at,
+          request_data: workflowData.workflow.request_data
+        },
+        export: {
+          components: manifest.components,
+          version: manifest.version,
+          exported_at: manifest.exportedAt
+        },
+        approvals: workflowData.approvals?.map((approval: any) => ({
+          step_name: approval.step_name,
+          approver_role: approval.approver_role,
+          status: approval.status,
+          order_sequence: approval.order_sequence
+        })) || [],
+        sla_config: workflowData.slaConfig || []
+      };
+
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        mode: 'no-cors',
+        body: JSON.stringify(payload)
+      });
+
+      console.log('Zapier webhook triggered successfully');
+    } catch (error) {
+      console.error('Failed to trigger Zapier webhook:', error);
+      // Don't throw error to prevent export failure
+    }
   }
 
   private async addWorkflowToZip(zip: JSZip, workflowId: string, options: WorkflowExportOptions) {

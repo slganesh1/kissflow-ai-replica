@@ -4,8 +4,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Download, Package, Database, Cog, Shield, Code, Monitor, Palette } from 'lucide-react';
+import { Download, Package, Database, Cog, Shield, Code, Monitor, Palette, Webhook } from 'lucide-react';
 import { workflowExportService, WorkflowExportOptions } from '@/services/WorkflowExportService';
 import { toast } from 'sonner';
 
@@ -22,7 +23,9 @@ export const WorkflowExportModal = ({ open, onOpenChange, workflowId }: Workflow
     includeSLAMonitor: true,
     includeUIComponents: true,
     includeAuth: true,
-    includeAPI: true
+    includeAPI: true,
+    zapierWebhook: 'https://hooks.zapier.com/hooks/catch/23746431/u37rl89/',
+    triggerZapierOnExport: true
   });
   const [isExporting, setIsExporting] = useState(false);
 
@@ -140,6 +143,52 @@ export const WorkflowExportModal = ({ open, onOpenChange, workflowId }: Workflow
                   </div>
                 ))}
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center space-x-2">
+                <Webhook className="h-5 w-5" />
+                <span>Zapier Integration</span>
+              </CardTitle>
+              <CardDescription>
+                Automatically trigger your Zapier workflow when exporting
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="triggerZapierOnExport"
+                  checked={exportOptions.triggerZapierOnExport}
+                  onCheckedChange={(checked) => 
+                    setExportOptions(prev => ({ ...prev, triggerZapierOnExport: checked as boolean }))
+                  }
+                />
+                <Label htmlFor="triggerZapierOnExport" className="font-medium">
+                  Send data to Zapier on export
+                </Label>
+              </div>
+              
+              {exportOptions.triggerZapierOnExport && (
+                <div>
+                  <Label htmlFor="zapierWebhook" className="text-sm font-medium">
+                    Zapier Webhook URL
+                  </Label>
+                  <Input
+                    id="zapierWebhook"
+                    placeholder="https://hooks.zapier.com/hooks/catch/..."
+                    value={exportOptions.zapierWebhook || ''}
+                    onChange={(e) => 
+                      setExportOptions(prev => ({ ...prev, zapierWebhook: e.target.value }))
+                    }
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    This will send workflow data to your Zapier webhook to trigger automation
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
