@@ -6,7 +6,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Download, Package, Database, Cog, Shield, Code, Monitor, Palette, Webhook } from 'lucide-react';
+import { Download, Package, Database, Cog, Shield, Code, Monitor, Palette, Webhook, Table } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
 import { workflowExportService, WorkflowExportOptions } from '@/services/WorkflowExportService';
 import { toast } from 'sonner';
 
@@ -25,7 +26,10 @@ export const WorkflowExportModal = ({ open, onOpenChange, workflowId }: Workflow
     includeAuth: true,
     includeAPI: true,
     zapierWebhook: 'https://hooks.zapier.com/hooks/catch/23746431/u37rl89/',
-    triggerZapierOnExport: true
+    triggerZapierOnExport: true,
+    airtableBaseId: '',
+    airtableTableName: 'Workflows',
+    syncToAirtable: true,
   });
   const [isExporting, setIsExporting] = useState(false);
 
@@ -187,6 +191,72 @@ export const WorkflowExportModal = ({ open, onOpenChange, workflowId }: Workflow
                   <p className="text-xs text-gray-500 mt-1">
                     This will send workflow data to your Zapier webhook to trigger automation
                   </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center space-x-2">
+                <Table className="h-5 w-5" />
+                <span>Airtable Integration</span>
+              </CardTitle>
+              <CardDescription>
+                Automatically sync workflow data to your Airtable base
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="syncToAirtable"
+                  checked={exportOptions.syncToAirtable}
+                  onCheckedChange={(checked) => 
+                    setExportOptions(prev => ({ ...prev, syncToAirtable: checked as boolean }))
+                  }
+                />
+                <Label htmlFor="syncToAirtable" className="font-medium">
+                  Sync to Airtable on export
+                </Label>
+              </div>
+              
+              {exportOptions.syncToAirtable && (
+                <div className="space-y-3">
+                  <div>
+                    <Label htmlFor="airtableBaseId" className="text-sm font-medium">
+                      Airtable Base ID
+                    </Label>
+                    <Input
+                      id="airtableBaseId"
+                      placeholder="appXXXXXXXXXXXXXX"
+                      value={exportOptions.airtableBaseId || ''}
+                      onChange={(e) => 
+                        setExportOptions(prev => ({ ...prev, airtableBaseId: e.target.value }))
+                      }
+                      className="mt-1"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Found in your Airtable base URL: airtable.com/appXXXXXX/...
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="airtableTableName" className="text-sm font-medium">
+                      Table Name
+                    </Label>
+                    <Input
+                      id="airtableTableName"
+                      placeholder="Workflows"
+                      value={exportOptions.airtableTableName || ''}
+                      onChange={(e) => 
+                        setExportOptions(prev => ({ ...prev, airtableTableName: e.target.value }))
+                      }
+                      className="mt-1"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      The exact name of your Airtable table
+                    </p>
+                  </div>
                 </div>
               )}
             </CardContent>

@@ -13,6 +13,9 @@ export interface WorkflowExportOptions {
   workflowTypes?: string[];
   zapierWebhook?: string;
   triggerZapierOnExport?: boolean;
+  airtableBaseId?: string;
+  airtableTableName?: string;
+  syncToAirtable?: boolean;
 }
 
 export class WorkflowExportService {
@@ -80,6 +83,11 @@ export class WorkflowExportService {
     // Trigger Zapier webhook if configured
     if (options.triggerZapierOnExport && options.zapierWebhook) {
       await this.triggerZapierWebhook(options.zapierWebhook, workflowData, manifest);
+    }
+
+    // Sync to Airtable if configured
+    if (options.syncToAirtable && options.airtableBaseId && options.airtableTableName) {
+      await this.syncToAirtable(options.airtableBaseId, options.airtableTableName, workflowData, manifest);
     }
 
     // Generate and download zip
@@ -416,20 +424,28 @@ For support and questions, refer to TechzFlowAI documentation.
       zip.file(`${workflow.workflow_type}-${workflow.id}.zip`, workflowBlob);
     }
 
+    // Get all workflow data once for both Zapier and Airtable
+    const allWorkflowsData = await Promise.all(
+      workflows.map(async (workflow) => await this.getWorkflowData(workflow.id))
+    );
+    
+    const batchManifest = {
+      exportedAt: new Date().toISOString(),
+      workflowCount: workflows.length,
+      version: '1.0.0',
+      components: options.includeDatabase ? ['database-schema', 'all-workflows'] : ['all-workflows']
+    };
+
     // Trigger Zapier webhook for batch export if configured
     if (options.triggerZapierOnExport && options.zapierWebhook) {
-      const allWorkflowsData = await Promise.all(
-        workflows.map(async (workflow) => await this.getWorkflowData(workflow.id))
-      );
-      
-      const batchManifest = {
-        exportedAt: new Date().toISOString(),
-        workflowCount: workflows.length,
-        version: '1.0.0',
-        components: options.includeDatabase ? ['database-schema', 'all-workflows'] : ['all-workflows']
-      };
-
       await this.triggerZapierWebhook(options.zapierWebhook, { workflows: allWorkflowsData }, batchManifest);
+    }
+
+    // Sync batch to Airtable if configured
+    if (options.syncToAirtable && options.airtableBaseId && options.airtableTableName) {
+      for (const workflowData of allWorkflowsData) {
+        await this.syncToAirtable(options.airtableBaseId, options.airtableTableName, workflowData, batchManifest);
+      }
     }
 
     const content = await zip.generateAsync({ type: 'blob' });
@@ -484,6 +500,44 @@ For support and questions, refer to TechzFlowAI documentation.
   private async addWorkflowToZip(zip: JSZip, workflowId: string, options: WorkflowExportOptions) {
     const workflowData = await this.getWorkflowData(workflowId);
     zip.file('workflow.json', JSON.stringify(workflowData, null, 2));
+  }
+
+  private async syncToAirtable(baseId: string, tableName: string, workflowData: any, manifest: any) {
+    try {
+      // Use Supabase Edge Function to securely handle Airtable API calls
+      const { data, error } = await supabase.functions.invoke('sync-to-airtable', {
+        body: {
+          baseId,
+          tableName,
+          record: {
+            fields: {
+              'Workflow ID': workflowData.workflow.id,
+              'Workflow Name': workflowData.workflow.workflow_name,
+              'Workflow Type': workflowData.workflow.workflow_type,
+              'Status': workflowData.workflow.status,
+              'Submitter': workflowData.workflow.submitter_name,
+              'Created At': workflowData.workflow.created_at,
+              'SLA Status': workflowData.workflow.sla_status,
+              'Request Data': JSON.stringify(workflowData.workflow.request_data),
+              'Export Version': manifest.version,
+              'Exported At': manifest.exportedAt,
+              'Components': manifest.components.join(', '),
+              'Approvals Count': workflowData.approvals?.length || 0,
+              'Approval Status': workflowData.approvals?.map((a: any) => `${a.step_name}: ${a.status}`).join('; ') || 'None'
+            }
+          }
+        }
+      });
+
+      if (error) {
+        console.error('Failed to sync to Airtable:', error);
+      } else {
+        console.log('Successfully synced to Airtable:', data);
+      }
+    } catch (error) {
+      console.error('Airtable sync error:', error);
+      // Don't throw error to prevent export failure
+    }
   }
 }
 
