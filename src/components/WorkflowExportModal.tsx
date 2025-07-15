@@ -34,14 +34,12 @@ export const WorkflowExportModal = ({ open, onOpenChange, workflowId }: Workflow
   const [isExporting, setIsExporting] = useState(false);
 
   const handleExport = async () => {
-    if (!workflowId) {
-      toast.error('No workflow selected for export');
-      return;
-    }
-
+    // If no specific workflow ID, export a generic workflow package
+    const idToExport = workflowId || 'generic-workflow';
+    
     setIsExporting(true);
     try {
-      const manifest = await workflowExportService.exportWorkflow(workflowId, exportOptions);
+      const manifest = await workflowExportService.exportWorkflow(idToExport, exportOptions);
       toast.success(`Workflow exported successfully! Included ${manifest.components.length} components.`);
       onOpenChange(false);
     } catch (error) {
@@ -305,11 +303,11 @@ export const WorkflowExportModal = ({ open, onOpenChange, workflowId }: Workflow
               </Button>
               <Button
                 onClick={handleExport}
-                disabled={isExporting || !workflowId}
+                disabled={isExporting}
                 className="flex items-center space-x-2"
               >
                 <Download className="h-4 w-4" />
-                <span>{isExporting ? 'Exporting...' : 'Export Workflow'}</span>
+                <span>{isExporting ? 'Exporting...' : (workflowId ? 'Export Workflow' : 'Export Package')}</span>
               </Button>
             </div>
           </div>
