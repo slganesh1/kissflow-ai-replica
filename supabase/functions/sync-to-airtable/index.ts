@@ -14,13 +14,13 @@ serve(async (req) => {
   try {
     const { baseId, tableName, record } = await req.json();
     
-    // Get Airtable API key from Supabase secrets
-    const airtableApiKey = Deno.env.get('AIRTABLE_API_KEY');
+    // Get Airtable personal access token from Supabase secrets
+    const airtableToken = Deno.env.get('AIRTABLE_PERSONAL_ACCESS_TOKEN');
     
-    if (!airtableApiKey) {
-      console.error('AIRTABLE_API_KEY not found in environment');
+    if (!airtableToken) {
+      console.error('AIRTABLE_PERSONAL_ACCESS_TOKEN not found in environment');
       return new Response(
-        JSON.stringify({ error: 'Airtable API key not configured' }),
+        JSON.stringify({ error: 'Airtable personal access token not configured' }),
         { 
           status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -46,7 +46,7 @@ serve(async (req) => {
     const response = await fetch(airtableUrl, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${airtableApiKey}`,
+        'Authorization': `Bearer ${airtableToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(record)
