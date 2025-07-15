@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Download, Package, Database, Cog, Shield, Code, Monitor, Palette, Webhook, Table } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { workflowExportService, WorkflowExportOptions } from '@/services/WorkflowExportService';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 interface WorkflowExportModalProps {
@@ -34,22 +35,152 @@ export const WorkflowExportModal = ({ open, onOpenChange, workflowId }: Workflow
   const [isExporting, setIsExporting] = useState(false);
 
   const handleExport = async () => {
-    if (!workflowId) {
-      // If no specific workflow ID, just export all workflows instead
-      await handleExportAll();
-      return;
+    let targetWorkflowId = workflowId;
+    
+    // If no specific workflow ID, get the latest workflow
+    if (!targetWorkflowId) {
+      try {
+        const { data: latestWorkflow, error } = await supabase
+          .from('workflow_executions')
+          .select('id')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+          
+        if (error || !latestWorkflow) {
+          toast.error('No workflows found to export');
+          return;
+        }
+        
+        targetWorkflowId = latestWorkflow.id;
+      } catch (error) {
+        toast.error('Failed to fetch latest workflow');
+        return;
+      }
     }
     
     setIsExporting(true);
     try {
-      const manifest = await workflowExportService.exportWorkflow(workflowId, exportOptions);
-      toast.success(`Workflow exported successfully! Included ${manifest.components.length} components.`);
+      // Focus on sending to integrations rather than downloading
+      await sendWorkflowToIntegrations(targetWorkflowId);
+      toast.success('Workflow successfully sent to Zapier and Airtable!');
       onOpenChange(false);
     } catch (error) {
       toast.error('Failed to export workflow: ' + (error as Error).message);
     } finally {
       setIsExporting(false);
     }
+  };
+
+  const sendWorkflowToIntegrations = async (workflowId: string) => {
+    // Get workflow data
+    const { data: workflow, error: workflowError } = await supabase
+      .from('workflow_executions')
+      .select('*')
+      .eq('id', workflowId)
+      .single();
+
+    if (workflowError) throw new Error('Failed to fetch workflow data');
+
+    // Get workflow approvals
+    const { data: approvals } = await supabase
+      .from('workflow_approvals')
+      .select('*')
+      .eq('workflow_id', workflowId);
+
+    const workflowData = {
+      workflow,
+      approvals: approvals || []
+    };
+
+    const manifest = {
+      exportedAt: new Date().toISOString(),
+      version: '1.0.0',
+      components: ['workflow-data', 'approvals'],
+      workflowId: workflowId
+    };
+
+    // Send to Zapier
+    if (exportOptions.triggerZapierOnExport && exportOptions.zapierWebhook) {
+      await triggerZapierWebhook(exportOptions.zapierWebhook, workflowData, manifest);
+    }
+
+    // Send to Airtable  
+    if (exportOptions.syncToAirtable && exportOptions.airtableBaseId && exportOptions.airtableTableName) {
+      await syncToAirtable(exportOptions.airtableBaseId, exportOptions.airtableTableName, workflowData, manifest);
+    }
+  };
+
+  const triggerZapierWebhook = async (webhookUrl: string, workflowData: any, manifest: any) => {
+    const payload = {
+      timestamp: new Date().toISOString(),
+      source: 'TechzFlowAI',
+      event: 'workflow_exported',
+      workflow: {
+        id: workflowData.workflow.id,
+        name: workflowData.workflow.workflow_name,
+        type: workflowData.workflow.workflow_type,
+        status: workflowData.workflow.status,
+        submitter: workflowData.workflow.submitter_name,
+        created_at: workflowData.workflow.created_at,
+        request_data: workflowData.workflow.request_data
+      },
+      export: {
+        components: manifest.components,
+        version: manifest.version,
+        exported_at: manifest.exportedAt
+      },
+      approvals: workflowData.approvals?.map((approval: any) => ({
+        step_name: approval.step_name,
+        approver_role: approval.approver_role,
+        status: approval.status,
+        order_sequence: approval.order_sequence
+      })) || []
+    };
+
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      mode: 'no-cors',
+      body: JSON.stringify(payload)
+    });
+
+    console.log('Zapier webhook triggered successfully', payload);
+  };
+
+  const syncToAirtable = async (baseId: string, tableName: string, workflowData: any, manifest: any) => {
+    const { data, error } = await supabase.functions.invoke('sync-to-airtable', {
+      body: {
+        baseId,
+        tableName,
+        record: {
+          fields: {
+            'Workflow ID': workflowData.workflow.id,
+            'Workflow Name': workflowData.workflow.workflow_name,
+            'Workflow Type': workflowData.workflow.workflow_type,
+            'Status': workflowData.workflow.status,
+            'Submitter': workflowData.workflow.submitter_name,
+            'Created At': workflowData.workflow.created_at,
+            'SLA Status': workflowData.workflow.sla_status,
+            'Request Data': JSON.stringify(workflowData.workflow.request_data),
+            'Export Version': manifest.version,
+            'Exported At': manifest.exportedAt,
+            'Components': manifest.components.join(', '),
+            'Approvals Count': workflowData.approvals?.length || 0,
+            'Approval Status': workflowData.approvals?.map((a: any) => `${a.step_name}: ${a.status}`).join('; ') || 'None'
+          }
+        }
+      }
+    });
+
+    if (error) {
+      console.error('Failed to sync to Airtable:', error);
+      throw new Error('Airtable sync failed');
+    }
+    
+    console.log('Successfully synced to Airtable:', data);
   };
 
   const handleExportAll = async () => {
@@ -112,9 +243,9 @@ export const WorkflowExportModal = ({ open, onOpenChange, workflowId }: Workflow
             <Package className="h-5 w-5" />
             <span>Export Workflow Package</span>
           </DialogTitle>
-          <DialogDescription>
-            Create a complete, portable workflow package for integration with other applications
-          </DialogDescription>
+            <DialogDescription>
+              Send latest workflow data to Zapier and Airtable integrations
+            </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
@@ -310,7 +441,7 @@ export const WorkflowExportModal = ({ open, onOpenChange, workflowId }: Workflow
                 className="flex items-center space-x-2"
               >
                 <Download className="h-4 w-4" />
-                <span>{isExporting ? 'Exporting...' : (workflowId ? 'Export Workflow' : 'Export All Workflows')}</span>
+                <span>{isExporting ? 'Sending...' : (workflowId ? 'Send Workflow' : 'Send Latest Workflow')}</span>
               </Button>
             </div>
           </div>
