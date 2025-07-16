@@ -112,6 +112,8 @@ export const WorkflowExportModal = ({ open, onOpenChange, workflowId }: Workflow
   };
 
   const triggerZapierWebhook = async (webhookUrl: string, workflowData: any, manifest: any) => {
+    console.log('🔄 Starting Zapier webhook trigger to:', webhookUrl);
+    
     const payload = {
       timestamp: new Date().toISOString(),
       source: 'TechzFlowAI',
@@ -138,49 +140,72 @@ export const WorkflowExportModal = ({ open, onOpenChange, workflowId }: Workflow
       })) || []
     };
 
-    const response = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      mode: 'no-cors',
-      body: JSON.stringify(payload)
-    });
+    console.log('📤 Sending payload to Zapier:', payload);
 
-    console.log('Zapier webhook triggered successfully', payload);
+    try {
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        mode: 'no-cors',
+        body: JSON.stringify(payload)
+      });
+
+      console.log('✅ Zapier webhook request sent (no-cors mode - cannot verify response)');
+      toast.success('Data sent to Zapier webhook!');
+    } catch (error) {
+      console.error('❌ Failed to send to Zapier:', error);
+      toast.error('Failed to send to Zapier: ' + (error as Error).message);
+      throw error;
+    }
   };
 
   const syncToAirtable = async (baseId: string, tableName: string, workflowData: any, manifest: any) => {
-    const { data, error } = await supabase.functions.invoke('sync-to-airtable', {
-      body: {
-        baseId,
-        tableName,
-        record: {
-          fields: {
-            'Workflow ID': workflowData.workflow.id,
-            'Workflow Name': workflowData.workflow.workflow_name,
-            'Workflow Type': workflowData.workflow.workflow_type,
-            'Status': workflowData.workflow.status,
-            'Submitter': workflowData.workflow.submitter_name,
-            'Created At': workflowData.workflow.created_at,
-            'SLA Status': workflowData.workflow.sla_status,
-            'Request Data': JSON.stringify(workflowData.workflow.request_data),
-            'Export Version': manifest.version,
-            'Exported At': manifest.exportedAt,
-            'Components': manifest.components.join(', '),
-            'Approvals Count': workflowData.approvals?.length || 0,
-            'Approval Status': workflowData.approvals?.map((a: any) => `${a.step_name}: ${a.status}`).join('; ') || 'None'
-          }
+    console.log('🔄 Starting Airtable sync to base:', baseId, 'table:', tableName);
+    
+    const payload = {
+      baseId,
+      tableName,
+      record: {
+        fields: {
+          'Workflow ID': workflowData.workflow.id,
+          'Workflow Name': workflowData.workflow.workflow_name,
+          'Workflow Type': workflowData.workflow.workflow_type,
+          'Status': workflowData.workflow.status,
+          'Submitter': workflowData.workflow.submitter_name,
+          'Created At': workflowData.workflow.created_at,
+          'SLA Status': workflowData.workflow.sla_status,
+          'Request Data': JSON.stringify(workflowData.workflow.request_data),
+          'Export Version': manifest.version,
+          'Exported At': manifest.exportedAt,
+          'Components': manifest.components.join(', '),
+          'Approvals Count': workflowData.approvals?.length || 0,
+          'Approval Status': workflowData.approvals?.map((a: any) => `${a.step_name}: ${a.status}`).join('; ') || 'None'
         }
       }
-    });
+    };
 
-    if (error) {
-      console.error('Failed to sync to Airtable:', error);
-      throw new Error('Airtable sync failed');
+    console.log('📤 Sending payload to Airtable:', payload);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-to-airtable', {
+        body: payload
+      });
+
+      if (error) {
+        console.error('❌ Airtable sync failed:', error);
+        toast.error('Failed to sync to Airtable: ' + error.message);
+        throw new Error('Airtable sync failed: ' + error.message);
+      }
+      
+      console.log('✅ Successfully synced to Airtable:', data);
+      toast.success('Data synced to Airtable successfully!');
+    } catch (error) {
+      console.error('❌ Airtable sync error:', error);
+      toast.error('Airtable sync error: ' + (error as Error).message);
+      throw error;
     }
-    
-    console.log('Successfully synced to Airtable:', data);
   };
 
   const handleExportAll = async () => {
