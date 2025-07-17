@@ -171,31 +171,57 @@ export const WorkflowExportModal = ({ open, onOpenChange, workflowId }: Workflow
       throw new Error('Airtable token not available');
     }
 
-    // Let's try with just the first field (primary field) which every table has
-    // We'll use a generic approach that should work with most tables
-    const firstFieldValue = workflowData.workflow.workflow_name || 'Exported Workflow';
-    
-    // Try common field names that might exist
-    const requestBody = {
-      records: [
-        {
-          fields: {
-            // Try the first field with common names
-            [Object.keys({
-              'Name': firstFieldValue,
-              'Title': firstFieldValue, 
-              'Task': firstFieldValue,
-              'Item': firstFieldValue,
-              'Record': firstFieldValue
-            })[0]]: firstFieldValue
-          }
-        }
-      ]
-    };
-
-    console.log('📤 Sending record to Airtable:', requestBody);
-
     try {
+      // First, get the table schema to see what fields exist
+      const schemaUrl = `https://api.airtable.com/v0/meta/bases/${baseId}/tables`;
+      console.log('🔍 Getting table schema from:', schemaUrl);
+      
+      const schemaResponse = await fetch(schemaUrl, {
+        headers: {
+          'Authorization': `Bearer ${airtableToken}`,
+        }
+      });
+
+      if (!schemaResponse.ok) {
+        throw new Error(`Failed to get table schema: ${schemaResponse.status} ${schemaResponse.statusText}`);
+      }
+
+      const schemaData = await schemaResponse.json();
+      console.log('📋 Schema data:', schemaData);
+      
+      // Find our target table
+      const targetTable = schemaData.tables?.find((table: any) => 
+        table.name === tableName || table.id === tableName
+      );
+      
+      if (!targetTable) {
+        throw new Error(`Table "${tableName}" not found. Available tables: ${schemaData.tables?.map((t: any) => t.name).join(', ')}`);
+      }
+
+      console.log('🎯 Found target table:', targetTable);
+      
+      // Get the first field (primary field) which always exists
+      const primaryField = targetTable.fields?.[0];
+      if (!primaryField) {
+        throw new Error('No fields found in table');
+      }
+
+      console.log('🔑 Using primary field:', primaryField.name);
+
+      // Create a simple record using just the primary field
+      const requestBody = {
+        records: [
+          {
+            fields: {
+              [primaryField.name]: `Workflow: ${workflowData.workflow.workflow_name || 'Exported Workflow'} (${new Date().toLocaleString()})`
+            }
+          }
+        ]
+      };
+
+      console.log('📤 Sending record to Airtable:', requestBody);
+
+      // Now create the record
       const airtableUrl = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}`;
       console.log('🌐 Airtable URL:', airtableUrl);
 
