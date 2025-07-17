@@ -171,15 +171,19 @@ export const WorkflowExportModal = ({ open, onOpenChange, workflowId }: Workflow
       throw new Error('Airtable token not available');
     }
 
-    // Simple record with just essential data
-    const recordData = {
-      fields: {
-        'Name': workflowData.workflow.workflow_name || 'Exported Workflow',
-        'Notes': `Workflow Export - Type: ${workflowData.workflow.workflow_type}, Status: ${workflowData.workflow.status}, Exported: ${new Date().toLocaleString()}`
-      }
+    // Airtable expects records array format
+    const requestBody = {
+      records: [
+        {
+          fields: {
+            'Name': workflowData.workflow.workflow_name || 'Exported Workflow',
+            'Notes': `Workflow Export - Type: ${workflowData.workflow.workflow_type}, Status: ${workflowData.workflow.status}, Exported: ${new Date().toLocaleString()}`
+          }
+        }
+      ]
     };
 
-    console.log('📤 Sending record to Airtable:', recordData);
+    console.log('📤 Sending record to Airtable:', requestBody);
 
     try {
       const airtableUrl = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}`;
@@ -191,7 +195,7 @@ export const WorkflowExportModal = ({ open, onOpenChange, workflowId }: Workflow
           'Authorization': `Bearer ${airtableToken}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(recordData)
+        body: JSON.stringify(requestBody)
       });
 
       const responseData = await response.json();
