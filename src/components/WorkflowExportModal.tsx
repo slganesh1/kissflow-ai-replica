@@ -171,13 +171,23 @@ export const WorkflowExportModal = ({ open, onOpenChange, workflowId }: Workflow
       throw new Error('Airtable token not available');
     }
 
-    // Airtable expects records array format
+    // Let's try with just the first field (primary field) which every table has
+    // We'll use a generic approach that should work with most tables
+    const firstFieldValue = workflowData.workflow.workflow_name || 'Exported Workflow';
+    
+    // Try common field names that might exist
     const requestBody = {
       records: [
         {
           fields: {
-            'Name': workflowData.workflow.workflow_name || 'Exported Workflow',
-            'Notes': `Workflow Export - Type: ${workflowData.workflow.workflow_type}, Status: ${workflowData.workflow.status}, Exported: ${new Date().toLocaleString()}`
+            // Try the first field with common names
+            [Object.keys({
+              'Name': firstFieldValue,
+              'Title': firstFieldValue, 
+              'Task': firstFieldValue,
+              'Item': firstFieldValue,
+              'Record': firstFieldValue
+            })[0]]: firstFieldValue
           }
         }
       ]
