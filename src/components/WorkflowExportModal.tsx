@@ -173,19 +173,19 @@ export const WorkflowExportModal = ({ open, onOpenChange, workflowId }: Workflow
 
     const recordData = {
       fields: {
-        'Workflow ID': workflowData.workflow.id,
-        'Workflow Name': workflowData.workflow.workflow_name,
-        'Workflow Type': workflowData.workflow.workflow_type,
-        'Status': workflowData.workflow.status,
-        'Submitter': workflowData.workflow.submitter_name,
-        'Created At': workflowData.workflow.created_at,
-        'SLA Status': workflowData.workflow.sla_status,
-        'Request Data': JSON.stringify(workflowData.workflow.request_data),
-        'Export Version': manifest.version,
-        'Exported At': manifest.exportedAt,
-        'Components': manifest.components.join(', '),
-        'Approvals Count': workflowData.approvals?.length || 0,
-        'Approval Status': workflowData.approvals?.map((a: any) => `${a.step_name}: ${a.status}`).join('; ') || 'None'
+        'Workflow ID': String(workflowData.workflow.id || ''),
+        'Workflow Name': String(workflowData.workflow.workflow_name || ''),
+        'Workflow Type': String(workflowData.workflow.workflow_type || ''),
+        'Status': String(workflowData.workflow.status || ''),
+        'Submitter': String(workflowData.workflow.submitter_name || ''),
+        'Created At': workflowData.workflow.created_at || new Date().toISOString(),
+        'SLA Status': String(workflowData.workflow.sla_status || 'on_time'),
+        'Request Data': JSON.stringify(workflowData.workflow.request_data || {}),
+        'Export Version': String(manifest.version || '1.0'),
+        'Exported At': manifest.exportedAt || new Date().toISOString(),
+        'Components': String(manifest.components?.join(', ') || ''),
+        'Approvals Count': Number(workflowData.approvals?.length || 0),
+        'Approval Status': String(workflowData.approvals?.map((a: any) => `${a.step_name}: ${a.status}`).join('; ') || 'None')
       }
     };
 
