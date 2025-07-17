@@ -162,49 +162,89 @@ export const WorkflowExportModal = ({ open, onOpenChange, workflowId }: Workflow
   };
 
   const syncToAirtable = async (baseId: string, tableName: string, workflowData: any, manifest: any) => {
-    console.log('🔄 Starting Airtable sync to base:', baseId, 'table:', tableName);
+    console.log('🔄 Starting direct Airtable sync to base:', baseId, 'table:', tableName);
     
-    const payload = {
-      baseId,
-      tableName,
-      record: {
-        fields: {
-          'Workflow ID': workflowData.workflow.id,
-          'Workflow Name': workflowData.workflow.workflow_name,
-          'Workflow Type': workflowData.workflow.workflow_type,
-          'Status': workflowData.workflow.status,
-          'Submitter': workflowData.workflow.submitter_name,
-          'Created At': workflowData.workflow.created_at,
-          'SLA Status': workflowData.workflow.sla_status,
-          'Request Data': JSON.stringify(workflowData.workflow.request_data),
-          'Export Version': manifest.version,
-          'Exported At': manifest.exportedAt,
-          'Components': manifest.components.join(', '),
-          'Approvals Count': workflowData.approvals?.length || 0,
-          'Approval Status': workflowData.approvals?.map((a: any) => `${a.step_name}: ${a.status}`).join('; ') || 'None'
-        }
+    // First, let's check if we have the Airtable token available
+    const airtableToken = await getAirtableToken();
+    if (!airtableToken) {
+      toast.error('Airtable Personal Access Token not configured. Please contact support.');
+      throw new Error('Airtable token not available');
+    }
+
+    const recordData = {
+      fields: {
+        'Workflow ID': workflowData.workflow.id,
+        'Workflow Name': workflowData.workflow.workflow_name,
+        'Workflow Type': workflowData.workflow.workflow_type,
+        'Status': workflowData.workflow.status,
+        'Submitter': workflowData.workflow.submitter_name,
+        'Created At': workflowData.workflow.created_at,
+        'SLA Status': workflowData.workflow.sla_status,
+        'Request Data': JSON.stringify(workflowData.workflow.request_data),
+        'Export Version': manifest.version,
+        'Exported At': manifest.exportedAt,
+        'Components': manifest.components.join(', '),
+        'Approvals Count': workflowData.approvals?.length || 0,
+        'Approval Status': workflowData.approvals?.map((a: any) => `${a.step_name}: ${a.status}`).join('; ') || 'None'
       }
     };
 
-    console.log('📤 Sending payload to Airtable:', payload);
+    console.log('📤 Sending record to Airtable:', recordData);
 
     try {
-      const { data, error } = await supabase.functions.invoke('sync-to-airtable', {
-        body: payload
+      const airtableUrl = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}`;
+      console.log('🌐 Airtable URL:', airtableUrl);
+
+      const response = await fetch(airtableUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${airtableToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(recordData)
       });
 
-      if (error) {
-        console.error('❌ Airtable sync failed:', error);
-        toast.error('Failed to sync to Airtable: ' + error.message);
-        throw new Error('Airtable sync failed: ' + error.message);
+      const responseData = await response.json();
+      console.log('📥 Airtable response:', responseData);
+
+      if (!response.ok) {
+        console.error('❌ Airtable API error:', responseData);
+        let errorMessage = 'Unknown error';
+        
+        if (responseData.error) {
+          if (responseData.error.type === 'NOT_FOUND') {
+            errorMessage = `Base or table not found. Please check that Base ID "${baseId}" and table "${tableName}" are correct.`;
+          } else {
+            errorMessage = responseData.error.message || responseData.error.type || 'API error';
+          }
+        }
+        
+        toast.error(`Airtable sync failed: ${errorMessage}`);
+        throw new Error(`Airtable sync failed: ${errorMessage}`);
       }
       
-      console.log('✅ Successfully synced to Airtable:', data);
+      console.log('✅ Successfully synced to Airtable:', responseData);
       toast.success('Data synced to Airtable successfully!');
+      
     } catch (error) {
       console.error('❌ Airtable sync error:', error);
       toast.error('Airtable sync error: ' + (error as Error).message);
       throw error;
+    }
+  };
+
+  const getAirtableToken = async () => {
+    // Try to get the token from our edge function (which has access to secrets)
+    try {
+      const { data, error } = await supabase.functions.invoke('get-airtable-token');
+      if (error) {
+        console.error('Failed to get Airtable token:', error);
+        return null;
+      }
+      return data?.token;
+    } catch (error) {
+      console.error('Error getting Airtable token:', error);
+      return null;
     }
   };
 
