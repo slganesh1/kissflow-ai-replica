@@ -69,20 +69,6 @@ const TEST_SCENARIOS: TestScenario[] = [
       { id: 'calendar', name: 'Update Calendar', type: 'automation', status: 'pending' },
       { id: 'notify', name: 'Notify Team', type: 'notification', status: 'pending' }
     ]
-  },
-  {
-    id: 'procurement',
-    name: 'Procurement Request',
-    description: 'Test multi-level procurement approval workflow',
-    expectedOutcome: 'Purchase order created and vendor notified',
-    steps: [
-      { id: 'submit', name: 'Submit Request', type: 'automation', status: 'pending' },
-      { id: 'budget-check', name: 'Budget Validation', type: 'decision', status: 'pending' },
-      { id: 'manager', name: 'Manager Approval', type: 'approval', role: 'manager', status: 'pending' },
-      { id: 'procurement', name: 'Procurement Review', type: 'approval', role: 'procurement', status: 'pending' },
-      { id: 'finance', name: 'Finance Approval', type: 'approval', role: 'finance', status: 'pending' },
-      { id: 'po-creation', name: 'Create Purchase Order', type: 'automation', status: 'pending' }
-    ]
   }
 ];
 
@@ -93,12 +79,6 @@ export function WorkflowTester() {
   const [isRunning, setIsRunning] = useState(false);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [testResults, setTestResults] = useState<string[]>([]);
-  const [customWorkflow, setCustomWorkflow] = useState({
-    name: '',
-    description: '',
-    steps: [] as WorkflowStep[]
-  });
-  const [importedWorkflowJson, setImportedWorkflowJson] = useState('');
 
   useEffect(() => {
     if (!loading && !user) {
@@ -152,7 +132,6 @@ export function WorkflowTester() {
 
   const executeRealWorkflow = async (scenario: TestScenario): Promise<string> => {
     try {
-      // Create actual workflow execution in database
       const { data: execution, error: execError } = await supabase
         .from('workflow_executions')
         .insert({
@@ -169,14 +148,13 @@ export function WorkflowTester() {
               role: step.role
             })),
             test_mode: true
-          } as any
+          }
         })
         .select()
         .single();
 
       if (execError) throw execError;
 
-      // Execute the workflow using real edge function
       const { data: result, error: functionError } = await supabase.functions.invoke('execute-workflow', {
         body: { workflowId: execution.id }
       });
@@ -190,66 +168,12 @@ export function WorkflowTester() {
     }
   };
 
-  const monitorRealWorkflow = async (workflowId: string) => {
-    // Monitor real workflow progress from database
-    const { data: execution, error } = await supabase
-      .from('workflow_executions')
-      .select('*')
-      .eq('id', workflowId)
-      .single();
-
-    if (error) {
-      console.error('Error monitoring workflow:', error);
-      return;
-    }
-
-    // Get real approval steps
-    const { data: approvals } = await supabase
-      .from('workflow_approvals')
-      .select('*')
-      .eq('workflow_id', workflowId)
-      .order('order_sequence', { ascending: true });
-
-    // Update UI with real data
-    if (selectedScenario && approvals) {
-      const updatedSteps = selectedScenario.steps.map((step, index) => {
-        const approval = approvals[index];
-        if (approval) {
-          return {
-            ...step,
-            status: (approval.status === 'approved' ? 'completed' : 
-                   approval.status === 'rejected' ? 'failed' : 
-                   approval.status === 'pending' ? 'pending' : 'running') as WorkflowStep['status']
-          };
-        }
-        return step;
-      });
-
-      setSelectedScenario({
-        ...selectedScenario,
-        steps: updatedSteps
-      });
-    }
-  };
-
   const runRealWorkflowTest = async () => {
     if (!selectedScenario) return;
     
     setIsRunning(true);
     setCurrentStepIndex(0);
     setTestResults([]);
-    
-    // Reset all steps to pending
-    const resetSteps = selectedScenario.steps.map(step => ({
-      ...step,
-      status: 'pending' as const,
-      error: undefined
-    }));
-    
-    setSelectedScenario({
-      ...selectedScenario,
-      steps: resetSteps
-    });
 
     toast({
       title: "Real Workflow Started",
@@ -257,21 +181,7 @@ export function WorkflowTester() {
     });
 
     try {
-      // Execute real workflow
       const workflowId = await executeRealWorkflow(selectedScenario);
-      
-      // Monitor progress every 2 seconds
-      const monitorInterval = setInterval(async () => {
-        await monitorRealWorkflow(workflowId);
-      }, 2000);
-
-      // Stop monitoring after 30 seconds (or when complete)
-      setTimeout(() => {
-        clearInterval(monitorInterval);
-        setIsRunning(false);
-        setCurrentStepIndex(-1);
-      }, 30000);
-
       setTestResults([`Real workflow executed with ID: ${workflowId}`]);
 
       toast({
@@ -281,21 +191,20 @@ export function WorkflowTester() {
 
     } catch (error) {
       console.error('Real workflow execution failed:', error);
-      setIsRunning(false);
-      setCurrentStepIndex(-1);
       
       toast({
         title: "Execution Failed",
         description: `Failed to execute real workflow: ${error}`,
         variant: "destructive"
       });
+    } finally {
+      setIsRunning(false);
     }
   };
 
   const simulateStepExecution = async (step: WorkflowStep): Promise<boolean> => {
-    // Simulate different execution times and outcomes
-    const executionTime = Math.random() * 2000 + 500; // 0.5-2.5 seconds
-    const successRate = step.type === 'approval' ? 0.8 : 0.95; // Approvals more likely to need manual intervention
+    const executionTime = Math.random() * 2000 + 500;
+    const successRate = step.type === 'approval' ? 0.8 : 0.95;
     
     await new Promise(resolve => setTimeout(resolve, executionTime));
     
@@ -319,7 +228,6 @@ export function WorkflowTester() {
     setCurrentStepIndex(0);
     setTestResults([]);
     
-    // Reset all steps to pending
     const resetSteps = selectedScenario.steps.map(step => ({
       ...step,
       status: 'pending' as const,
@@ -339,7 +247,6 @@ export function WorkflowTester() {
     for (let i = 0; i < selectedScenario.steps.length; i++) {
       setCurrentStepIndex(i);
       
-      // Update step to running
       setSelectedScenario(prev => {
         if (!prev) return null;
         const updatedSteps = [...prev.steps];
@@ -349,7 +256,6 @@ export function WorkflowTester() {
 
       const success = await simulateStepExecution(selectedScenario.steps[i]);
       
-      // Update step with final status
       setSelectedScenario(prev => {
         if (!prev) return null;
         const updatedSteps = [...prev.steps];
@@ -414,134 +320,6 @@ export function WorkflowTester() {
     });
   };
 
-  const addCustomStep = () => {
-    const newStep: WorkflowStep = {
-      id: `step-${Date.now()}`,
-      name: 'New Step',
-      type: 'automation',
-      status: 'pending'
-    };
-    
-    setCustomWorkflow(prev => ({
-      ...prev,
-      steps: [...prev.steps, newStep]
-    }));
-  };
-
-  const updateCustomStep = (index: number, updates: Partial<WorkflowStep>) => {
-    setCustomWorkflow(prev => ({
-      ...prev,
-      steps: prev.steps.map((step, i) => 
-        i === index ? { ...step, ...updates } : step
-      )
-    }));
-  };
-
-  const removeCustomStep = (index: number) => {
-    setCustomWorkflow(prev => ({
-      ...prev,
-      steps: prev.steps.filter((_, i) => i !== index)
-    }));
-  };
-
-  const saveCustomWorkflow = () => {
-    if (!customWorkflow.name.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter a workflow name",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const newScenario: TestScenario = {
-      id: `custom-${Date.now()}`,
-      name: customWorkflow.name,
-      description: customWorkflow.description || 'Custom workflow test',
-      expectedOutcome: 'Custom test completion',
-      steps: customWorkflow.steps
-    };
-
-    TEST_SCENARIOS.push(newScenario);
-    setSelectedScenario(newScenario);
-
-    toast({
-      title: "Custom Workflow Saved",
-      description: `Created test scenario: ${customWorkflow.name}`,
-    });
-
-    // Reset custom workflow form
-    setCustomWorkflow({
-      name: '',
-      description: '',
-      steps: []
-    });
-  };
-
-  const importWorkflowFromJson = () => {
-    if (!importedWorkflowJson.trim()) {
-      toast({
-        title: "Error",
-        description: "Please paste a workflow JSON",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      const workflowData = JSON.parse(importedWorkflowJson);
-      
-      // Convert the imported workflow to our test scenario format
-      const convertedSteps: WorkflowStep[] = [];
-      
-      if (workflowData.steps && Array.isArray(workflowData.steps)) {
-        workflowData.steps.forEach((step: any, index: number) => {
-          convertedSteps.push({
-            id: step.id || `step-${index}`,
-            name: step.name || step.title || `Step ${index + 1}`,
-            type: step.type || 'automation',
-            role: step.role || step.assignee,
-            status: 'pending'
-          });
-        });
-      } else if (workflowData.approvalSteps) {
-        // Handle approval-specific workflow format
-        workflowData.approvalSteps.forEach((step: any, index: number) => {
-          convertedSteps.push({
-            id: step.stepId || `approval-${index}`,
-            name: step.stepName || `Approval Step ${index + 1}`,
-            type: 'approval',
-            role: step.approverRole,
-            status: 'pending'
-          });
-        });
-      }
-
-      const importedScenario: TestScenario = {
-        id: `imported-${Date.now()}`,
-        name: workflowData.name || workflowData.workflowName || 'Imported Workflow',
-        description: workflowData.description || 'Workflow imported from JSON',
-        expectedOutcome: 'Imported workflow execution completed',
-        steps: convertedSteps
-      };
-
-      setSelectedScenario(importedScenario);
-      setTestResults([]);
-
-      toast({
-        title: "Workflow Imported",
-        description: `Successfully imported "${importedScenario.name}" with ${convertedSteps.length} steps`,
-      });
-
-    } catch (error) {
-      toast({
-        title: "Import Error",
-        description: "Invalid JSON format. Please check your workflow JSON and try again.",
-        variant: "destructive"
-      });
-    }
-  };
-
   const progress = selectedScenario 
     ? (selectedScenario.steps.filter(s => s.status === 'completed').length / selectedScenario.steps.length) * 100
     : 0;
@@ -558,10 +336,8 @@ export function WorkflowTester() {
         </div>
 
         <Tabs defaultValue="test-scenarios" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="test-scenarios">Test Scenarios</TabsTrigger>
-            <TabsTrigger value="import-workflow">Import Workflow</TabsTrigger>
-            <TabsTrigger value="custom-workflow">Custom Workflow</TabsTrigger>
             <TabsTrigger value="results">Test Results</TabsTrigger>
           </TabsList>
 
@@ -681,158 +457,6 @@ export function WorkflowTester() {
                     </div>
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="import-workflow" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Import Workflow JSON</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="workflow-json">Paste Workflow JSON</Label>
-                  <Textarea
-                    id="workflow-json"
-                    value={importedWorkflowJson}
-                    onChange={(e) => setImportedWorkflowJson(e.target.value)}
-                    placeholder={`Paste your exported workflow JSON here...
-
-Example:
-{
-  "name": "Sample Workflow",
-  "description": "Test workflow",
-  "steps": [
-    {
-      "id": "step1",
-      "name": "Submit Request",
-      "type": "automation"
-    },
-    {
-      "id": "step2", 
-      "name": "Manager Approval",
-      "type": "approval",
-      "role": "manager"
-    }
-  ]
-}`}
-                    className="min-h-[200px] font-mono text-sm"
-                  />
-                </div>
-                
-                <Button 
-                  onClick={importWorkflowFromJson}
-                  className="w-full"
-                  disabled={!importedWorkflowJson.trim()}
-                >
-                  Import & Load Workflow
-                </Button>
-
-                <div className="text-sm text-muted-foreground">
-                  <p className="font-medium mb-2">Supported JSON formats:</p>
-                  <ul className="list-disc pl-4 space-y-1">
-                    <li>Workflows with <code>steps</code> array</li>
-                    <li>Workflows with <code>approvalSteps</code> array</li>
-                    <li>Any workflow exported from the main app</li>
-                  </ul>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="custom-workflow" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Create Custom Workflow</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="workflow-name">Workflow Name</Label>
-                    <Input
-                      id="workflow-name"
-                      value={customWorkflow.name}
-                      onChange={(e) => setCustomWorkflow(prev => ({
-                        ...prev,
-                        name: e.target.value
-                      }))}
-                      placeholder="Enter workflow name..."
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="workflow-description">Description</Label>
-                    <Input
-                      id="workflow-description"
-                      value={customWorkflow.description}
-                      onChange={(e) => setCustomWorkflow(prev => ({
-                        ...prev,
-                        description: e.target.value
-                      }))}
-                      placeholder="Brief description..."
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-lg font-semibold">Workflow Steps</h4>
-                    <Button onClick={addCustomStep} size="sm">
-                      Add Step
-                    </Button>
-                  </div>
-
-                  {customWorkflow.steps.map((step, index) => (
-                    <div key={step.id} className="grid grid-cols-4 gap-2 items-end p-3 border rounded-lg">
-                      <div className="space-y-2">
-                        <Label>Step Name</Label>
-                        <Input
-                          value={step.name}
-                          onChange={(e) => updateCustomStep(index, { name: e.target.value })}
-                          placeholder="Step name..."
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Type</Label>
-                        <Select
-                          value={step.type}
-                          onValueChange={(value: WorkflowStep['type']) => 
-                            updateCustomStep(index, { type: value })
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="automation">Automation</SelectItem>
-                            <SelectItem value="approval">Approval</SelectItem>
-                            <SelectItem value="notification">Notification</SelectItem>
-                            <SelectItem value="decision">Decision</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Role (if applicable)</Label>
-                        <Input
-                          value={step.role || ''}
-                          onChange={(e) => updateCustomStep(index, { role: e.target.value })}
-                          placeholder="Role..."
-                        />
-                      </div>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => removeCustomStep(index)}
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-
-                <Button onClick={saveCustomWorkflow} className="w-full">
-                  Save Custom Workflow
-                </Button>
               </CardContent>
             </Card>
           </TabsContent>
