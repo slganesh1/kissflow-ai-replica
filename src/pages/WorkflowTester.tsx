@@ -92,6 +92,7 @@ export function WorkflowTester() {
     description: '',
     steps: [] as WorkflowStep[]
   });
+  const [importedWorkflowJson, setImportedWorkflowJson] = useState('');
 
   const stepIcons = {
     approval: User,
@@ -302,6 +303,70 @@ export function WorkflowTester() {
     });
   };
 
+  const importWorkflowFromJson = () => {
+    if (!importedWorkflowJson.trim()) {
+      toast({
+        title: "Error",
+        description: "Please paste a workflow JSON",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const workflowData = JSON.parse(importedWorkflowJson);
+      
+      // Convert the imported workflow to our test scenario format
+      const convertedSteps: WorkflowStep[] = [];
+      
+      if (workflowData.steps && Array.isArray(workflowData.steps)) {
+        workflowData.steps.forEach((step: any, index: number) => {
+          convertedSteps.push({
+            id: step.id || `step-${index}`,
+            name: step.name || step.title || `Step ${index + 1}`,
+            type: step.type || 'automation',
+            role: step.role || step.assignee,
+            status: 'pending'
+          });
+        });
+      } else if (workflowData.approvalSteps) {
+        // Handle approval-specific workflow format
+        workflowData.approvalSteps.forEach((step: any, index: number) => {
+          convertedSteps.push({
+            id: step.stepId || `approval-${index}`,
+            name: step.stepName || `Approval Step ${index + 1}`,
+            type: 'approval',
+            role: step.approverRole,
+            status: 'pending'
+          });
+        });
+      }
+
+      const importedScenario: TestScenario = {
+        id: `imported-${Date.now()}`,
+        name: workflowData.name || workflowData.workflowName || 'Imported Workflow',
+        description: workflowData.description || 'Workflow imported from JSON',
+        expectedOutcome: 'Imported workflow execution completed',
+        steps: convertedSteps
+      };
+
+      setSelectedScenario(importedScenario);
+      setTestResults([]);
+
+      toast({
+        title: "Workflow Imported",
+        description: `Successfully imported "${importedScenario.name}" with ${convertedSteps.length} steps`,
+      });
+
+    } catch (error) {
+      toast({
+        title: "Import Error",
+        description: "Invalid JSON format. Please check your workflow JSON and try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const progress = selectedScenario 
     ? (selectedScenario.steps.filter(s => s.status === 'completed').length / selectedScenario.steps.length) * 100
     : 0;
@@ -316,8 +381,9 @@ export function WorkflowTester() {
       </div>
 
       <Tabs defaultValue="test-scenarios" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="test-scenarios">Test Scenarios</TabsTrigger>
+          <TabsTrigger value="import-workflow">Import Workflow</TabsTrigger>
           <TabsTrigger value="custom-workflow">Custom Workflow</TabsTrigger>
           <TabsTrigger value="results">Test Results</TabsTrigger>
         </TabsList>
@@ -429,6 +495,62 @@ export function WorkflowTester() {
                   </div>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="import-workflow" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Import Workflow JSON</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="workflow-json">Paste Workflow JSON</Label>
+                <Textarea
+                  id="workflow-json"
+                  value={importedWorkflowJson}
+                  onChange={(e) => setImportedWorkflowJson(e.target.value)}
+                  placeholder={`Paste your exported workflow JSON here...
+
+Example:
+{
+  "name": "Sample Workflow",
+  "description": "Test workflow",
+  "steps": [
+    {
+      "id": "step1",
+      "name": "Submit Request",
+      "type": "automation"
+    },
+    {
+      "id": "step2", 
+      "name": "Manager Approval",
+      "type": "approval",
+      "role": "manager"
+    }
+  ]
+}`}
+                  className="min-h-[200px] font-mono text-sm"
+                />
+              </div>
+              
+              <Button 
+                onClick={importWorkflowFromJson}
+                className="w-full"
+                disabled={!importedWorkflowJson.trim()}
+              >
+                Import & Load Workflow
+              </Button>
+
+              <div className="text-sm text-muted-foreground">
+                <p className="font-medium mb-2">Supported JSON formats:</p>
+                <ul className="list-disc pl-4 space-y-1">
+                  <li>Workflows with <code>steps</code> array</li>
+                  <li>Workflows with <code>approvalSteps</code> array</li>
+                  <li>Any workflow exported from the main app</li>
+                </ul>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
