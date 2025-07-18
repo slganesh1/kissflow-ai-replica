@@ -10,6 +10,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { Navigation } from '@/components/Navigation';
+import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { 
   Play, 
   Pause, 
@@ -84,6 +87,8 @@ const TEST_SCENARIOS: TestScenario[] = [
 ];
 
 export function WorkflowTester() {
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
   const [selectedScenario, setSelectedScenario] = useState<TestScenario | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
@@ -94,6 +99,33 @@ export function WorkflowTester() {
     steps: [] as WorkflowStep[]
   });
   const [importedWorkflowJson, setImportedWorkflowJson] = useState('');
+
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate('/auth');
+    }
+  }, [user, loading, navigate]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="flex justify-center mb-4">
+            <div className="flex space-x-2">
+              <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
+              <div className="w-3 h-3 bg-purple-500 rounded-full animate-pulse delay-75"></div>
+              <div className="w-3 h-3 bg-pink-500 rounded-full animate-pulse delay-150"></div>
+            </div>
+          </div>
+          <p className="text-lg text-gray-700">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
 
   const stepIcons = {
     approval: User,
@@ -515,155 +547,157 @@ export function WorkflowTester() {
     : 0;
 
   return (
-    <div className="container mx-auto py-8 space-y-6">
-      <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold">Workflow Testing Suite</h1>
-        <p className="text-muted-foreground">
-          Test and validate workflow execution without external dependencies
-        </p>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+      <Navigation />
+      <div className="container mx-auto px-4 py-8 space-y-6">
+        <div className="text-center space-y-2">
+          <h1 className="text-3xl font-bold">Workflow Testing Suite</h1>
+          <p className="text-muted-foreground">
+            Test and validate workflow execution with real integrations
+          </p>
+        </div>
 
-      <Tabs defaultValue="test-scenarios" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="test-scenarios">Test Scenarios</TabsTrigger>
-          <TabsTrigger value="import-workflow">Import Workflow</TabsTrigger>
-          <TabsTrigger value="custom-workflow">Custom Workflow</TabsTrigger>
-          <TabsTrigger value="results">Test Results</TabsTrigger>
-        </TabsList>
+        <Tabs defaultValue="test-scenarios" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="test-scenarios">Test Scenarios</TabsTrigger>
+            <TabsTrigger value="import-workflow">Import Workflow</TabsTrigger>
+            <TabsTrigger value="custom-workflow">Custom Workflow</TabsTrigger>
+            <TabsTrigger value="results">Test Results</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="test-scenarios" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Select Test Scenario</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Select
-                value={selectedScenario?.id || ''}
-                onValueChange={(value) => {
-                  const scenario = TEST_SCENARIOS.find(s => s.id === value);
-                  setSelectedScenario(scenario || null);
-                  setTestResults([]);
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a test scenario..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {TEST_SCENARIOS.map(scenario => (
-                    <SelectItem key={scenario.id} value={scenario.id}>
-                      {scenario.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <TabsContent value="test-scenarios" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Select Test Scenario</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Select
+                  value={selectedScenario?.id || ''}
+                  onValueChange={(value) => {
+                    const scenario = TEST_SCENARIOS.find(s => s.id === value);
+                    setSelectedScenario(scenario || null);
+                    setTestResults([]);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose a test scenario..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TEST_SCENARIOS.map(scenario => (
+                      <SelectItem key={scenario.id} value={scenario.id}>
+                        {scenario.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
-              {selectedScenario && (
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="text-lg font-semibold">{selectedScenario.name}</h3>
-                    <p className="text-sm text-muted-foreground">{selectedScenario.description}</p>
-                    <p className="text-sm font-medium mt-2">
-                      Expected Outcome: {selectedScenario.expectedOutcome}
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Progress</span>
-                      <span className="text-sm text-muted-foreground">
-                        {selectedScenario.steps.filter(s => s.status === 'completed').length} / {selectedScenario.steps.length}
-                      </span>
+                {selectedScenario && (
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-lg font-semibold">{selectedScenario.name}</h3>
+                      <p className="text-sm text-muted-foreground">{selectedScenario.description}</p>
+                      <p className="text-sm font-medium mt-2">
+                        Expected Outcome: {selectedScenario.expectedOutcome}
+                      </p>
                     </div>
-                    <Progress value={progress} className="h-2" />
-                  </div>
 
-                  <div className="space-y-3">
-                    {selectedScenario.steps.map((step, index) => {
-                      const StepIcon = stepIcons[step.type];
-                      const isCurrentStep = index === currentStepIndex;
-                      
-                      return (
-                        <div 
-                          key={step.id}
-                          className={`flex items-center gap-3 p-3 rounded-lg border ${
-                            isCurrentStep ? 'ring-2 ring-primary border-primary' : ''
-                          }`}
-                        >
-                          <StepIcon className={`h-5 w-5 ${statusColors[step.status]}`} />
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium">{step.name}</span>
-                              <Badge variant={statusBadgeVariants[step.status]}>
-                                {step.status}
-                              </Badge>
-                              {step.role && (
-                                <Badge variant="outline">{step.role}</Badge>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Progress</span>
+                        <span className="text-sm text-muted-foreground">
+                          {selectedScenario.steps.filter(s => s.status === 'completed').length} / {selectedScenario.steps.length}
+                        </span>
+                      </div>
+                      <Progress value={progress} className="h-2" />
+                    </div>
+
+                    <div className="space-y-3">
+                      {selectedScenario.steps.map((step, index) => {
+                        const StepIcon = stepIcons[step.type];
+                        const isCurrentStep = index === currentStepIndex;
+                        
+                        return (
+                          <div 
+                            key={step.id}
+                            className={`flex items-center gap-3 p-3 rounded-lg border ${
+                              isCurrentStep ? 'ring-2 ring-primary border-primary' : ''
+                            }`}
+                          >
+                            <StepIcon className={`h-5 w-5 ${statusColors[step.status]}`} />
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{step.name}</span>
+                                <Badge variant={statusBadgeVariants[step.status]}>
+                                  {step.status}
+                                </Badge>
+                                {step.role && (
+                                  <Badge variant="outline">{step.role}</Badge>
+                                )}
+                              </div>
+                              {step.error && (
+                                <p className="text-sm text-red-500 mt-1">{step.error}</p>
                               )}
                             </div>
-                            {step.error && (
-                              <p className="text-sm text-red-500 mt-1">{step.error}</p>
+                            {step.status === 'completed' && (
+                              <CheckCircle className="h-5 w-5 text-green-500" />
+                            )}
+                            {step.status === 'failed' && (
+                              <XCircle className="h-5 w-5 text-red-500" />
+                            )}
+                            {step.status === 'running' && (
+                              <Clock className="h-5 w-5 text-blue-500 animate-spin" />
                             )}
                           </div>
-                          {step.status === 'completed' && (
-                            <CheckCircle className="h-5 w-5 text-green-500" />
-                          )}
-                          {step.status === 'failed' && (
-                            <XCircle className="h-5 w-5 text-red-500" />
-                          )}
-                          {step.status === 'running' && (
-                            <Clock className="h-5 w-5 text-blue-500 animate-spin" />
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
 
-                  <div className="flex gap-2">
-                    <Button 
-                      onClick={runWorkflowTest}
-                      disabled={isRunning}
-                      variant="outline"
-                      className="flex-1"
-                    >
-                      <Play className="h-4 w-4 mr-2" />
-                      {isRunning ? 'Running Simulation...' : 'Run Simulation'}
-                    </Button>
-                    <Button 
-                      onClick={runRealWorkflowTest}
-                      disabled={isRunning}
-                      className="flex-1 bg-green-600 hover:bg-green-700"
-                    >
-                      <Play className="h-4 w-4 mr-2" />
-                      {isRunning ? 'Executing Real...' : 'Execute Real Workflow'}
-                    </Button>
-                    <Button 
-                      variant="outline"
-                      onClick={resetTest}
-                      disabled={isRunning}
-                    >
-                      <RotateCcw className="h-4 w-4 mr-2" />
-                      Reset
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button 
+                        onClick={runWorkflowTest}
+                        disabled={isRunning}
+                        variant="outline"
+                        className="flex-1"
+                      >
+                        <Play className="h-4 w-4 mr-2" />
+                        {isRunning ? 'Running Simulation...' : 'Run Simulation'}
+                      </Button>
+                      <Button 
+                        onClick={runRealWorkflowTest}
+                        disabled={isRunning}
+                        className="flex-1 bg-green-600 hover:bg-green-700"
+                      >
+                        <Play className="h-4 w-4 mr-2" />
+                        {isRunning ? 'Executing Real...' : 'Execute Real Workflow'}
+                      </Button>
+                      <Button 
+                        variant="outline"
+                        onClick={resetTest}
+                        disabled={isRunning}
+                      >
+                        <RotateCcw className="h-4 w-4 mr-2" />
+                        Reset
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-        <TabsContent value="import-workflow" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Import Workflow JSON</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="workflow-json">Paste Workflow JSON</Label>
-                <Textarea
-                  id="workflow-json"
-                  value={importedWorkflowJson}
-                  onChange={(e) => setImportedWorkflowJson(e.target.value)}
-                  placeholder={`Paste your exported workflow JSON here...
+          <TabsContent value="import-workflow" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Import Workflow JSON</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="workflow-json">Paste Workflow JSON</Label>
+                  <Textarea
+                    id="workflow-json"
+                    value={importedWorkflowJson}
+                    onChange={(e) => setImportedWorkflowJson(e.target.value)}
+                    placeholder={`Paste your exported workflow JSON here...
 
 Example:
 {
@@ -683,156 +717,157 @@ Example:
     }
   ]
 }`}
-                  className="min-h-[200px] font-mono text-sm"
-                />
-              </div>
-              
-              <Button 
-                onClick={importWorkflowFromJson}
-                className="w-full"
-                disabled={!importedWorkflowJson.trim()}
-              >
-                Import & Load Workflow
-              </Button>
-
-              <div className="text-sm text-muted-foreground">
-                <p className="font-medium mb-2">Supported JSON formats:</p>
-                <ul className="list-disc pl-4 space-y-1">
-                  <li>Workflows with <code>steps</code> array</li>
-                  <li>Workflows with <code>approvalSteps</code> array</li>
-                  <li>Any workflow exported from the main app</li>
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="custom-workflow" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Create Custom Workflow</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="workflow-name">Workflow Name</Label>
-                  <Input
-                    id="workflow-name"
-                    value={customWorkflow.name}
-                    onChange={(e) => setCustomWorkflow(prev => ({
-                      ...prev,
-                      name: e.target.value
-                    }))}
-                    placeholder="Enter workflow name..."
+                    className="min-h-[200px] font-mono text-sm"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="workflow-description">Description</Label>
-                  <Input
-                    id="workflow-description"
-                    value={customWorkflow.description}
-                    onChange={(e) => setCustomWorkflow(prev => ({
-                      ...prev,
-                      description: e.target.value
-                    }))}
-                    placeholder="Brief description..."
-                  />
-                </div>
-              </div>
+                
+                <Button 
+                  onClick={importWorkflowFromJson}
+                  className="w-full"
+                  disabled={!importedWorkflowJson.trim()}
+                >
+                  Import & Load Workflow
+                </Button>
 
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-lg font-semibold">Workflow Steps</h4>
-                  <Button onClick={addCustomStep} size="sm">
-                    Add Step
-                  </Button>
+                <div className="text-sm text-muted-foreground">
+                  <p className="font-medium mb-2">Supported JSON formats:</p>
+                  <ul className="list-disc pl-4 space-y-1">
+                    <li>Workflows with <code>steps</code> array</li>
+                    <li>Workflows with <code>approvalSteps</code> array</li>
+                    <li>Any workflow exported from the main app</li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="custom-workflow" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Create Custom Workflow</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="workflow-name">Workflow Name</Label>
+                    <Input
+                      id="workflow-name"
+                      value={customWorkflow.name}
+                      onChange={(e) => setCustomWorkflow(prev => ({
+                        ...prev,
+                        name: e.target.value
+                      }))}
+                      placeholder="Enter workflow name..."
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="workflow-description">Description</Label>
+                    <Input
+                      id="workflow-description"
+                      value={customWorkflow.description}
+                      onChange={(e) => setCustomWorkflow(prev => ({
+                        ...prev,
+                        description: e.target.value
+                      }))}
+                      placeholder="Brief description..."
+                    />
+                  </div>
                 </div>
 
-                {customWorkflow.steps.map((step, index) => (
-                  <div key={step.id} className="grid grid-cols-4 gap-2 items-end p-3 border rounded-lg">
-                    <div className="space-y-2">
-                      <Label>Step Name</Label>
-                      <Input
-                        value={step.name}
-                        onChange={(e) => updateCustomStep(index, { name: e.target.value })}
-                        placeholder="Step name..."
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Type</Label>
-                      <Select
-                        value={step.type}
-                        onValueChange={(value: WorkflowStep['type']) => 
-                          updateCustomStep(index, { type: value })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="automation">Automation</SelectItem>
-                          <SelectItem value="approval">Approval</SelectItem>
-                          <SelectItem value="notification">Notification</SelectItem>
-                          <SelectItem value="decision">Decision</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Role (if applicable)</Label>
-                      <Input
-                        value={step.role || ''}
-                        onChange={(e) => updateCustomStep(index, { role: e.target.value })}
-                        placeholder="Role..."
-                      />
-                    </div>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => removeCustomStep(index)}
-                    >
-                      Remove
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-lg font-semibold">Workflow Steps</h4>
+                    <Button onClick={addCustomStep} size="sm">
+                      Add Step
                     </Button>
                   </div>
-                ))}
-              </div>
 
-              <Button onClick={saveCustomWorkflow} className="w-full">
-                Save Custom Workflow
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="results" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Test Results</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {testResults.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">
-                  No test results yet. Run a workflow test to see results here.
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {testResults.map((result, index) => (
-                    <div 
-                      key={index}
-                      className={`p-2 rounded text-sm font-mono ${
-                        result.includes('PASSED') 
-                          ? 'bg-green-50 text-green-700 border border-green-200'
-                          : 'bg-red-50 text-red-700 border border-red-200'
-                      }`}
-                    >
-                      {result}
+                  {customWorkflow.steps.map((step, index) => (
+                    <div key={step.id} className="grid grid-cols-4 gap-2 items-end p-3 border rounded-lg">
+                      <div className="space-y-2">
+                        <Label>Step Name</Label>
+                        <Input
+                          value={step.name}
+                          onChange={(e) => updateCustomStep(index, { name: e.target.value })}
+                          placeholder="Step name..."
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Type</Label>
+                        <Select
+                          value={step.type}
+                          onValueChange={(value: WorkflowStep['type']) => 
+                            updateCustomStep(index, { type: value })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="automation">Automation</SelectItem>
+                            <SelectItem value="approval">Approval</SelectItem>
+                            <SelectItem value="notification">Notification</SelectItem>
+                            <SelectItem value="decision">Decision</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Role (if applicable)</Label>
+                        <Input
+                          value={step.role || ''}
+                          onChange={(e) => updateCustomStep(index, { role: e.target.value })}
+                          placeholder="Role..."
+                        />
+                      </div>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => removeCustomStep(index)}
+                      >
+                        Remove
+                      </Button>
                     </div>
                   ))}
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+
+                <Button onClick={saveCustomWorkflow} className="w-full">
+                  Save Custom Workflow
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="results" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Test Results</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {testResults.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">
+                    No test results yet. Run a workflow test to see results here.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {testResults.map((result, index) => (
+                      <div 
+                        key={index}
+                        className={`p-2 rounded text-sm font-mono ${
+                          result.includes('PASSED') 
+                            ? 'bg-green-50 text-green-700 border border-green-200'
+                            : 'bg-red-50 text-red-700 border border-red-200'
+                        }`}
+                      >
+                        {result}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 }
