@@ -19,6 +19,7 @@ import {
   Zap
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { Copy, Download } from 'lucide-react';
 import { WorkflowChatbot } from './WorkflowChatbot';
 import { VisualWorkflowDiagram } from './VisualWorkflowDiagram';
 import { supabase } from '@/integrations/supabase/client';
@@ -252,6 +253,46 @@ export const AIWorkflowGenerator = ({
     toast.success('Workflow cleared');
   };
 
+  const exportToJson = () => {
+    if (!generatedWorkflow) {
+      toast.error('No workflow to export');
+      return;
+    }
+
+    // Create the JSON format that the testing app expects
+    const exportData = {
+      name: generatedWorkflow.name,
+      description: generatedWorkflow.description,
+      type: generatedWorkflow.type,
+      estimated_duration: generatedWorkflow.estimated_duration,
+      steps: generatedWorkflow.steps.map((step, index) => ({
+        id: step.id || `step-${index}`,
+        name: step.name,
+        type: step.type === 'review' ? 'approval' : step.type,
+        role: step.assignee,
+        description: step.description,
+        duration: step.duration
+      }))
+    };
+
+    // Copy to clipboard
+    navigator.clipboard.writeText(JSON.stringify(exportData, null, 2)).then(() => {
+      toast.success('Workflow JSON copied to clipboard! 📋\nPaste it in the Workflow Tester → Import Workflow tab');
+    }).catch(() => {
+      // Fallback: Create download link
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${generatedWorkflow.name.replace(/\s+/g, '_')}_workflow.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success('Workflow JSON downloaded!');
+    });
+  };
+
   const getStepIcon = (type: string) => {
     switch (type) {
       case 'form': return <FileText className="h-4 w-4" />;
@@ -360,6 +401,15 @@ export const AIWorkflowGenerator = ({
                         <Upload className="h-4 w-4 mr-1" />
                       )}
                       Deploy
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={exportToJson}
+                      className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
+                    >
+                      <Copy className="h-4 w-4 mr-1" />
+                      Export for Testing
                     </Button>
                     <Button
                       size="sm"
