@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Play, 
   Pause, 
@@ -115,6 +116,148 @@ export function WorkflowTester() {
     completed: 'default' as const,
     failed: 'destructive' as const,
     rejected: 'destructive' as const
+  };
+
+  const executeRealWorkflow = async (scenario: TestScenario): Promise<string> => {
+    try {
+      // Create actual workflow execution in database
+      const { data: execution, error: execError } = await supabase
+        .from('workflow_executions')
+        .insert({
+          workflow_name: scenario.name,
+          workflow_type: 'test_scenario',
+          submitter_name: 'Workflow Tester',
+          request_data: {
+            description: scenario.description,
+            expected_outcome: scenario.expectedOutcome,
+            steps: scenario.steps.map(step => ({
+              id: step.id,
+              name: step.name,
+              type: step.type,
+              role: step.role
+            })),
+            test_mode: true
+          } as any
+        })
+        .select()
+        .single();
+
+      if (execError) throw execError;
+
+      // Execute the workflow using real edge function
+      const { data: result, error: functionError } = await supabase.functions.invoke('execute-workflow', {
+        body: { workflowId: execution.id }
+      });
+
+      if (functionError) throw functionError;
+
+      return execution.id;
+    } catch (error) {
+      console.error('Real workflow execution failed:', error);
+      throw error;
+    }
+  };
+
+  const monitorRealWorkflow = async (workflowId: string) => {
+    // Monitor real workflow progress from database
+    const { data: execution, error } = await supabase
+      .from('workflow_executions')
+      .select('*')
+      .eq('id', workflowId)
+      .single();
+
+    if (error) {
+      console.error('Error monitoring workflow:', error);
+      return;
+    }
+
+    // Get real approval steps
+    const { data: approvals } = await supabase
+      .from('workflow_approvals')
+      .select('*')
+      .eq('workflow_id', workflowId)
+      .order('order_sequence', { ascending: true });
+
+    // Update UI with real data
+    if (selectedScenario && approvals) {
+      const updatedSteps = selectedScenario.steps.map((step, index) => {
+        const approval = approvals[index];
+        if (approval) {
+          return {
+            ...step,
+            status: (approval.status === 'approved' ? 'completed' : 
+                   approval.status === 'rejected' ? 'failed' : 
+                   approval.status === 'pending' ? 'pending' : 'running') as WorkflowStep['status']
+          };
+        }
+        return step;
+      });
+
+      setSelectedScenario({
+        ...selectedScenario,
+        steps: updatedSteps
+      });
+    }
+  };
+
+  const runRealWorkflowTest = async () => {
+    if (!selectedScenario) return;
+    
+    setIsRunning(true);
+    setCurrentStepIndex(0);
+    setTestResults([]);
+    
+    // Reset all steps to pending
+    const resetSteps = selectedScenario.steps.map(step => ({
+      ...step,
+      status: 'pending' as const,
+      error: undefined
+    }));
+    
+    setSelectedScenario({
+      ...selectedScenario,
+      steps: resetSteps
+    });
+
+    toast({
+      title: "Real Workflow Started",
+      description: `Executing real workflow: ${selectedScenario.name}`,
+    });
+
+    try {
+      // Execute real workflow
+      const workflowId = await executeRealWorkflow(selectedScenario);
+      
+      // Monitor progress every 2 seconds
+      const monitorInterval = setInterval(async () => {
+        await monitorRealWorkflow(workflowId);
+      }, 2000);
+
+      // Stop monitoring after 30 seconds (or when complete)
+      setTimeout(() => {
+        clearInterval(monitorInterval);
+        setIsRunning(false);
+        setCurrentStepIndex(-1);
+      }, 30000);
+
+      setTestResults([`Real workflow executed with ID: ${workflowId}`]);
+
+      toast({
+        title: "Real Workflow Executed",
+        description: "Check the Active Workflows tab to see real-time progress",
+      });
+
+    } catch (error) {
+      console.error('Real workflow execution failed:', error);
+      setIsRunning(false);
+      setCurrentStepIndex(-1);
+      
+      toast({
+        title: "Execution Failed",
+        description: `Failed to execute real workflow: ${error}`,
+        variant: "destructive"
+      });
+    }
   };
 
   const simulateStepExecution = async (step: WorkflowStep): Promise<boolean> => {
@@ -479,10 +622,19 @@ export function WorkflowTester() {
                     <Button 
                       onClick={runWorkflowTest}
                       disabled={isRunning}
+                      variant="outline"
                       className="flex-1"
                     >
                       <Play className="h-4 w-4 mr-2" />
-                      {isRunning ? 'Running Test...' : 'Run Test'}
+                      {isRunning ? 'Running Simulation...' : 'Run Simulation'}
+                    </Button>
+                    <Button 
+                      onClick={runRealWorkflowTest}
+                      disabled={isRunning}
+                      className="flex-1 bg-green-600 hover:bg-green-700"
+                    >
+                      <Play className="h-4 w-4 mr-2" />
+                      {isRunning ? 'Executing Real...' : 'Execute Real Workflow'}
                     </Button>
                     <Button 
                       variant="outline"
