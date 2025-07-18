@@ -2,7 +2,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FileText, CheckSquare, Home, Sparkles, LogOut, User } from 'lucide-react';
+import { FileText, CheckSquare, Home, Sparkles, LogOut, User, TestTube } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 export const Navigation = () => {
@@ -54,6 +54,19 @@ export const Navigation = () => {
             >
               <CheckSquare className="h-4 w-4" />
               <span>Approvals</span>
+            </Button>
+            
+            <Button
+              variant={location.pathname === '/workflow-tester' ? 'default' : 'outline'}
+              onClick={() => navigate('/workflow-tester')}
+              className={`flex items-center space-x-2 transition-all duration-300 ${
+                location.pathname === '/workflow-tester' 
+                  ? 'bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 shadow-lg' 
+                  : 'hover:bg-orange-50 border-orange-200'
+              }`}
+            >
+              <TestTube className="h-4 w-4" />
+              <span>Testing Suite</span>
             </Button>
           </div>
         )}

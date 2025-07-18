@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import ApprovalDashboard from "./pages/ApprovalDashboard";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
+import { WorkflowTester } from "./pages/WorkflowTester";
 
 const queryClient = new QueryClient();
 
@@ -23,6 +24,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/approvals" element={<ApprovalDashboard />} />
+            <Route path="/workflow-tester" element={<WorkflowTester />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
