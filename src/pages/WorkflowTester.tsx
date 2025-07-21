@@ -364,8 +364,10 @@ export function WorkflowTester() {
         </div>
 
         <Tabs defaultValue="test-scenarios" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="test-scenarios">Test Scenarios</TabsTrigger>
+            <TabsTrigger value="import-workflow">Import JSON</TabsTrigger>
+            <TabsTrigger value="custom-workflow">Custom Workflow</TabsTrigger>
             <TabsTrigger value="results">Test Results</TabsTrigger>
           </TabsList>
 
@@ -485,6 +487,66 @@ export function WorkflowTester() {
                     </div>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="import-workflow" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Import Workflow JSON</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="workflow-json">Paste Workflow JSON</Label>
+                  <Textarea 
+                    id="workflow-json"
+                    placeholder='{"name": "My Workflow", "steps": [...]}'
+                    className="min-h-[200px] font-mono text-sm"
+                  />
+                </div>
+                <Button className="w-full">
+                  Import & Execute Real Workflow
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="custom-workflow" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Build Custom Workflow</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="workflow-name">Workflow Name</Label>
+                    <Input id="workflow-name" placeholder="Enter workflow name" />
+                  </div>
+                  <div>
+                    <Label htmlFor="workflow-type">Workflow Type</Label>
+                    <Select>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="approval">Approval Process</SelectItem>
+                        <SelectItem value="automation">Automation</SelectItem>
+                        <SelectItem value="notification">Notification</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="workflow-description">Description</Label>
+                  <Textarea 
+                    id="workflow-description"
+                    placeholder="Describe your workflow..."
+                  />
+                </div>
+                <Button className="w-full">
+                  Build & Execute Real Workflow
+                </Button>
               </CardContent>
             </Card>
           </TabsContent>
