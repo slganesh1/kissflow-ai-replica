@@ -82,6 +82,7 @@ export function WorkflowTester() {
   const [importedJson, setImportedJson] = useState('');
   const [customWorkflowName, setCustomWorkflowName] = useState('');
   const [customWorkflowDescription, setCustomWorkflowDescription] = useState('');
+  const [activeTab, setActiveTab] = useState('test-scenarios');
 
   useEffect(() => {
     if (!loading && !user) {
@@ -286,8 +287,13 @@ export function WorkflowTester() {
         `🚀 Edge function executed successfully`,
         `📊 Result: ${JSON.stringify(result)}`,
         `📋 Check Active Workflows tab for real-time status`,
-        `👥 Check Approval Dashboard for any pending approvals`
+        `👥 Check Approval Dashboard for any pending approvals`,
+        `🔗 Navigate to Active Workflows: Go to main dashboard`,
+        `📝 Workflow ID: ${execution.id} (copy this for reference)`
       ]);
+
+      // Switch to results tab to show the execution details
+      setActiveTab('results');
 
       toast({
         title: "JSON Workflow Executed",
@@ -299,8 +305,12 @@ export function WorkflowTester() {
       setTestResults(prev => [
         ...prev,
         `❌ Import failed: ${errorMessage}`,
-        `Please check your JSON format and try again`
+        `Please check your JSON format and try again`,
+        `💡 Expected format: {"name": "Workflow Name", "steps": [...]}`
       ]);
+
+      // Switch to results tab to show the error
+      setActiveTab('results');
       
       toast({
         title: "Import Failed",
@@ -372,8 +382,12 @@ export function WorkflowTester() {
         ...prev,
         `🚀 Custom workflow executed successfully`,
         `📊 Edge function result: ${JSON.stringify(result)}`,
-        `📋 Check Active Workflows and Approval Dashboard`
+        `📋 Check Active Workflows and Approval Dashboard`,
+        `🔗 Workflow ID: ${execution.id}`
       ]);
+
+      // Switch to results tab
+      setActiveTab('results');
 
       toast({
         title: "Custom Workflow Created",
@@ -530,7 +544,7 @@ export function WorkflowTester() {
           </p>
         </div>
 
-        <Tabs defaultValue="test-scenarios" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="test-scenarios">Test Scenarios</TabsTrigger>
             <TabsTrigger value="import-workflow">Import JSON</TabsTrigger>
@@ -747,18 +761,32 @@ export function WorkflowTester() {
                   </p>
                 ) : (
                   <div className="space-y-2">
+                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-sm font-semibold text-blue-800">Latest Execution Results:</p>
+                    </div>
                     {testResults.map((result, index) => (
                       <div 
                         key={index}
-                        className={`p-2 rounded text-sm font-mono ${
-                          result.includes('PASSED') 
+                        className={`p-3 rounded text-sm font-mono ${
+                          result.includes('❌') || result.includes('failed') 
+                            ? 'bg-red-50 text-red-700 border border-red-200'
+                            : result.includes('✅') || result.includes('🚀')
                             ? 'bg-green-50 text-green-700 border border-green-200'
-                            : 'bg-red-50 text-red-700 border border-red-200'
+                            : 'bg-blue-50 text-blue-700 border border-blue-200'
                         }`}
                       >
                         {result}
                       </div>
                     ))}
+                    <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <p className="text-sm text-yellow-800">
+                        <strong>Next Steps:</strong> To see the workflow in action, go to:
+                      </p>
+                      <ul className="text-sm text-yellow-700 mt-1 ml-4">
+                        <li>• Active Workflows tab (for real-time status)</li>
+                        <li>• Approval Dashboard (for pending approvals)</li>
+                      </ul>
+                    </div>
                   </div>
                 )}
               </CardContent>
