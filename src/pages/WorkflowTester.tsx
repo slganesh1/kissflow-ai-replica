@@ -79,6 +79,9 @@ export function WorkflowTester() {
   const [isRunning, setIsRunning] = useState(false);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [testResults, setTestResults] = useState<string[]>([]);
+  const [importedJson, setImportedJson] = useState('');
+  const [customWorkflowName, setCustomWorkflowName] = useState('');
+  const [customWorkflowDescription, setCustomWorkflowDescription] = useState('');
 
   useEffect(() => {
     if (!loading && !user) {
@@ -223,6 +226,170 @@ export function WorkflowTester() {
       toast({
         title: "Execution Failed",
         description: `Failed to execute real workflow: ${errorMessage}`,
+        variant: "destructive"
+      });
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
+  const executeImportedWorkflow = async () => {
+    if (!importedJson.trim()) {
+      toast({
+        title: "No JSON Provided",
+        description: "Please paste a workflow JSON before executing",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsRunning(true);
+    setTestResults([]);
+
+    try {
+      // Parse the JSON
+      const workflowData = JSON.parse(importedJson);
+      
+      setTestResults(prev => [...prev, `📝 JSON parsed successfully`]);
+      setTestResults(prev => [...prev, `📋 Workflow name: ${workflowData.name || 'Imported Workflow'}`]);
+
+      // Create workflow execution record
+      const { data: execution, error: execError } = await supabase
+        .from('workflow_executions')
+        .insert({
+          workflow_name: workflowData.name || 'Imported Workflow',
+          workflow_type: 'imported_json',
+          submitter_name: 'JSON Import',
+          request_data: {
+            imported_json: true,
+            original_data: workflowData,
+            steps: workflowData.steps || [],
+            description: workflowData.description || 'Imported from JSON'
+          }
+        })
+        .select()
+        .single();
+
+      if (execError) throw execError;
+
+      setTestResults(prev => [...prev, `✅ Workflow record created in database with ID: ${execution.id}`]);
+
+      // Execute the workflow
+      const { data: result, error: functionError } = await supabase.functions.invoke('execute-workflow', {
+        body: { workflowId: execution.id }
+      });
+
+      if (functionError) throw functionError;
+
+      setTestResults(prev => [
+        ...prev,
+        `🚀 Edge function executed successfully`,
+        `📊 Result: ${JSON.stringify(result)}`,
+        `📋 Check Active Workflows tab for real-time status`,
+        `👥 Check Approval Dashboard for any pending approvals`
+      ]);
+
+      toast({
+        title: "JSON Workflow Executed",
+        description: `Imported workflow "${workflowData.name || 'Imported Workflow'}" is now running in the system`,
+      });
+
+    } catch (error: any) {
+      const errorMessage = error?.message || 'Unknown error';
+      setTestResults(prev => [
+        ...prev,
+        `❌ Import failed: ${errorMessage}`,
+        `Please check your JSON format and try again`
+      ]);
+      
+      toast({
+        title: "Import Failed",
+        description: `Failed to import and execute workflow: ${errorMessage}`,
+        variant: "destructive"
+      });
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
+  const executeCustomWorkflow = async () => {
+    if (!customWorkflowName.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "Please provide a workflow name",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsRunning(true);
+    setTestResults([]);
+
+    try {
+      setTestResults(prev => [...prev, `🔨 Building custom workflow: ${customWorkflowName}`]);
+
+      const { data: execution, error: execError } = await supabase
+        .from('workflow_executions')
+        .insert({
+          workflow_name: customWorkflowName,
+          workflow_type: 'custom_built',
+          submitter_name: 'Custom Builder',
+          request_data: {
+            custom_built: true,
+            description: customWorkflowDescription || 'Custom built workflow',
+            steps: [
+              {
+                id: 'step-1',
+                name: 'Initial Review',
+                type: 'review',
+                assignee: 'manager',
+                description: 'Initial review of the custom workflow request'
+              },
+              {
+                id: 'step-2', 
+                name: 'Approval Required',
+                type: 'approval',
+                assignee: 'director',
+                description: 'Director approval for custom workflow'
+              }
+            ]
+          }
+        })
+        .select()
+        .single();
+
+      if (execError) throw execError;
+
+      setTestResults(prev => [...prev, `✅ Custom workflow created with ID: ${execution.id}`]);
+
+      const { data: result, error: functionError } = await supabase.functions.invoke('execute-workflow', {
+        body: { workflowId: execution.id }
+      });
+
+      if (functionError) throw functionError;
+
+      setTestResults(prev => [
+        ...prev,
+        `🚀 Custom workflow executed successfully`,
+        `📊 Edge function result: ${JSON.stringify(result)}`,
+        `📋 Check Active Workflows and Approval Dashboard`
+      ]);
+
+      toast({
+        title: "Custom Workflow Created",
+        description: `"${customWorkflowName}" is now running in the system`,
+      });
+
+    } catch (error: any) {
+      const errorMessage = error?.message || 'Unknown error';
+      setTestResults(prev => [
+        ...prev,
+        `❌ Custom workflow creation failed: ${errorMessage}`
+      ]);
+      
+      toast({
+        title: "Creation Failed", 
+        description: `Failed to create custom workflow: ${errorMessage}`,
         variant: "destructive"
       });
     } finally {
@@ -501,12 +668,18 @@ export function WorkflowTester() {
                   <Label htmlFor="workflow-json">Paste Workflow JSON</Label>
                   <Textarea 
                     id="workflow-json"
-                    placeholder='{"name": "My Workflow", "steps": [...]}'
+                    value={importedJson}
+                    onChange={(e) => setImportedJson(e.target.value)}
+                    placeholder='{"name": "My Workflow", "description": "Workflow description", "steps": [{"id": "step1", "name": "Review", "type": "approval", "assignee": "manager"}]}'
                     className="min-h-[200px] font-mono text-sm"
                   />
                 </div>
-                <Button className="w-full">
-                  Import & Execute Real Workflow
+                <Button 
+                  className="w-full"
+                  onClick={executeImportedWorkflow}
+                  disabled={isRunning}
+                >
+                  {isRunning ? 'Executing...' : 'Import & Execute Real Workflow'}
                 </Button>
               </CardContent>
             </Card>
@@ -521,7 +694,12 @@ export function WorkflowTester() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="workflow-name">Workflow Name</Label>
-                    <Input id="workflow-name" placeholder="Enter workflow name" />
+                    <Input 
+                      id="workflow-name" 
+                      value={customWorkflowName}
+                      onChange={(e) => setCustomWorkflowName(e.target.value)}
+                      placeholder="Enter workflow name" 
+                    />
                   </div>
                   <div>
                     <Label htmlFor="workflow-type">Workflow Type</Label>
@@ -541,11 +719,17 @@ export function WorkflowTester() {
                   <Label htmlFor="workflow-description">Description</Label>
                   <Textarea 
                     id="workflow-description"
+                    value={customWorkflowDescription}
+                    onChange={(e) => setCustomWorkflowDescription(e.target.value)}
                     placeholder="Describe your workflow..."
                   />
                 </div>
-                <Button className="w-full">
-                  Build & Execute Real Workflow
+                <Button 
+                  className="w-full"
+                  onClick={executeCustomWorkflow}
+                  disabled={isRunning}
+                >
+                  {isRunning ? 'Building & Executing...' : 'Build & Execute Real Workflow'}
                 </Button>
               </CardContent>
             </Card>
