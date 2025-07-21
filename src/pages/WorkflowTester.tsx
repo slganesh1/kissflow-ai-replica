@@ -132,6 +132,8 @@ export function WorkflowTester() {
 
   const executeRealWorkflow = async (scenario: TestScenario): Promise<string> => {
     try {
+      console.log('Starting real workflow execution for:', scenario.name);
+      
       const { data: execution, error: execError } = await supabase
         .from('workflow_executions')
         .insert({
@@ -145,7 +147,9 @@ export function WorkflowTester() {
               id: step.id,
               name: step.name,
               type: step.type,
-              role: step.role
+              assignee: step.role || 'manager',
+              description: `Test step: ${step.name}`,
+              duration: '1 hour'
             })),
             test_mode: true
           }
@@ -153,14 +157,23 @@ export function WorkflowTester() {
         .select()
         .single();
 
-      if (execError) throw execError;
+      if (execError) {
+        console.error('Database insert error:', execError);
+        throw execError;
+      }
+
+      console.log('Workflow created with ID:', execution.id);
 
       const { data: result, error: functionError } = await supabase.functions.invoke('execute-workflow', {
         body: { workflowId: execution.id }
       });
 
-      if (functionError) throw functionError;
+      if (functionError) {
+        console.error('Edge function error:', functionError);
+        throw functionError;
+      }
 
+      console.log('Edge function result:', result);
       return execution.id;
     } catch (error) {
       console.error('Real workflow execution failed:', error);
@@ -182,19 +195,34 @@ export function WorkflowTester() {
 
     try {
       const workflowId = await executeRealWorkflow(selectedScenario);
-      setTestResults([`Real workflow executed with ID: ${workflowId}`]);
+      
+      setTestResults([
+        `✅ Real workflow created with ID: ${workflowId}`,
+        `📝 Workflow inserted into database`,
+        `🚀 Edge function executed successfully`,
+        `👥 Approval tasks created for relevant steps`,
+        `📊 Check Active Workflows tab for real-time status`,
+        `📋 Check Approval Dashboard for pending approvals`
+      ]);
 
       toast({
-        title: "Real Workflow Executed",
-        description: "Check the Active Workflows tab to see real-time progress",
+        title: "Real Workflow Executed Successfully",
+        description: "Workflow is now active in the system. Check Active Workflows and Approval Dashboard.",
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Real workflow execution failed:', error);
+      
+      const errorMessage = error?.message || error?.toString() || 'Unknown error';
+      setTestResults([
+        `❌ Real workflow execution failed`,
+        `Error: ${errorMessage}`,
+        `Check console for detailed error information`
+      ]);
       
       toast({
         title: "Execution Failed",
-        description: `Failed to execute real workflow: ${error}`,
+        description: `Failed to execute real workflow: ${errorMessage}`,
         variant: "destructive"
       });
     } finally {
