@@ -25,6 +25,21 @@ export interface WorkflowStep {
     timeout_hours?: number;
   };
   depends_on?: string[]; // Step dependencies
+  // Failure handling configuration
+  failure_config?: {
+    retry_attempts?: number;
+    retry_delay_minutes?: number;
+    on_failure: 'terminate' | 'continue' | 'escalate' | 'alternate_path';
+    alternate_step_id?: string; // For alternate_path option
+    escalation_role?: string; // For escalate option
+  };
+  // Approval specific failure handling
+  approval_config?: {
+    on_rejection: 'terminate' | 'escalate' | 'alternate_path' | 'continue';
+    alternate_step_id?: string;
+    escalation_role?: string;
+    require_rejection_reason?: boolean;
+  };
 }
 
 export interface WorkflowTemplate {
@@ -276,27 +291,174 @@ export class WorkflowEngine {
   }
 
   private async processStep(workflow: any, step: WorkflowStep): Promise<void> {
-    switch (step.type) {
-      case 'approval':
-        await this.createApprovalTask(workflow, step);
-        break;
-      case 'notification':
-        await this.createNotificationTask(workflow, step);
-        break;
-      case 'conditional':
-        break;
-      case 'parallel':
-        await this.processParallelStep(workflow, step);
-        break;
-      case 'loop':
-        await this.processLoopStep(workflow, step);
-        break;
-      case 'event':
-        await this.processEventStep(workflow, step);
-        break;
-      default:
-        console.log(`Unknown step type: ${step.type}`);
+    try {
+      await this.executeStepWithRetry(workflow, step);
+    } catch (error) {
+      console.error(`Step ${step.id} failed:`, error);
+      await this.handleStepFailure(workflow, step, error as Error);
     }
+  }
+
+  private async executeStepWithRetry(workflow: any, step: WorkflowStep): Promise<void> {
+    const maxRetries = step.failure_config?.retry_attempts || 0;
+    const retryDelay = step.failure_config?.retry_delay_minutes || 5;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        switch (step.type) {
+          case 'approval':
+            await this.createApprovalTask(workflow, step);
+            break;
+          case 'notification':
+            await this.createNotificationTask(workflow, step);
+            break;
+          case 'conditional':
+            break;
+          case 'parallel':
+            await this.processParallelStep(workflow, step);
+            break;
+          case 'loop':
+            await this.processLoopStep(workflow, step);
+            break;
+          case 'event':
+            await this.processEventStep(workflow, step);
+            break;
+          default:
+            console.log(`Unknown step type: ${step.type}`);
+        }
+        return; // Success, no need to retry
+      } catch (error) {
+        if (attempt < maxRetries) {
+          console.log(`Step ${step.id} failed, retrying in ${retryDelay} minutes (attempt ${attempt + 1}/${maxRetries + 1})`);
+          await this.logWorkflowEvent(
+            workflow.id,
+            step.id,
+            'step_retry',
+            'system',
+            { attempt: attempt + 1, max_retries: maxRetries + 1, error: (error as Error).message }
+          );
+          // In a real implementation, you'd want to schedule the retry
+          // For now, we'll just wait briefly and continue
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } else {
+          throw error; // Max retries exceeded
+        }
+      }
+    }
+  }
+
+  private async handleStepFailure(workflow: any, step: WorkflowStep, error: Error): Promise<void> {
+    const failureAction = step.failure_config?.on_failure || 'terminate';
+
+    await this.logWorkflowEvent(
+      workflow.id,
+      step.id,
+      'step_failed',
+      'system',
+      { 
+        step_name: step.name, 
+        error: error.message, 
+        failure_action: failureAction 
+      }
+    );
+
+    switch (failureAction) {
+      case 'terminate':
+        await this.updateWorkflowStatus(workflow.id, 'failed');
+        await this.logWorkflowEvent(workflow.id, null, 'workflow_terminated', 'system', { 
+          reason: 'Step failure', 
+          failed_step: step.id 
+        });
+        break;
+
+      case 'continue':
+        console.log(`Continuing workflow despite step ${step.id} failure`);
+        break;
+
+      case 'escalate':
+        await this.escalateStepFailure(workflow, step, error);
+        break;
+
+      case 'alternate_path':
+        await this.executeAlternatePath(workflow, step);
+        break;
+    }
+  }
+
+  private async escalateStepFailure(workflow: any, step: WorkflowStep, error: Error): Promise<void> {
+    const escalationRole = step.failure_config?.escalation_role || 'admin';
+
+    // Create escalation record
+    const escalationData = {
+      workflow_id: workflow.id,
+      escalated_from: 'system',
+      escalated_to: escalationRole,
+      escalation_reason: `Step failure: ${error.message}`,
+      status: 'pending'
+    };
+
+    await supabase.from('workflow_escalations').insert(escalationData);
+
+    // Create escalation task
+    const taskData = {
+      workflow_id: workflow.id,
+      step_id: step.id,
+      task_type: 'escalation',
+      assigned_role: escalationRole,
+      status: 'pending',
+      priority: 2,
+      data: {
+        step_name: step.name,
+        error_message: error.message,
+        original_step_id: step.id,
+        workflow_name: workflow.workflow_name
+      }
+    };
+
+    await supabase.from('workflow_tasks').insert(taskData);
+
+    await this.logWorkflowEvent(
+      workflow.id,
+      step.id,
+      'step_escalated',
+      'system',
+      { escalated_to: escalationRole, reason: error.message }
+    );
+  }
+
+  private async executeAlternatePath(workflow: any, step: WorkflowStep): Promise<void> {
+    const alternateStepId = step.failure_config?.alternate_step_id;
+    if (!alternateStepId) {
+      console.warn(`No alternate path defined for step ${step.id}`);
+      return;
+    }
+
+    // Get workflow template to find alternate step
+    const template = await this.getWorkflowTemplate(workflow.workflow_type);
+    if (!template) return;
+
+    const alternateStep = this.findStepById(template.definition.steps, alternateStepId);
+    if (alternateStep) {
+      await this.logWorkflowEvent(
+        workflow.id,
+        step.id,
+        'alternate_path_executed',
+        'system',
+        { alternate_step_id: alternateStepId }
+      );
+      await this.processStep(workflow, alternateStep);
+    }
+  }
+
+  private findStepById(steps: WorkflowStep[], stepId: string): WorkflowStep | null {
+    for (const step of steps) {
+      if (step.id === stepId) return step;
+      if (step.parallel_steps) {
+        const found = this.findStepById(step.parallel_steps, stepId);
+        if (found) return found;
+      }
+    }
+    return null;
   }
 
   private async processParallelStep(workflow: any, step: WorkflowStep): Promise<void> {
@@ -510,11 +672,164 @@ export class WorkflowEngine {
         { comments, step_name: approval.step_name }
       );
 
-      await this.checkWorkflowCompletion(approval.workflow_id!);
+      // Handle approval rejection based on configuration
+      if (decision === 'rejected') {
+        await this.handleApprovalRejection(approval, comments);
+      } else {
+        await this.checkWorkflowCompletion(approval.workflow_id!);
+      }
 
     } catch (error) {
       console.error('Approval processing failed:', error);
       throw error;
+    }
+  }
+
+  private async handleApprovalRejection(approval: any, comments?: string): Promise<void> {
+    // Get workflow template to find approval configuration
+    const { data: workflow } = await supabase
+      .from('workflow_executions')
+      .select('*')
+      .eq('id', approval.workflow_id)
+      .single();
+
+    if (!workflow) return;
+
+    const template = await this.getWorkflowTemplate(workflow.workflow_type);
+    if (!template) return;
+
+    // Find the step configuration
+    const step = this.findStepById(template.definition.steps, approval.step_id);
+    if (!step || !step.approval_config) {
+      // Default behavior: terminate workflow on rejection
+      await this.updateWorkflowStatus(approval.workflow_id, 'failed');
+      await this.logWorkflowEvent(
+        approval.workflow_id,
+        approval.step_id,
+        'workflow_terminated_by_rejection',
+        'system',
+        { step_name: approval.step_name, rejection_reason: comments }
+      );
+      return;
+    }
+
+    const rejectionAction = step.approval_config.on_rejection;
+
+    switch (rejectionAction) {
+      case 'terminate':
+        await this.updateWorkflowStatus(approval.workflow_id, 'failed');
+        await this.logWorkflowEvent(
+          approval.workflow_id,
+          approval.step_id,
+          'workflow_terminated_by_rejection',
+          'system',
+          { step_name: approval.step_name, rejection_reason: comments }
+        );
+        break;
+
+      case 'escalate':
+        await this.escalateRejectedApproval(approval, step, comments);
+        break;
+
+      case 'alternate_path':
+        await this.executeAlternatePathForRejection(approval, step);
+        break;
+
+      case 'continue':
+        // Continue with remaining approvals if any
+        await this.checkWorkflowCompletion(approval.workflow_id);
+        break;
+    }
+  }
+
+  private async escalateRejectedApproval(approval: any, step: WorkflowStep, comments?: string): Promise<void> {
+    const escalationRole = step.approval_config?.escalation_role || 'admin';
+
+    // Create new approval for escalated role
+    const escalatedApprovalData = {
+      workflow_id: approval.workflow_id,
+      step_id: approval.step_id,
+      step_name: approval.step_name,
+      approver_role: escalationRole,
+      status: 'pending' as ApprovalStatus,
+      order_sequence: approval.order_sequence + 1,
+      assigned_at: new Date().toISOString()
+    };
+
+    await supabase.from('workflow_approvals').insert(escalatedApprovalData);
+
+    // Create escalation record
+    const escalationData = {
+      workflow_id: approval.workflow_id,
+      approval_id: approval.id,
+      escalated_from: approval.approver_role,
+      escalated_to: escalationRole,
+      escalation_reason: `Approval rejected: ${comments || 'No reason provided'}`,
+      status: 'pending'
+    };
+
+    await supabase.from('workflow_escalations').insert(escalationData);
+
+    // Create escalation task
+    const taskData = {
+      workflow_id: approval.workflow_id,
+      step_id: approval.step_id,
+      task_type: 'approval',
+      assigned_role: escalationRole,
+      status: 'pending',
+      priority: 2,
+      data: {
+        step_name: approval.step_name,
+        escalated_from: approval.approver_role,
+        rejection_reason: comments,
+        workflow_name: approval.workflow_name
+      }
+    };
+
+    await supabase.from('workflow_tasks').insert(taskData);
+
+    await this.logWorkflowEvent(
+      approval.workflow_id,
+      approval.step_id,
+      'approval_escalated_after_rejection',
+      'system',
+      { 
+        escalated_to: escalationRole, 
+        original_approver: approval.approver_role,
+        rejection_reason: comments 
+      }
+    );
+  }
+
+  private async executeAlternatePathForRejection(approval: any, step: WorkflowStep): Promise<void> {
+    const alternateStepId = step.approval_config?.alternate_step_id;
+    if (!alternateStepId) {
+      console.warn(`No alternate path defined for rejected approval in step ${step.id}`);
+      return;
+    }
+
+    // Get workflow template to find alternate step
+    const { data: workflow } = await supabase
+      .from('workflow_executions')
+      .select('*')
+      .eq('id', approval.workflow_id)
+      .single();
+
+    if (!workflow) return;
+
+    const template = await this.getWorkflowTemplate(workflow.workflow_type);
+    if (!template) return;
+
+    const alternateStep = this.findStepById(template.definition.steps, alternateStepId);
+    if (alternateStep) {
+      await this.logWorkflowEvent(
+        approval.workflow_id,
+        approval.step_id,
+        'alternate_path_executed_after_rejection',
+        'system',
+        { alternate_step_id: alternateStepId, rejection_reason: approval.rejection_reason }
+      );
+      await this.processStep(workflow, alternateStep);
     }
   }
 
