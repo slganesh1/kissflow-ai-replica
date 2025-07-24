@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
+import { aslParser, type ASLStateMachine } from './ASLParser';
 
 type WorkflowStatus = Database['public']['Enums']['workflow_status'];
 type ApprovalStatus = Database['public']['Enums']['approval_status'];
@@ -7,7 +8,7 @@ type ApprovalStatus = Database['public']['Enums']['approval_status'];
 export interface WorkflowStep {
   id: string;
   name: string;
-  type: 'approval' | 'notification' | 'conditional' | 'parallel' | 'loop' | 'event';
+  type: 'approval' | 'notification' | 'conditional' | 'parallel' | 'loop' | 'event' | 'wait' | 'task';
   role?: string;
   conditions?: Array<{
     field: string;
@@ -25,14 +26,47 @@ export interface WorkflowStep {
     timeout_hours?: number;
   };
   depends_on?: string[]; // Step dependencies
+  
+  // ASL-specific properties
+  next_step?: string;
+  end?: boolean;
+  resource?: string;
+  parameters?: any;
+  result_path?: string;
+  output_path?: string;
+  input_path?: string;
+  
+  // Wait configuration
+  wait_config?: {
+    seconds?: number;
+    timestamp?: string;
+    seconds_path?: string;
+    timestamp_path?: string;
+  };
+  
+  // Map configuration  
+  map_config?: {
+    iterator_steps?: WorkflowStep[];
+    items_path?: string;
+    max_concurrency?: number;
+  };
+  
   // Failure handling configuration
   failure_config?: {
     retry_attempts?: number;
     retry_delay_minutes?: number;
+    retry_delay_seconds?: number;
+    backoff_rate?: number;
     on_failure: 'terminate' | 'continue' | 'escalate' | 'alternate_path';
     alternate_step_id?: string; // For alternate_path option
     escalation_role?: string; // For escalate option
+    catch_handlers?: Array<{
+      error_types: string[];
+      next_step: string;
+      result_path?: string;
+    }>;
   };
+  
   // Approval specific failure handling
   approval_config?: {
     on_rejection: 'terminate' | 'escalate' | 'alternate_path' | 'continue';
@@ -917,6 +951,405 @@ export class WorkflowEngine {
     }
 
     return data || [];
+  }
+
+  /**
+   * Create workflow template from ASL definition
+   */
+  async createWorkflowFromASL(
+    aslDefinition: ASLStateMachine,
+    name: string,
+    type: string
+  ): Promise<string> {
+    // Validate ASL definition
+    const validation = aslParser.validateASL(aslDefinition);
+    if (!validation.valid) {
+      throw new Error(`Invalid ASL definition: ${validation.errors.join(', ')}`);
+    }
+
+    // Convert ASL to internal workflow format
+    const steps = aslParser.parseASLWorkflow(aslDefinition);
+    
+    // Create workflow template
+    const templateData = {
+      name,
+      type,
+      definition: {
+        steps,
+        execution_mode: 'sequential', // ASL is inherently sequential with state transitions
+        global_timeout_hours: aslDefinition.TimeoutSeconds ? 
+          Math.ceil(aslDefinition.TimeoutSeconds / 3600) : undefined,
+        asl_definition: aslDefinition // Store original ASL for reference
+      } as any,
+      active: true
+    };
+
+    const { data, error } = await supabase
+      .from('workflow_templates')
+      .insert(templateData)
+      .select('id')
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to create workflow template: ${error.message}`);
+    }
+
+    return data.id;
+  }
+
+  /**
+   * Execute workflow from ASL definition directly
+   */
+  async executeASLWorkflow(
+    aslDefinition: ASLStateMachine,
+    requestData: any,
+    workflowName: string,
+    submitterName: string = 'system'
+  ): Promise<string> {
+    // Validate ASL
+    const validation = aslParser.validateASL(aslDefinition);
+    if (!validation.valid) {
+      throw new Error(`Invalid ASL definition: ${validation.errors.join(', ')}`);
+    }
+
+    // Create workflow execution record
+    const executionData = {
+      workflow_name: workflowName,
+      workflow_type: 'asl_direct',
+      submitter_name: submitterName,
+      request_data: requestData,
+      status: 'pending' as WorkflowStatus
+    };
+
+    const { data: execution, error: executionError } = await supabase
+      .from('workflow_executions')
+      .insert(executionData)
+      .select('id')
+      .single();
+
+    if (executionError) {
+      throw new Error(`Failed to create workflow execution: ${executionError.message}`);
+    }
+
+    // Convert ASL to internal format and execute
+    const steps = aslParser.parseASLWorkflow(aslDefinition);
+    await this.executeASLSteps(execution.id, steps, requestData);
+
+    return execution.id;
+  }
+
+  /**
+   * Process ASL-converted workflow steps with proper state transitions
+   */
+  private async executeASLSteps(
+    workflowId: string,
+    steps: WorkflowStep[],
+    requestData: any
+  ): Promise<void> {
+    // Update workflow status
+    await this.updateWorkflowStatus(workflowId, 'in_progress');
+
+    // Execute steps following ASL state transition logic
+    const stepMap = new Map(steps.map(step => [step.id, step]));
+    let currentStepId = steps[0]?.id; // Start with first step
+
+    while (currentStepId) {
+      const currentStep = stepMap.get(currentStepId);
+      if (!currentStep) {
+        console.error(`Step ${currentStepId} not found`);
+        break;
+      }
+
+      console.log(`Executing ASL step: ${currentStep.id} (${currentStep.type})`);
+
+      try {
+        // Process the current step
+        await this.processASLStep(workflowId, currentStep, requestData);
+
+        // Determine next step based on ASL logic
+        currentStepId = await this.getNextASLStep(currentStep, requestData, stepMap);
+
+        // Check if workflow should end
+        if (currentStep.end || !currentStepId) {
+          await this.updateWorkflowStatus(workflowId, 'completed');
+          await this.logWorkflowEvent(workflowId, null, 'workflow_completed', 'system', {});
+          break;
+        }
+      } catch (error) {
+        console.error(`ASL step ${currentStep.id} failed:`, error);
+        
+        // Handle error using ASL catch handlers if available
+        const nextStep = await this.handleASLStepError(
+          workflowId,
+          currentStep,
+          error as Error,
+          stepMap
+        );
+        
+        if (nextStep) {
+          currentStepId = nextStep;
+        } else {
+          await this.updateWorkflowStatus(workflowId, 'failed');
+          break;
+        }
+      }
+    }
+  }
+
+  /**
+   * Process individual ASL step
+   */
+  private async processASLStep(
+    workflowId: string,
+    step: WorkflowStep,
+    requestData: any
+  ): Promise<void> {
+    await this.logWorkflowEvent(
+      workflowId,
+      step.id,
+      'asl_step_started',
+      'system',
+      { step_name: step.name, step_type: step.type }
+    );
+
+    switch (step.type) {
+      case 'task':
+        await this.processASLTaskStep(workflowId, step, requestData);
+        break;
+      case 'wait':
+        await this.processASLWaitStep(workflowId, step);
+        break;
+      case 'conditional':
+        // Choice logic is handled in getNextASLStep
+        break;
+      case 'parallel':
+        await this.processASLParallelStep(workflowId, step, requestData);
+        break;
+      case 'loop': // Map state
+        await this.processASLMapStep(workflowId, step, requestData);
+        break;
+      case 'notification': // Pass state
+        await this.processASLPassStep(workflowId, step);
+        break;
+      default:
+        // Handle as regular workflow step
+        await this.processStep({ id: workflowId, request_data: requestData }, step);
+    }
+
+    await this.logWorkflowEvent(
+      workflowId,
+      step.id,
+      'asl_step_completed',
+      'system',
+      { step_name: step.name }
+    );
+  }
+
+  private async processASLTaskStep(workflowId: string, step: WorkflowStep, requestData: any): Promise<void> {
+    // For ASL Task states, we can execute the resource (e.g., Lambda function, API call)
+    // For now, we'll treat it as a generic task
+    
+    const taskData = {
+      workflow_id: workflowId,
+      step_id: step.id,
+      task_type: 'asl_task',
+      status: 'completed',
+      priority: 1,
+      data: {
+        step_name: step.name,
+        resource: step.resource,
+        parameters: step.parameters,
+        request_data: requestData
+      },
+      completed_at: new Date().toISOString()
+    };
+
+    await supabase.from('workflow_tasks').insert(taskData);
+  }
+
+  private async processASLWaitStep(workflowId: string, step: WorkflowStep): Promise<void> {
+    const waitConfig = step.wait_config;
+    if (!waitConfig) return;
+
+    let waitUntil: Date | null = null;
+
+    if (waitConfig.seconds) {
+      waitUntil = new Date(Date.now() + waitConfig.seconds * 1000);
+    } else if (waitConfig.timestamp) {
+      waitUntil = new Date(waitConfig.timestamp);
+    }
+
+    const taskData = {
+      workflow_id: workflowId,
+      step_id: step.id,
+      task_type: 'asl_wait',
+      status: 'pending',
+      priority: 1,
+      data: {
+        step_name: step.name,
+        wait_until: waitUntil?.toISOString(),
+        wait_config: waitConfig
+      },
+      deadline: waitUntil?.toISOString()
+    };
+
+    await supabase.from('workflow_tasks').insert(taskData);
+  }
+
+  private async processASLParallelStep(
+    workflowId: string,
+    step: WorkflowStep,
+    requestData: any
+  ): Promise<void> {
+    if (!step.parallel_steps || step.parallel_steps.length === 0) return;
+
+    // Execute all parallel branches
+    const parallelPromises = step.parallel_steps.map(async (parallelStep) => {
+      await this.processASLStep(workflowId, parallelStep, requestData);
+    });
+
+    await Promise.all(parallelPromises);
+  }
+
+  private async processASLMapStep(
+    workflowId: string,
+    step: WorkflowStep,
+    requestData: any
+  ): Promise<void> {
+    const mapConfig = step.map_config;
+    if (!mapConfig || !mapConfig.iterator_steps) return;
+
+    // Get the array to iterate over
+    const itemsPath = mapConfig.items_path || 'items';
+    const items = requestData[itemsPath] || [];
+
+    // Process each item with the iterator steps
+    const maxConcurrency = mapConfig.max_concurrency || items.length;
+    const chunks = this.chunkArray(items, maxConcurrency);
+
+    for (const chunk of chunks) {
+      const promises = chunk.map(async (item, index) => {
+        // Create a new context for this iteration
+        const iterationData = { ...requestData, item, index };
+        
+        // Execute iterator steps for this item
+        for (const iteratorStep of mapConfig.iterator_steps!) {
+          await this.processASLStep(workflowId, iteratorStep, iterationData);
+        }
+      });
+
+      await Promise.all(promises);
+    }
+  }
+
+  private chunkArray<T>(array: T[], chunkSize: number): T[][] {
+    const chunks: T[][] = [];
+    for (let i = 0; i < array.length; i += chunkSize) {
+      chunks.push(array.slice(i, i + chunkSize));
+    }
+    return chunks;
+  }
+
+  private async processASLPassStep(workflowId: string, step: WorkflowStep): Promise<void> {
+    // Pass state just passes input to output, possibly transforming it
+    // For now, we'll just log it
+    await this.logWorkflowEvent(
+      workflowId,
+      step.id,
+      'asl_pass_executed',
+      'system',
+      { step_name: step.name, parameters: step.parameters }
+    );
+  }
+
+  /**
+   * Determine next step in ASL workflow
+   */
+  private async getNextASLStep(
+    currentStep: WorkflowStep,
+    requestData: any,
+    stepMap: Map<string, WorkflowStep>
+  ): Promise<string | null> {
+    // If step has explicit next_step, use it
+    if (currentStep.next_step) {
+      return currentStep.next_step;
+    }
+
+    // If it's a choice step, evaluate conditions
+    if (currentStep.type === 'conditional' && currentStep.conditions) {
+      for (const condition of currentStep.conditions) {
+        if (this.evaluateStepConditions(currentStep, requestData)) {
+          return currentStep.next_step || null;
+        }
+      }
+    }
+
+    // If step is marked as end, return null to stop execution
+    if (currentStep.end) {
+      return null;
+    }
+
+    return null;
+  }
+
+  /**
+   * Handle ASL step errors using catch handlers
+   */
+  private async handleASLStepError(
+    workflowId: string,
+    step: WorkflowStep,
+    error: Error,
+    stepMap: Map<string, WorkflowStep>
+  ): Promise<string | null> {
+    const catchHandlers = step.failure_config?.catch_handlers;
+    
+    if (!catchHandlers || catchHandlers.length === 0) {
+      // No catch handlers, workflow fails
+      await this.logWorkflowEvent(
+        workflowId,
+        step.id,
+        'asl_step_error_unhandled',
+        'system',
+        { error: error.message, step_name: step.name }
+      );
+      return null;
+    }
+
+    // Find matching catch handler
+    for (const handler of catchHandlers) {
+      if (handler.error_types.includes('States.ALL') || 
+          handler.error_types.includes(error.constructor.name)) {
+        
+        await this.logWorkflowEvent(
+          workflowId,
+          step.id,
+          'asl_error_caught',
+          'system',
+          { 
+            error: error.message, 
+            handler_types: handler.error_types,
+            next_step: handler.next_step 
+          }
+        );
+
+        return handler.next_step;
+      }
+    }
+
+    // No matching handler found
+    return null;
+  }
+
+  /**
+   * Convert workflow template to ASL format
+   */
+  async exportWorkflowAsASL(workflowType: string): Promise<ASLStateMachine> {
+    const template = await this.getWorkflowTemplate(workflowType);
+    if (!template) {
+      throw new Error(`Workflow template not found: ${workflowType}`);
+    }
+
+    return aslParser.convertWorkflowToASL(template.definition.steps, template.name);
   }
 }
 
