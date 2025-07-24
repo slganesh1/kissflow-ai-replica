@@ -1,10 +1,12 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
-import { Activity, Bot, Clock, TrendingUp, Workflow, CheckCircle, AlertCircle, Users } from 'lucide-react';
+import { Activity, Bot, Clock, TrendingUp, Workflow, CheckCircle, AlertCircle, Users, Code } from 'lucide-react';
+import { ASLWorkflowDemo } from '@/components/ASLWorkflowDemo';
 
 const workflowData = [
   { name: 'Jan', active: 65, completed: 80 },
@@ -23,6 +25,22 @@ const agentData = [
 ];
 
 export const Dashboard = () => {
+  const [showASLDemo, setShowASLDemo] = useState(false);
+
+  if (showASLDemo) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold">ASL Workflow Testing</h1>
+          <Button onClick={() => setShowASLDemo(false)} variant="outline">
+            Back to Dashboard
+          </Button>
+        </div>
+        <ASLWorkflowDemo />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       {/* Key Metrics */}
@@ -71,6 +89,38 @@ export const Dashboard = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* ASL Testing Section */}
+      <Card className="bg-gradient-to-br from-indigo-50 to-indigo-100 border-indigo-200">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-indigo-800">
+            <Code className="h-5 w-5" />
+            Amazon States Language (ASL) Testing
+          </CardTitle>
+          <CardDescription className="text-indigo-600">
+            Test and validate ASL workflow definitions with our interactive demo
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-indigo-700 mb-2">
+                Create, validate, and execute workflows using industry-standard ASL format
+              </p>
+              <Badge variant="secondary" className="bg-indigo-100 text-indigo-800">
+                Industry Standard
+              </Badge>
+            </div>
+            <Button 
+              onClick={() => setShowASLDemo(true)}
+              className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600"
+            >
+              <Code className="w-4 h-4 mr-2" />
+              Test ASL Workflows
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
