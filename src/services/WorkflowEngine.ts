@@ -7,13 +7,24 @@ type ApprovalStatus = Database['public']['Enums']['approval_status'];
 export interface WorkflowStep {
   id: string;
   name: string;
-  type: 'approval' | 'notification' | 'conditional';
+  type: 'approval' | 'notification' | 'conditional' | 'parallel' | 'loop' | 'event';
   role?: string;
   conditions?: Array<{
     field: string;
     operator: string;
     value: any;
   }>;
+  // Enhanced workflow pattern support
+  parallel_steps?: WorkflowStep[]; // For parallel execution
+  loop_config?: {
+    max_iterations: number;
+    condition: { field: string; operator: string; value: any };
+  };
+  event_config?: {
+    event_type: string;
+    timeout_hours?: number;
+  };
+  depends_on?: string[]; // Step dependencies
 }
 
 export interface WorkflowTemplate {
@@ -22,6 +33,8 @@ export interface WorkflowTemplate {
   type: string;
   definition: {
     steps: WorkflowStep[];
+    execution_mode?: 'sequential' | 'parallel' | 'conditional' | 'hybrid';
+    global_timeout_hours?: number;
   };
 }
 
@@ -128,7 +141,11 @@ export class WorkflowEngine {
       id: data.id,
       name: data.name,
       type: data.type,
-      definition: data.definition as unknown as { steps: WorkflowStep[] }
+      definition: {
+        steps: (data.definition as any)?.steps || [],
+        execution_mode: (data.definition as any)?.execution_mode || 'sequential',
+        global_timeout_hours: (data.definition as any)?.global_timeout_hours
+      }
     };
 
     return template;
@@ -136,7 +153,24 @@ export class WorkflowEngine {
 
   private async processWorkflowSteps(workflow: any, template: WorkflowTemplate): Promise<void> {
     const steps = template.definition.steps;
+    const executionMode = template.definition.execution_mode || 'sequential';
     
+    switch (executionMode) {
+      case 'parallel':
+        await this.processParallelSteps(workflow, steps);
+        break;
+      case 'conditional':
+        await this.processConditionalSteps(workflow, steps);
+        break;
+      case 'hybrid':
+        await this.processHybridSteps(workflow, steps);
+        break;
+      default:
+        await this.processSequentialSteps(workflow, steps);
+    }
+  }
+
+  private async processSequentialSteps(workflow: any, steps: WorkflowStep[]): Promise<void> {
     for (const step of steps) {
       console.log(`Processing step: ${step.id} for workflow: ${workflow.id}`);
       
@@ -147,6 +181,69 @@ export class WorkflowEngine {
 
       await this.processStep(workflow, step);
     }
+  }
+
+  private async processParallelSteps(workflow: any, steps: WorkflowStep[]): Promise<void> {
+    const parallelPromises = steps
+      .filter(step => this.evaluateStepConditions(step, workflow.request_data))
+      .map(step => this.processStep(workflow, step));
+    
+    await Promise.all(parallelPromises);
+  }
+
+  private async processConditionalSteps(workflow: any, steps: WorkflowStep[]): Promise<void> {
+    for (const step of steps) {
+      if (this.evaluateStepConditions(step, workflow.request_data)) {
+        console.log(`Conditional step ${step.id} conditions met, executing`);
+        await this.processStep(workflow, step);
+        break; // Execute only first matching condition
+      }
+    }
+  }
+
+  private async processHybridSteps(workflow: any, steps: WorkflowStep[]): Promise<void> {
+    // Group steps by dependencies and parallel groups
+    const stepGroups = this.groupStepsByDependencies(steps);
+    
+    for (const group of stepGroups) {
+      if (group.length === 1) {
+        const step = group[0];
+        if (this.evaluateStepConditions(step, workflow.request_data)) {
+          await this.processStep(workflow, step);
+        }
+      } else {
+        // Process parallel group
+        const parallelPromises = group
+          .filter(step => this.evaluateStepConditions(step, workflow.request_data))
+          .map(step => this.processStep(workflow, step));
+        
+        await Promise.all(parallelPromises);
+      }
+    }
+  }
+
+  private groupStepsByDependencies(steps: WorkflowStep[]): WorkflowStep[][] {
+    // Simple grouping logic - can be enhanced based on dependencies
+    const groups: WorkflowStep[][] = [];
+    let currentGroup: WorkflowStep[] = [];
+    
+    for (const step of steps) {
+      if (step.type === 'parallel' || (step.parallel_steps && step.parallel_steps.length > 0)) {
+        if (currentGroup.length > 0) {
+          groups.push([...currentGroup]);
+          currentGroup = [];
+        }
+        groups.push(step.parallel_steps || [step]);
+      } else {
+        currentGroup.push(step);
+      }
+    }
+    
+    if (currentGroup.length > 0) {
+      groups.push(currentGroup);
+    }
+    
+    return groups;
   }
 
   private evaluateStepConditions(step: WorkflowStep, requestData: any): boolean {
@@ -188,9 +285,110 @@ export class WorkflowEngine {
         break;
       case 'conditional':
         break;
+      case 'parallel':
+        await this.processParallelStep(workflow, step);
+        break;
+      case 'loop':
+        await this.processLoopStep(workflow, step);
+        break;
+      case 'event':
+        await this.processEventStep(workflow, step);
+        break;
       default:
         console.log(`Unknown step type: ${step.type}`);
     }
+  }
+
+  private async processParallelStep(workflow: any, step: WorkflowStep): Promise<void> {
+    if (step.parallel_steps && step.parallel_steps.length > 0) {
+      const parallelPromises = step.parallel_steps.map(parallelStep => 
+        this.processStep(workflow, parallelStep)
+      );
+      await Promise.all(parallelPromises);
+    }
+    
+    await this.logWorkflowEvent(
+      workflow.id,
+      step.id,
+      'parallel_step_completed',
+      'system',
+      { step_name: step.name, parallel_count: step.parallel_steps?.length || 0 }
+    );
+  }
+
+  private async processLoopStep(workflow: any, step: WorkflowStep): Promise<void> {
+    const loopConfig = step.loop_config;
+    if (!loopConfig) return;
+
+    let iteration = 0;
+    let shouldContinue = true;
+
+    while (shouldContinue && iteration < loopConfig.max_iterations) {
+      iteration++;
+      console.log(`Loop step ${step.id} - iteration ${iteration}`);
+
+      // Process the loop content (could be sub-steps)
+      await this.logWorkflowEvent(
+        workflow.id,
+        step.id,
+        'loop_iteration',
+        'system',
+        { iteration, step_name: step.name }
+      );
+
+      // Check loop condition
+      shouldContinue = this.evaluateStepConditions(
+        { ...step, conditions: [loopConfig.condition] },
+        workflow.request_data
+      );
+    }
+
+    await this.logWorkflowEvent(
+      workflow.id,
+      step.id,
+      'loop_completed',
+      'system',
+      { total_iterations: iteration, step_name: step.name }
+    );
+  }
+
+  private async processEventStep(workflow: any, step: WorkflowStep): Promise<void> {
+    const eventConfig = step.event_config;
+    if (!eventConfig) return;
+
+    // Create event waiting task
+    const taskData = {
+      workflow_id: workflow.id,
+      step_id: step.id,
+      task_type: 'event_wait',
+      status: 'pending',
+      priority: 1,
+      data: {
+        step_name: step.name,
+        event_type: eventConfig.event_type,
+        timeout_hours: eventConfig.timeout_hours || 24,
+        workflow_name: workflow.workflow_name
+      },
+      deadline: eventConfig.timeout_hours ? 
+        new Date(Date.now() + eventConfig.timeout_hours * 60 * 60 * 1000).toISOString() : 
+        null
+    };
+
+    const { error } = await supabase
+      .from('workflow_tasks')
+      .insert(taskData);
+
+    if (error) {
+      console.error('Failed to create event task:', error);
+    }
+
+    await this.logWorkflowEvent(
+      workflow.id,
+      step.id,
+      'event_wait_created',
+      'system',
+      { event_type: eventConfig.event_type, step_name: step.name }
+    );
   }
 
   private async createApprovalTask(workflow: any, step: WorkflowStep): Promise<void> {
