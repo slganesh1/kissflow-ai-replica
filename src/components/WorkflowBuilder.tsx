@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Play, Save, Settings, Bot, Mail, FileText, Database, Zap, ArrowRight, Clock, Sparkles, Activity, Users, Brain, TrendingUp, BarChart3, UserCheck, Download, Package } from 'lucide-react';
+import { Plus, Play, Save, Settings, Bot, Mail, FileText, Database, Zap, ArrowRight, Clock, Sparkles, Activity, Users, Brain, TrendingUp, BarChart3, UserCheck, Download, Package, Code } from 'lucide-react';
 import { toast } from 'sonner';
 import { AIWorkflowGenerator } from './AIWorkflowGenerator';
 import { ActiveWorkflows } from './ActiveWorkflows';
@@ -16,6 +16,7 @@ import { AgentCoordinator } from './AgentCoordinator';
 import { ContinuousOptimizer } from './ContinuousOptimizer';
 import { ApproverHierarchy } from './ApproverHierarchy';
 import { WorkflowExportModal } from './WorkflowExportModal';
+import { ASLWorkflowDemo } from './ASLWorkflowDemo';
 
 const workflowTemplates = [
   {
@@ -366,7 +367,7 @@ export const WorkflowBuilder = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="grid w-full grid-cols-7 bg-white/60 backdrop-blur-sm border border-white/20 shadow-lg rounded-xl p-1">
+        <TabsList className="grid w-full grid-cols-8 bg-white/60 backdrop-blur-sm border border-white/20 shadow-lg rounded-xl p-1">
           <TabsTrigger value="ai-generator" className="flex items-center space-x-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-pink-500 data-[state=active]:to-violet-500 data-[state=active]:text-white rounded-lg transition-all duration-300">
             <Sparkles className="h-4 w-4" />
             <span>AI Generator</span>
@@ -391,6 +392,10 @@ export const WorkflowBuilder = () => {
           <TabsTrigger value="approvers" className="flex items-center space-x-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-500 data-[state=active]:text-white rounded-lg transition-all duration-300">
             <UserCheck className="h-4 w-4" />
             <span>Approvers</span>
+          </TabsTrigger>
+          <TabsTrigger value="asl" className="flex items-center space-x-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-500 data-[state=active]:to-purple-500 data-[state=active]:text-white rounded-lg transition-all duration-300">
+            <Code className="h-4 w-4" />
+            <span>ASL</span>
           </TabsTrigger>
         </TabsList>
 
@@ -470,6 +475,10 @@ export const WorkflowBuilder = () => {
 
         <TabsContent value="approvers">
           <ApproverHierarchy />
+        </TabsContent>
+
+        <TabsContent value="asl">
+          <ASLWorkflowDemo />
         </TabsContent>
       </Tabs>
 
