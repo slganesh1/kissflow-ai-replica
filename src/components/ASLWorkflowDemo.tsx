@@ -10,7 +10,28 @@ import { aslParser, type ASLStateMachine } from '@/services/ASLParser';
 import { CheckCircle, XCircle, Clock, Play, FileText, Code } from 'lucide-react';
 
 export function ASLWorkflowDemo() {
-  const [aslDefinition, setAslDefinition] = useState('');
+  const [aslDefinition, setAslDefinition] = useState(`{
+  "Comment": "Simple approval workflow example",
+  "StartAt": "RequestApproval",
+  "States": {
+    "RequestApproval": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::approval",
+      "Parameters": {
+        "approver": "manager",
+        "message": "Please approve this request"
+      },
+      "Next": "SendNotification"
+    },
+    "SendNotification": {
+      "Type": "Pass",
+      "Parameters": {
+        "message": "Request has been processed"
+      },
+      "End": true
+    }
+  }
+}`);
   const [validationResult, setValidationResult] = useState<{ valid: boolean; errors: string[] } | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
   const [executionResult, setExecutionResult] = useState<string>('');
