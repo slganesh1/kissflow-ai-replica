@@ -7,7 +7,9 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { workflowEngine } from '@/services/WorkflowEngine';
 import { aslParser, type ASLStateMachine } from '@/services/ASLParser';
-import { CheckCircle, XCircle, Clock, Play, FileText, Code } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { CheckCircle, XCircle, Clock, Play, FileText, Code, Wand2 } from 'lucide-react';
 
 export function ASLWorkflowDemo() {
   const [aslDefinition, setAslDefinition] = useState(`{
@@ -32,6 +34,8 @@ export function ASLWorkflowDemo() {
     }
   }
 }`);
+  const [businessProcess, setBusinessProcess] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
   const [validationResult, setValidationResult] = useState<{ valid: boolean; errors: string[] } | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
   const [executionResult, setExecutionResult] = useState<string>('');
@@ -209,6 +213,34 @@ export function ASLWorkflowDemo() {
     }
   };
 
+  const generateASLFromText = async () => {
+    if (!businessProcess.trim()) {
+      toast.error('Please enter a business process description');
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-asl-workflow', {
+        body: { businessProcess }
+      });
+
+      if (error) throw error;
+
+      setAslDefinition(JSON.stringify(data.aslWorkflow, null, 2));
+      toast.success('ASL workflow generated successfully!');
+      
+      // Auto-validate the generated workflow
+      const result = aslParser.validateASL(data.aslWorkflow);
+      setValidationResult(result);
+    } catch (error) {
+      console.error('Error generating ASL workflow:', error);
+      toast.error('Failed to generate ASL workflow');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const validateASL = () => {
     try {
       const asl: ASLStateMachine = JSON.parse(aslDefinition);
@@ -286,12 +318,43 @@ export function ASLWorkflowDemo() {
               <div className="space-y-4">
                 <div>
                   <label className="text-sm font-medium mb-2 block">
+                    Generate ASL from Business Process
+                  </label>
+                  <div className="space-y-4">
+                    <Textarea
+                      placeholder="Describe your business process in plain English (e.g., 'Employee expense approval workflow that requires manager approval for amounts over $500')"
+                      value={businessProcess}
+                      onChange={(e) => setBusinessProcess(e.target.value)}
+                      className="min-h-[100px]"
+                    />
+                    <Button 
+                      onClick={generateASLFromText}
+                      disabled={isGenerating || !businessProcess.trim()}
+                      className="w-full"
+                    >
+                      {isGenerating ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                          Generating ASL Workflow...
+                        </>
+                      ) : (
+                        <>
+                          <Wand2 className="h-4 w-4 mr-2" />
+                          Generate ASL Workflow with AI
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-2 block">
                     ASL Definition (JSON)
                   </label>
                   <Textarea
                     value={aslDefinition}
                     onChange={(e) => setAslDefinition(e.target.value)}
-                    placeholder="Paste your ASL definition here..."
+                    placeholder="Generated ASL definition will appear here or enter manually..."
                     className="min-h-[300px] font-mono text-sm"
                   />
                 </div>
